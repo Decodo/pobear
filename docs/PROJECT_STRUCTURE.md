@@ -1,0 +1,105 @@
+## Project architecture
+- Core - Go project with all scraping and crawling logic, this part is what is doing the heavy lifting, managing requests, throttling, concurrency, dedupe, understanding job specs and executing them - in simple terms “business logic” is here
+- CLI - terminal tool interface to use Core, this part prints pretty “UI” in the terminal - “frontend” for the tool.
+- RPC layer - Since we want to use this same logic for any SDK we might create, we’d want a way to communicate between specific programming language and core, this part should not be seen by the user. It’ll work as a separate CLI that will accept a slightly modified job spec, stream the progress and then output final response.
+- SDKs - Bindings, any number of SDKs with desired languages, a small interface to interact with RPC layer.
+
+### Project structure
+```
+/cmd
+  /core
+    main.go                       // builds the single `pobear` binary: wires cli, rpc and core services together (incl. the hidden `__rpc` subcommand)
+
+/pkg
+  /jobspec                        // job spec document (JOB_SPEC_REFERENCE.md): types + validation, shared by every front end and by Core
+  /provider                       // provider manifest document (PROVIDER_REFERENCE.md): types + validation, shared by providerator (CLI) and the `provider` fetch tier (Core)
+    template.go                    // renders a template's request.body/request.query Go-templates against .URL/.Options.<name>, and resolves which of a manifest's declared templates applies (fetch.template) — its own file since template resolution is complex enough to reason about separately from the rest of the manifest shape
+  /credentials                    // shared provider-credential store (POBEAR_PROVIDER_<NAME>_<CREDENTIAL> / ~/.pobear/credentials) — written by cli/internal/providerator's provider-auth.go, read by core's provider fetch tier at request time
+  /fault                          // the fault-kind taxonomy (auth/network/timeout/http/blocked/rateLimit/provider + job-level spec/parse/plugin) — what a manifest's errors[] classifies a response into, and what fetch's rungs (retry-escalation) and exitcode both key off of
+  /exitcode                       // maps a finished job's outcome (via pkg/fault) to the CLI's process exit code (0/2/3/4/5)
+  /plugin                         // the `plugin` stage channel — kept global since it's meant for whatever plugins we allow creating, not specific to one stage implementation
+    pluginer.go                    // entry point core/internal/stage/stages/plugin.go calls: resolves a registered id and dispatches the callback; enforces limits.pluginConcurrency/limits.pluginTimeout
+    registry.go                    // tracks which plugin ids are currently registered by the connected RPC host
+    caller.go                      // the interface pluginer dispatches through — implemented by services/rpc/internal/streamer and injected, since pkg can't import services/rpc/internal directly
+
+/services
+  /core                          // "Core" container in the diagram — the one engine that executes a spec, regardless of which front end produced it
+    service.go
+    /internal
+      /job
+        parser.go                 // job-parser: load-time validation of a spec (§8) before anything runs
+        executor.go                // job-executor: run loop — walks the source (urls or crawl frontier), enforces limits, dispatches to a worker
+        /workers                   // the different things job-executor can dispatch a unit of work to
+          scrape.go                 // scrape (Core worker): base per-URL pipeline — fetch -> stage -> sink one item
+          /crawl
+            crawl.go                 // crawl (Core worker): scrape + frontier logic (depth/maxPages/maxDuration/scope/include/exclude/sitemap/robots)
+            dedupe.go                // tracks URLs already fetched/queued this crawl so a re-discovered link isn't fetched or queued twice — mentioned in the architecture notes above but not yet a job spec field; needs designing
+      /fetch
+        fetcher.go                 // fetcher: dispatches to whichever tier fetch.use selects; enforces limits.concurrency; on failure, consults rungs.go to decide whether to escalate to a different tier
+        throttle.go                 // enforces limits.rps; crawl's own frontier scheduling paces through this too, so a crawl and the scrape it drives share one rate limit
+        rungs.go                    // the escalation ladder: given a pkg/fault outcome from the current tier (e.g. local blocked), decides whether to retry the same tier or step up a rung (local -> proxy -> provider) before limits.retries is exhausted
+        /tiers                      // the different tiers fetcher can dispatch to
+          local.go                   // fetch tier: direct HTTP fetch with a TLS fingerprint profile (chrome/firefox/safari)
+          proxy.go                   // proxy tier: fetch routed through a user-supplied proxy URL
+          provider.go                // provider tier: fetch via a named manifest — auth (via pkg/credentials), request templating (via pkg/provider), response JSONPath extraction, error-kind mapping (via pkg/fault)
+      /stage
+        stager.go                  // stager: runs the `stages` pipeline over a fetched item, in declared order, dispatching each to its implementation; also owns the data-key-collision warning when two stages write the same key
+        /stages                     // the different stage implementations stager can dispatch to — this is the "stage" interface from the diagram
+          raw.go                      // `raw` stage -> data.raw: the untouched body
+          markdown.go                 // `markdown` stage -> data.markdown
+          css.go                      // `css` stage -> data[name] per selector(@attr)
+          plugin.go                   // `plugin` stage: thin adapter into pkg/plugin's pluginer; only legal under __rpc (JOB_SPEC_REFERENCE §6)
+      /sink
+        sinker.go                  // sinker: reads sink.use and dispatches a finished item to whichever sink implementation is selected
+        /sinks                      // the different sink implementations sinker can dispatch to — this is the "sink" interface from the diagram
+          stdout.go                   // stdout sink (default): streams NDJSON to stdout
+          ndjson.go                   // ndjson sink: streams NDJSON to sink.path as items complete
+          json.go                     // json sink: buffers every item, writes one JSON array to sink.path on completion
+          stream.go                   // stream sink: used when a job is running over RPC — pushes items to the RPC streamer instead of a local file/stdout
+
+  /cli                           // "CLI" container in the diagram
+    service.go                    // Commander: parses argv, routes to a subcommand; maps a finished job's outcome to a process exit code via pkg/exitcode
+    /internal
+      /command
+        version.go                  // `pobear version` — no deps, just prints the binary version
+        scrape.go                  // `pobear scrape <url|file>` — flags -> jobgen
+        crawl.go                   // `pobear crawl <url>` — everything scrape has, plus crawl-only flags -> jobgen
+        run.go                     // `pobear run <job.yaml|->` — parses an already-complete spec directly, skips jobgen
+        providers.go                // `pobear providers [name]` — reads providerator
+        auth.go                     // `pobear auth <provider>` — calls providerator's provider-auth.go
+        // note: these are CLI *subcommands* (flag parsing only) — distinct from services/core/internal/job/workers' scrape.go/crawl.go, which are the actual fetch/stage/sink workers. Same names, different layer.
+      /jobgen
+        jobgen.go                  // job-generator (CLI-side): flags (or wizard form state) -> a validated job spec; what --print-spec prints
+      /providerator
+        providerator.go            // providerator: loads/validates installed manifests, answers "what fields does provider X accept" for providers/auth/wizard/--opt validation
+        provider-auth.go            // validates the provider name via providerator, then reads/writes its credential through pkg/credentials — what `pobear auth <provider>` and the wizard's inline "no credential" prompt call into
+      /wizard
+        tui.go                     // terminal-ui: `pobear wizard` (or bare `pobear`) full-screen reactive form; calls providerator for live field swapping, hands result to jobgen
+
+  /rpc                           // "RPC" container in the diagram — now drawn nested inside a larger "SDK" frame together with SDK bindings, with an explicit SDK bindings -> RPC arrow; still lives in the `pobear` binary (services/rpc), not in /sdk's per-language packages, since it's the hidden `pobear __rpc` subcommand SDKs spawn; a distinct adapter pair from the CLI's, not a re-use of it
+    service.go                    // communicator: speaks the __rpc wire protocol (JSON over stdin/stdout) to whatever spawned this subprocess; implements pkg/plugin's caller interface
+    /internal
+      /jobgen
+        jobgen.go                  // job-generator (RPC-side): wire-protocol params -> a validated job spec — separate implementation from cli/internal/jobgen, same concept
+      /streamer
+        streamer.go                // streamer: the reverse direction — streams results back over the wire, and carries `plugin`-stage callbacks (only usable in __rpc mode, per JOB_SPEC_REFERENCE §6)
+
+/providers                       // installed provider manifests (YAML), default $POBEAR_PROVIDERS_DIR — see PROVIDER_REFERENCE.md §13
+
+/sdk                              // "SDK bindings" in the diagram — per-language client libraries, calling into services/rpc's communicator
+  /python                          // e.g. spawns `pobear __rpc` and talks to it over the wire protocol
+  /js
+```
+
+### Open items
+
+Things the diagram implies but the reference specs don't pin down yet:
+
+- The exact message shape of the `__rpc` wire protocol (what `services/rpc`'s
+  communicator/jobgen/streamer actually send and receive) isn't specified in any
+  reference doc yet.
+- Whether `/sdk` ships more than one language at launch, or starts as a single
+  reference implementation the manifest format is designed to allow others to copy.
+- Dedupe (`core/internal/job/workers/crawl/dedupe.go`) has no job spec field yet
+  describing how it's controlled — needs a `source.crawl` field (or a documented
+  default behavior) before implementation.

@@ -1,0 +1,18 @@
+# build output
+/bin/
+/dist/
+pobear
+
+# go
+*.test
+*.out
+/vendor/
+
+# local credentials / config a dev might create while testing
+/.pobear/
+*.env
+
+# OS / editor cruft
+.DS_Store
+.idea/
+*.swp
