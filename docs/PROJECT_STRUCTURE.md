@@ -16,7 +16,7 @@
     template.go                    // renders a template's request.body/request.query Go-templates against .URL/.Options.<name>, and resolves which of a manifest's declared templates applies (fetch.template) — its own file since template resolution is complex enough to reason about separately from the rest of the manifest shape
   /credentials                    // shared provider-credential store (POBEAR_PROVIDER_<NAME>_<CREDENTIAL> / ~/.pobear/credentials) — written by cli/internal/providerator's provider-auth.go, read by core's provider fetch tier at request time
   /fault                          // the fault-kind taxonomy (auth/network/timeout/http/blocked/rateLimit/provider + job-level spec/parse/plugin) — what a manifest's errors[] classifies a response into, and what fetch's rungs (retry-escalation) and exitcode both key off of
-  /exitcode                       // maps a finished job's outcome (via pkg/fault) to the CLI's process exit code (0/2/3/4/5)
+  /exitcode                       // maps a finished job's outcome (via pkg/fault) to the CLI's process exit code (0/1/3/4/5; 2 is reserved for a Go panic)
   /plugin                         // the `plugin` stage channel — kept global since it's meant for whatever plugins we allow creating, not specific to one stage implementation
     pluginer.go                    // entry point core/internal/stage/stages/plugin.go calls: resolves a registered id and dispatches the callback; enforces limits.pluginConcurrency/limits.pluginTimeout
     registry.go                    // tracks which plugin ids are currently registered by the connected RPC host
@@ -88,7 +88,7 @@
 
 /sdk                              // "SDK bindings" in the diagram — per-language client libraries, calling into services/rpc's communicator
   /python                          // e.g. spawns `pobear __rpc` and talks to it over the wire protocol
-  /js
+  /js                               // same pattern as /python, different language — see "Open items" below
 ```
 
 ### Open items

@@ -3,9 +3,11 @@
 This is a specification, not a record of a built system. It is the authoritative,
 field-by-field rulebook for the job spec — the one document every front end (CLI
 flags, a hand-written file, an SDK) produces and the engine is the only thing that
-ever executes. `--print-spec`, on any command that supports it, shows exactly the
-document described here. `fetch.options` carries provider-specific fields, each
-validated against the schema the selected provider itself declares.
+ever executes. `--print-spec`, on any command that supports it, shows this
+document with every field still at its default omitted (§10); `--print-spec-verbose`
+shows the same document with every default filled in, the way §11 spells out every
+field's syntax. `fetch.options` carries provider-specific fields, each validated
+against the schema the selected provider itself declares.
 
 ---
 
@@ -137,19 +139,30 @@ collisions, below).
 - If two stages write the same `data` key, the second write wins and a warning is
   printed naming both stages by position — never a silent overwrite.
 
+Every fetched item already carries the untouched body in a top-level `body` field
+(see `CLI_REFERENCE.md`'s examples), independent of `stages`. An empty `stages: []`
+still gives you that field — `raw` doesn't fetch anything extra, it just copies the
+same content into `data.raw` too, which is what makes it eligible for
+`--output-format raw` and lets it sit alongside other fields (`css`, `markdown`) in
+the same `data` map.
+
 ---
 
 ## 7. `sink`
 
 | Field | Type | Default | Rule |
 |---|---|---|---|
-| `use` | enum: `stdout` \| `ndjson` \| `json` | `stdout` | anything else rejected |
-| `path` | string | — | **required** when `use` is `ndjson`/`json`; **rejected** when `use` is `stdout` |
+| `use` | enum: `stdout` \| `ndjson` \| `json` \| `stream` | `stdout` | anything else rejected |
+| `path` | string | — | **required** when `use` is `ndjson`/`json`; **rejected** when `use` is `stdout`/`stream` |
 
 - `stdout` streams NDJSON to stdout.
 - `ndjson` streams NDJSON to `path` as items complete.
 - `json` buffers every item and writes one JSON array to `path` on completion, so a
   reader never observes a half-written array.
+- `stream` pushes items to the RPC streamer instead of a local file/stdout. Like the
+  `plugin` stage (§6), it's only meaningful when there's a wire connection to push
+  over: a `sink.use: stream` spec is rejected outside `__rpc` mode, a clear error
+  rather than a hang.
 
 ---
 
@@ -180,7 +193,7 @@ a crawl:
 - `stages[].use` not one of the four known stage names; a `plugin` stage outside
   `__rpc` mode; a `css` stage with no `fields`.
 - `sink.use` outside its enum; `path` missing when required, or present when
-  forbidden.
+  forbidden; `sink.use: stream` outside `__rpc` mode.
 
 ---
 
@@ -191,9 +204,13 @@ a crawl:
   each followed by a unit — `ms`, `s`, `m`, `h` — e.g. `"500ms"`, `"30s"`, `"10m"`,
   `"1h30m"`. An empty string means "no limit" wherever that's meaningful
   (`maxDuration`); it is never valid for `timeout`.
-- **Globs** (`include`, `exclude`) support `**` to match across path segments (e.g.
-  `/blog/**` matches any depth under `/blog/`), and standard single-segment `*`/`?`
-  otherwise.
+- **Globs** (`include`, `exclude`) match against the **full URL** — scheme, host,
+  path, and query string together as one string — not just the path. `**` matches
+  across `/` (e.g. `**/blog/**` matches any depth under `/blog/` on any host), and
+  standard single-segment `*` (anything but `/`) and `?` (exactly one character)
+  otherwise. Because `?` is also glob syntax, matching a literal `?` (a URL's query
+  separator) requires escaping it as `\?` — e.g. `**\?*sessionid=*` excludes any URL
+  with a `sessionid` query parameter, at any path.
 
 ---
 
@@ -207,7 +224,8 @@ fetch: { use: local }
 
 Every other field takes its default. This is exactly what
 `pobear scrape https://example.com --print-spec` produces before any optional flag
-is added.
+is added — `--print-spec-verbose` on the same command would spell out every one of
+those defaults instead of omitting them.
 
 ---
 
@@ -223,7 +241,7 @@ source:
     maxPages: 100
     maxDuration: 30m
     scope: same-host
-    include: ["/blog/**"]
+    include: ["**/blog/**"]
     exclude: ["**/tag/**"]
     sitemap: false
     robots: respect
@@ -265,5 +283,7 @@ sink:
 | `pobear run <job.yaml\|->` | parsing a file, or stdin when given `-` |
 | Interactive mode (`pobear wizard`) | a reactive form over these same fields |
 
-`--print-spec`, wherever it's available, prints exactly this document instead of
-running it — the same document any of the above would otherwise hand to the engine.
+`--print-spec`, wherever it's available, prints exactly this document (defaults
+omitted) instead of running it — the same document any of the above would otherwise
+hand to the engine. `--print-spec-verbose` prints the identical document with every
+default filled in; both are equally valid input to `pobear run`.

@@ -88,6 +88,17 @@ uppercased — `name: acme` + `credential: token` → `POBEAR_PROVIDER_ACME_TOKE
 `pobear auth <name>` prompts for it (not echoed) and stores it for every subsequent
 run; `pobear scrape --provider <name>` fails with a clear auth error if it's unset.
 
+**`type: basic`** stores one secret like every other type — a single
+`username:password` string, entered as one answer to the `pobear auth <name>`
+prompt and split on the first `:` when the engine builds the `Authorization`
+header. There's no separate username/password pair at the manifest level.
+
+**`type: query`** sends the credential as a plain query parameter, which means it
+ends up in the request URL — visible in proxy logs, server access logs, and browser
+history if that URL is ever opened by hand. Prefer `bearer`/`header` when a
+provider supports them; use `query` only when the provider's API leaves no other
+option.
+
 ---
 
 ## 6. `options` — the fields this provider accepts
@@ -183,11 +194,19 @@ device: "{{ .Options.device }}"
 
 JSONPath syntax is validated at load time, before any request is ever sent.
 
+This resolved status — the extracted logical status, or the transport-level HTTP
+status if `status` is unset — is the value `errors[].status` (§10) matches against.
+It exists for providers that don't use HTTP status codes to report outcome at all
+(e.g. always answering `200` with the real result embedded in the JSON body); for
+a provider that does use real HTTP status codes, leaving `status` unset makes the
+two the same thing.
+
 ---
 
 ## 10. `errors`
 
-A list mapping this provider's own status codes to pobear's fault taxonomy:
+A list mapping this provider's resolved status (§9 — `response.status`, or the
+real HTTP status if that's unset) to pobear's fault taxonomy:
 
 ```yaml
 errors:
@@ -202,7 +221,7 @@ errors:
 | `status` | must be a real HTTP status code |
 | `kind` | one of the **seven fetch-outcome kinds**: `auth`, `network`, `timeout`, `http`, `blocked`, `rateLimit`, `provider`. `spec`, `parse`, and `plugin` are not assignable here — `spec` is a job-level fault a provider has no business declaring (it would let a manifest unilaterally abort every job that uses it), and the other two aren't fetch outcomes at all. |
 
-Any status not listed falls through to the engine's default HTTP-status
+Any resolved status not listed falls through to the engine's default HTTP-status
 classification.
 
 ---

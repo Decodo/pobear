@@ -17,6 +17,28 @@ pobear 0.0.1
 
 ## `pobear scrape <url|file>`
 
+The positional argument is either a single URL, or a path to a file listing many.
+Whichever it is is detected by trying to parse the argument itself as an absolute
+`http`/`https` URL first; anything else is treated as a file path. A listing file
+is plain text, one URL per line: blank lines and lines starting with `#` are
+skipped, every other line must be an absolute `http`/`https` URL. Every URL found
+(one, or every line of the file) becomes an entry in the resulting `source.urls`.
+
+```
+$ cat urls.txt
+https://example.com/a
+https://example.com/b
+# a comment
+https://example.com/c
+
+$ pobear scrape urls.txt --print-spec
+{
+  "version": 1,
+  "source": { "urls": ["https://example.com/a", "https://example.com/b", "https://example.com/c"] },
+  "fetch": { "use": "local" }
+}
+```
+
 | Flag | Default | Notes |
 |---|---|---|
 | `--proxy <url>` | — | tier 1 |
@@ -31,21 +53,43 @@ pobear 0.0.1
 | `--css name=selector[@attr]` | — | repeatable |
 | `--out <path>` | stdout | write NDJSON to a file instead |
 | `--output-format raw\|json` | `json` | `raw` prints just the extracted value, no envelope — see below |
-| `--print-spec` | off | print the spec, don't run it |
+| `--print-spec` | off | print the spec, don't run it — fields still at their default are omitted, see below |
+| `--print-spec-verbose` | off | like `--print-spec`, but every field is shown fully resolved, defaults included |
 | `--concurrency <n>` | 8 | |
 | `--retries <n>` | 3 | |
 | `--rps <n>` | 0 (unlimited) | requests/sec across every host combined |
+
+### `--print-spec` vs `--print-spec-verbose` — sane defaults, or every field resolved
+
+`--print-spec` omits any field still sitting at its default — the same "every
+other field takes its default" spec a hand-written job file is allowed to rely on
+(see `JOB_SPEC_REFERENCE.md` §10). `--print-spec-verbose` prints the identical
+spec with every default filled in, for when you want to see exactly what the
+engine will use without having to hold the defaults table in your head:
 
 ```
 $ pobear scrape https://ip.decodo.com --print-spec
 {
   "version": 1,
   "source": { "urls": ["https://ip.decodo.com"] },
+  "fetch": { "use": "local" }
+}
+```
+
+```
+$ pobear scrape https://ip.decodo.com --print-spec-verbose
+{
+  "version": 1,
+  "source": { "urls": ["https://ip.decodo.com"] },
   "fetch": { "use": "local", "profile": "chrome", "timeout": "30s", "noRedirects": false },
-  "limits": { "concurrency": 8, "rps": 0, "retries": 3, "backoff": "", "pluginConcurrency": 0 },
+  "limits": { "concurrency": 8, "rps": 0, "retries": 3, "backoff": "exponential", "pluginConcurrency": 0, "pluginTimeout": "30s" },
   "sink": { "use": "stdout" }
 }
 ```
+
+Both are equally valid input to `pobear run` — the minimal form because every
+omitted field has a defined default, the verbose form because it's just that
+same document spelled out in full.
 
 ```
 $ pobear scrape https://example.com --extract markdown
@@ -60,6 +104,12 @@ fetched 1, errors 0, skipped 0          # ← this line is on stderr
 $ pobear scrape https://example.com --css 'title=h1' --css 'link=a@href'
 {"url":"https://example.com", …, "data":{"title":"Example Domain","link":"https://www.iana.org/domains/example"}}
 ```
+
+`--extract` and `--css` compose freely — each adds its own stage to the pipeline
+(§6 of `JOB_SPEC_REFERENCE.md`), so `--extract markdown --css title=h1` produces
+both a `markdown` stage and a `css` stage, writing `data.markdown` and `data.title`
+in the same item. The only place the combination matters is `--output-format raw`
+(below), which requires the *total* result to be a single value across every stage.
 
 ### `--output-format raw` — just the extracted value, no envelope
 
@@ -89,13 +139,11 @@ dedicated flags; anything else a provider accepts goes through `--opt`, validate
 against that provider's own declared options — not a fixed list built into the CLI.
 
 ```
-$ pobear scrape https://example.com --provider decodo --opt device=mobile --print-spec
+$ pobear scrape https://example.com --provider decodo --opt geo=us --print-spec
 {
   "version": 1,
   "source": { "urls": ["https://example.com"] },
-  "fetch": { "use": "provider", "name": "decodo", "options": { "device": "mobile" } },
-  "limits": { "concurrency": 8, "rps": 0, "retries": 3, "backoff": "", "pluginConcurrency": 0 },
-  "sink": { "use": "stdout" }
+  "fetch": { "use": "provider", "name": "decodo", "options": { "geo": "us" } }
 }
 ```
 
@@ -124,9 +172,7 @@ $ pobear scrape https://example.com --provider decodo --template amazon_product 
 {
   "version": 1,
   "source": { "urls": ["https://example.com"] },
-  "fetch": { "use": "provider", "name": "decodo", "template": "amazon_product", "options": { "domain": "co.uk" } },
-  "limits": { "concurrency": 8, "rps": 0, "retries": 3, "backoff": "", "pluginConcurrency": 0 },
-  "sink": { "use": "stdout" }
+  "fetch": { "use": "provider", "name": "decodo", "template": "amazon_product", "options": { "domain": "co.uk" } }
 }
 ```
 
@@ -180,6 +226,10 @@ driving `pobear` should call this once per provider it plans to use, not parse
 
 ## `pobear crawl <url>`
 
+Takes exactly one starting URL — there's no CLI flag to add extra seeds. A crawl
+with multiple seeds (`source.crawl.seeds` with 2+ entries) is only reachable by
+writing the job spec directly and running it with `pobear run`.
+
 Everything `scrape` has, plus:
 
 | Flag | Default | Notes |
@@ -203,10 +253,22 @@ long past the point you wanted it to stop.
 $ pobear crawl https://example.com --depth 2 --print-spec
 {
   "version": 1,
+  "source": { "crawl": { "seeds": ["https://example.com"], "depth": 2 } },
+  "fetch": { "use": "local" }
+}
+```
+
+`--print-spec-verbose` shows the same job with every default filled in, including
+the ones `crawl` sets differently than `scrape` (`limits.rps: 2` here, not `0`):
+
+```
+$ pobear crawl https://example.com --depth 2 --print-spec-verbose
+{
+  "version": 1,
   "source": { "crawl": { "seeds": ["https://example.com"], "depth": 2,
     "maxPages": 100, "maxDuration": "", "scope": "same-host", "sitemap": false, "robots": "respect" } },
   "fetch": { "use": "local", "profile": "chrome", "timeout": "30s", "noRedirects": false },
-  "limits": { "concurrency": 8, "rps": 2, "retries": 3, "backoff": "", "pluginConcurrency": 0 },
+  "limits": { "concurrency": 8, "rps": 2, "retries": 3, "backoff": "exponential", "pluginConcurrency": 0, "pluginTimeout": "30s" },
   "sink": { "use": "stdout" }
 }
 ```
@@ -230,7 +292,8 @@ regardless of extraction stage, not just when crawling.
 
 | Flag | Default | Notes |
 |---|---|---|
-| `--print-spec` | off | print the parsed spec, don't run it |
+| `--print-spec` | off | print the parsed spec, don't run it — fields at their default are omitted |
+| `--print-spec-verbose` | off | like `--print-spec`, but every field is shown fully resolved, defaults included |
 
 Pass `-` instead of a path to read the spec from stdin — which means the output of
 `--print-spec` from any other command is itself a valid input to `run`:
@@ -379,7 +442,7 @@ of exact wording or layout.
 
 Moving "Fetch via" from `local` to `provider`: `Profile` (a local/proxy-only TLS
 setting) disappears, and `Provider` plus whatever fields **that provider's manifest
-declares** (`DOCUMENTATION.md` §5.1) appear in its place. Decodo declares `render`
+declares** (`PROVIDER_REFERENCE.md` §6) appear in its place. Decodo declares `render`
 and `geo`, so those are what show up below — a provider with a `device` option
 instead would show `Device`, not `Render`/`Geo`. The form isn't hardcoded to any
 provider's fields; it reads them the same way `--opt` validation does.
@@ -405,6 +468,35 @@ If `Provider` is set to one with no stored credential, pressing `enter` on it op
 the same prompt as `pobear auth decodo` inline, then returns to this form. Changing
 `Provider` to a different one re-reads that provider's manifest and swaps the field
 list below it accordingly.
+
+### A provider with more than one template gets a `Template` field too
+
+Decodo has a `default: true` template, so it never needs one. A provider that
+declares two or more templates with none marked `default` — the case where the CLI
+itself requires `--template` — gets a `Template` field between `Provider` and the
+option fields, mirroring the CLI exactly:
+
+```
+┌─ Scrape ───────────────────────────────────────────────────────── esc: back to menu ─┐
+│                                                                                      │
+│      URL           https://example.com                                               │
+│      Fetch via     provider    (local / proxy / provider)                            │
+│      Provider      acme                                                              │
+│   › Template      product      (product / search)                                    │
+│      Domain        —           (product option)                                      │
+│      Extract       markdown    (raw / markdown / fields)                             │
+│      Concurrency   8                                                                 │
+│      Retries       3                                                                 │
+│                                                                                      │
+│   [ Test ]   [ Save as job.yaml ]   [ Run ]                                          │
+│                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+Changing `Template` re-reads that template's declared options and swaps the field
+list below it, the same way changing `Provider` does. If the manifest has only one
+template, or one marked `default: true`, the `Template` field never appears at all
+— the form only ever shows a real choice, never a redundant one.
 
 ### Changing "Extract" reacts the same way
 
@@ -466,7 +558,8 @@ other field, since every field stays editable at every point.
 | Fetch via | `fetch.use` |
 | Profile | `fetch.profile` (local/proxy only) |
 | Provider | `fetch.name` |
-| provider-declared fields (e.g. Render / Geo) | `fetch.options.<name>` (provider only, per-manifest) |
+| Template (multi-template providers only) | `fetch.template` |
+| provider-declared fields (e.g. Render / Geo) | `fetch.options.<name>` (provider only, per-manifest, per-template) |
 | Extract | a stage in the pipeline (`markdown` / `css`) |
 
 ---
@@ -496,7 +589,11 @@ $ echo $?
 | Code | Meaning |
 |---|---|
 | 0 | everything succeeded |
-| 2 | auth failure |
+| 1 | auth failure |
 | 3 | usage error or invalid spec |
 | 4 | partial failure (some items failed) |
 | 5 | fatal (everything failed, or unclassified) |
+
+`2` is deliberately left unused: it's the exit status Go's own runtime uses for
+an unrecovered panic, so a bare `2` from `pobear` always means an actual crash,
+never a classified job outcome.
