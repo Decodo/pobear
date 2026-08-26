@@ -1,0 +1,8 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local}
+  limits: {rps: -1}
+wantErr: true
+wantField: limits.rps
+wantMessage: "`limits.rps` must be >= 0, got -1"

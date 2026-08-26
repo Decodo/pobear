@@ -1,0 +1,8 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local}
+  stages: [{use: css}]
+wantErr: true
+wantField: stages[0].fields
+wantMessage: "`stages[0].fields` is required for a `css` stage"

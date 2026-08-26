@@ -1,0 +1,8 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local}
+  limits: {concurrency: 0}
+wantErr: true
+wantField: limits.concurrency
+wantMessage: "`limits.concurrency` must be > 0, got 0"

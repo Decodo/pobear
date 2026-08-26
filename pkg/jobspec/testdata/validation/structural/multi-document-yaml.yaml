@@ -1,0 +1,11 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local}
+  ---
+  version: 1
+  source: {urls: [https://b.test]}
+  fetch: {use: local}
+wantErr: true
+wantField: $document
+wantMessage: "spec document must contain exactly one YAML document"

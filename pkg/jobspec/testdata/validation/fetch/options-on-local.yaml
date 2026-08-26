@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local, options: {render: true}}
+wantErr: true
+wantField: fetch.options
+wantMessage: "`fetch.options` requires `fetch.use: provider`, got \"local\""

@@ -1,0 +1,9 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local}
+  sink: {use: stream, path: "out.ndjson"}
+mode: rpc
+wantErr: true
+wantField: sink.path
+wantMessage: "`sink.path` is only allowed when `sink.use` is `ndjson` or `json`"

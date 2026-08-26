@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {crawl: {seeds: ["not-a-url"]}}
+  fetch: {use: local}
+wantErr: true
+wantField: source.crawl.seeds
+wantMessage: "`source.crawl.seeds` must be absolute `http`/`https` URLs, got \"not-a-url\""

@@ -12,6 +12,9 @@
 
 /pkg
   /jobspec                        // job spec document (JOB_SPEC_REFERENCE.md): types + validation, shared by every front end and by Core
+    types.go                       // the Spec type tree (§1–§7)
+    parse.go                       // Parse(data, mode): strict decode + §8 validation, resolving every optional field to its default; ValidationError names the offending field
+    /testdata/validation           // one fixture per JOB_SPEC_REFERENCE.md §8 rule (input + expected outcome), walked by a single generic test
   /provider                       // provider manifest document (PROVIDER_REFERENCE.md): types + validation, shared by providerator (CLI) and the `provider` fetch tier (Core)
     template.go                    // renders a template's request.body/request.query Go-templates against .URL/.Options.<name>, and resolves which of a manifest's declared templates applies (fetch.template) — its own file since template resolution is complex enough to reason about separately from the rest of the manifest shape
   /credentials                    // shared provider-credential store (POBEAR_PROVIDER_<NAME>_<CREDENTIAL> / ~/.pobear/credentials) — written by cli/internal/providerator's provider-auth.go, read by core's provider fetch tier at request time

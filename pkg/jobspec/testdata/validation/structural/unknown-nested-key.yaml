@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local, bogus: true}
+wantErr: true
+wantField: fetch.bogus
+wantMessage: "unknown field `fetch.bogus`"

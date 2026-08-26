@@ -1,0 +1,5 @@
+input: |
+  version: 1
+  source: {crawl: {seeds: [https://a.test], depth: 0}}
+  fetch: {use: local}
+wantErr: false

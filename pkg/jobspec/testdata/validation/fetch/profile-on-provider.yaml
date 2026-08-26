@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: provider, name: acme, profile: chrome}
+wantErr: true
+wantField: fetch.profile
+wantMessage: "`fetch.profile` requires `fetch.use: local` or `fetch.use: proxy`, got \"provider\""

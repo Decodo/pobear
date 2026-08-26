@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local}
+  stages: [{use: plugin, id: myplugin}]
+mode: rpc
+wantErr: false

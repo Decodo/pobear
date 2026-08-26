@@ -1,0 +1,6 @@
+input: |
+  source: {urls: [https://a.test]}
+  fetch: {use: local}
+wantErr: true
+wantField: version
+wantMessage: "`version` is required"

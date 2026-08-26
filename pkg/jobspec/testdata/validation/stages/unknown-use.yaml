@@ -1,0 +1,8 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local}
+  stages: [{use: bogus}]
+wantErr: true
+wantField: stages[0].use
+wantMessage: "`stages[0].use` must be one of `raw`, `markdown`, `css`, `plugin`, got \"bogus\""

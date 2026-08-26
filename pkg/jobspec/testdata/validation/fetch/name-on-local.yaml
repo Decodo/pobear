@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local, name: acme}
+wantErr: true
+wantField: fetch.name
+wantMessage: "`fetch.name` requires `fetch.use: provider`, got \"local\""

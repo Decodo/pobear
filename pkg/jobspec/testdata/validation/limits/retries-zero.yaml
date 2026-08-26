@@ -1,0 +1,8 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local}
+  limits: {retries: 0}
+wantErr: true
+wantField: limits.retries
+wantMessage: "`limits.retries` must be >= 1, got 0"

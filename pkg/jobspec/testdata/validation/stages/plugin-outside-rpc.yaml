@@ -1,0 +1,8 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local}
+  stages: [{use: plugin, id: myplugin}]
+wantErr: true
+wantField: stages[0].use
+wantMessage: "`stages[0].use: plugin` is only allowed under `__rpc` mode"
