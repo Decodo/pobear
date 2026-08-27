@@ -7,8 +7,6 @@ import (
 	"github.com/pobear/pobear/pkg/fault"
 )
 
-// len(kinds) must equal failed in every case — the harness enforces this
-// with a Fatalf guard before calling FromRun.
 func TestFromRun(t *testing.T) {
 	cases := []struct {
 		name      string

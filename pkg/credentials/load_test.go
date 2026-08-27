@@ -8,10 +8,6 @@ import (
 	"github.com/pobear/pobear/pkg/credentials"
 )
 
-// The harness writes fileContent to a temp file (even when "" — an empty,
-// freshly-created file, not an absent one) when fileExists is true; when
-// false, no file is created at that path at all. Every envVars entry is
-// set via t.Setenv before calling Load.
 func TestLoad(t *testing.T) {
 	cases := []struct {
 		name         string

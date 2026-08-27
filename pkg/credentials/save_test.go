@@ -8,8 +8,6 @@ import (
 	"github.com/pobear/pobear/pkg/credentials"
 )
 
-// When fileExists is false, the harness does not pre-create the
-// credentials file, proving Save creates it from scratch.
 func TestSave(t *testing.T) {
 	cases := []struct {
 		name               string
