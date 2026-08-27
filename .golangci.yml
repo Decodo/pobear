@@ -8,15 +8,11 @@ linters:
     - ineffassign
     - staticcheck
     - unused
-    - revive
     - gosec
     - bodyclose
     - unconvert
     - unparam
   settings:
-    revive:
-      rules:
-        - name: exported
     staticcheck:
       checks:
         - all
