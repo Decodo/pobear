@@ -1,0 +1,9 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: bearer, credential: token}
+  response: {body: "$.html"}
+  templates: []
+wantErr: true
+wantField: templates
+wantMessage: "`templates` must have at least one entry"

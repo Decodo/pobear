@@ -1,0 +1,10 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: bearer, credential: token}
+  options: [{name: device, type: enum, values: [desktop, mobile], default: tablet}]
+  request: {body: {target: "{{ .URL }}"}}
+  response: {body: "$.html"}
+wantErr: true
+wantField: options[0].default
+wantMessage: "`options[0].default` must be one of `desktop`, `mobile`, got \"tablet\""

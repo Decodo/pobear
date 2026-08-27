@@ -1,0 +1,10 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: bearer, credential: token}
+  options: [{name: geo, type: string, pattern: "[unterminated"}]
+  request: {body: {target: "{{ .URL }}"}}
+  response: {body: "$.html"}
+wantErr: true
+wantField: options[0].pattern
+wantMessage: "`options[0].pattern` is not a valid regular expression: \"[unterminated\""

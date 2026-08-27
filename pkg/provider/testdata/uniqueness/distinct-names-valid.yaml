@@ -1,0 +1,4 @@
+manifests:
+  - "name: acme"
+  - "name: other"
+wantErr: false

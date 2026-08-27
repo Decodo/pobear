@@ -1,0 +1,10 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: bearer, credential: token}
+  options: [{name: geo, type: string}, {name: geo, type: string}]
+  request: {body: {target: "{{ .URL }}"}}
+  response: {body: "$.html"}
+wantErr: true
+wantField: options[1].name
+wantMessage: "`options[1].name` duplicates `options[0].name`: \"geo\""

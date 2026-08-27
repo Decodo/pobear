@@ -1,0 +1,10 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: bearer, credential: token}
+  request: {body: {target: "{{ .URL }}"}}
+  response: {body: "$.html"}
+  errors: [{status: 999, kind: auth}]
+wantErr: true
+wantField: errors[0].status
+wantMessage: "`errors[0].status` must be a real HTTP status code, got 999"

@@ -1,0 +1,12 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: bearer, credential: token}
+  response: {body: "$.html"}
+  templates:
+    - name: t1
+      endpoint: ftp://bad.test
+      request: {body: {target: "{{ .URL }}"}}
+wantErr: true
+wantField: templates[0].endpoint
+wantMessage: "`templates[0].endpoint` must be an absolute `http`/`https` URL, got \"ftp://bad.test\""

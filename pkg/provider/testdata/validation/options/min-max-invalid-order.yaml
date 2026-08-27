@@ -1,0 +1,10 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: bearer, credential: token}
+  options: [{name: maxWait, type: int, min: 100, max: 0}]
+  request: {body: {target: "{{ .URL }}"}}
+  response: {body: "$.html"}
+wantErr: true
+wantField: options[0].min
+wantMessage: "`options[0].min` must be <= `options[0].max`, got min: 100, max: 0"

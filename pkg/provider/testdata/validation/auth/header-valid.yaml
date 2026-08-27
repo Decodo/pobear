@@ -1,0 +1,21 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: header, credential: token, name: X-Api-Key}
+  request: {body: {target: "{{ .URL }}"}}
+  response: {body: "$.html"}
+wantErr: false
+wantManifest:
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  method: POST
+  auth:
+    type: header
+    credential: token
+    name: X-Api-Key
+  options: []
+  request:
+    body: {target: "{{ .URL }}"}
+  response:
+    body: "$.html"
+  errors: []

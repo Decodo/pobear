@@ -1,0 +1,8 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: bearer, credential: token}
+  response: {body: "$.html"}
+wantErr: true
+wantField: request
+wantMessage: "`request` is required"

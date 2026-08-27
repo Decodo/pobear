@@ -1,0 +1,9 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: bearer, credential: token}
+  request: {body: {target: null}}
+  response: {body: "$.html"}
+wantErr: true
+wantField: request.body.target
+wantMessage: "`request.body.target` must not be null"

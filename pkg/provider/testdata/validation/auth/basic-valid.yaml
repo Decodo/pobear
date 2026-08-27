@@ -1,0 +1,7 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: basic, credential: token}
+  request: {body: {target: "{{ .URL }}"}}
+  response: {body: "$.html"}
+wantErr: false

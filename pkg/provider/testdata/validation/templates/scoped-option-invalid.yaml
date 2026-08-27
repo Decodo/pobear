@@ -1,0 +1,12 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: bearer, credential: token}
+  response: {body: "$.html"}
+  templates:
+    - name: t1
+      options: [{name: url, type: string}]
+      request: {body: {target: "{{ .URL }}"}}
+wantErr: true
+wantField: templates[0].options[0].name
+wantMessage: "`templates[0].options[0].name` must not be `url` (reserved)"

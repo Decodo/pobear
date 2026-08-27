@@ -1,0 +1,9 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: bearer, credential: token}
+  request: {body: {target: "{{ .URL }}"}, query: {q: "{{ .URL"}}
+  response: {body: "$.html"}
+wantErr: true
+wantField: request.query.q
+wantMessage: "`request.query.q` is not a valid template: \"{{ .URL\""

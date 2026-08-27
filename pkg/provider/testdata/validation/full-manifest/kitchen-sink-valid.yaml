@@ -1,0 +1,67 @@
+input: |
+  name: acme
+  endpoint: https://api.acme.test/v1/scrape
+  method: GET
+  auth: {type: bearer, credential: token}
+  options:
+    - name: render
+      type: bool
+      default: false
+    - name: geo
+      type: string
+      pattern: '^[a-z]{2}$'
+    - name: device
+      type: enum
+      values: [desktop, mobile]
+      default: desktop
+    - name: maxWait
+      type: int
+      min: 0
+      max: 60000
+  request:
+    body: {url: "{{ .URL }}", render: "{{ .Options.render }}", geo: "{{ .Options.geo }}", enabled: true, retries: 3, meta: {source: pobear}}
+    query: {device: "{{ .Options.device }}"}
+  response:
+    status: "$.status"
+    body: "$.html"
+    finalUrl: "$.resolvedUrl"
+  errors:
+    - status: 401
+      kind: auth
+    - status: 429
+      kind: rateLimit
+wantErr: false
+wantManifest:
+  name: acme
+  endpoint: https://api.acme.test/v1/scrape
+  method: GET
+  auth:
+    type: bearer
+    credential: token
+  options:
+    - name: render
+      type: bool
+      default: false
+    - name: geo
+      type: string
+      pattern: '^[a-z]{2}$'
+    - name: device
+      type: enum
+      values: [desktop, mobile]
+      default: desktop
+    - name: maxWait
+      type: int
+      min: 0
+      max: 60000
+  request:
+    body: {url: "{{ .URL }}", render: "{{ .Options.render }}", geo: "{{ .Options.geo }}", enabled: true, retries: 3, meta: {source: pobear}}
+    query: {device: "{{ .Options.device }}"}
+  response:
+    status: "$.status"
+    body: "$.html"
+    finalUrl: "$.resolvedUrl"
+  errors:
+    - status: 401
+      kind: auth
+    - status: 429
+      kind: rateLimit
