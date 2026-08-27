@@ -116,6 +116,11 @@ with a compatible type and value.
 | `pluginConcurrency` | `int` | `0` | `__rpc` mode only; ignored elsewhere |
 | `pluginTimeout` | duration string | `30s` | `__rpc` mode only; ignored elsewhere |
 
+`__rpc` mode, and everything gated behind it (`pluginConcurrency`, `pluginTimeout`,
+the `plugin` stage below), is deferred — not part of the v1 release. `pkg/plugin`
+has been removed from the codebase; these fields stay documented as the intended
+shape for when `__rpc`/SDK support lands.
+
 ---
 
 ## 6. `stages`
@@ -135,7 +140,8 @@ collisions, below).
 **Rules:**
 - `use` must be one of the four names above; anything else is rejected at load time.
 - A `plugin` stage is rejected outside `__rpc` mode (there is no reverse channel to
-  answer it in plain CLI mode) — a clear error, not a hang.
+  answer it in plain CLI mode) — a clear error, not a hang. `__rpc` mode is
+  deferred (see §5), so in practice `plugin` is unreachable in v1.
 - If two stages write the same `data` key, the second write wins and a warning is
   printed naming both stages by position — never a silent overwrite.
 

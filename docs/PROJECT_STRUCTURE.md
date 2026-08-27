@@ -20,10 +20,7 @@
   /credentials                    // shared provider-credential store (POBEAR_PROVIDER_<NAME>_<CREDENTIAL> / ~/.pobear/credentials) — written by cli/internal/providerator's provider-auth.go, read by core's provider fetch tier at request time
   /fault                          // the fault-kind taxonomy (auth/network/timeout/http/blocked/rateLimit/provider + job-level spec/parse/plugin) — what a manifest's errors[] classifies a response into, and what fetch's rungs (retry-escalation) and exitcode both key off of
   /exitcode                       // maps a finished job's outcome (via pkg/fault) to the CLI's process exit code (0/1/3/4/5; 2 is reserved for a Go panic)
-  /plugin                         // the `plugin` stage channel — kept global since it's meant for whatever plugins we allow creating, not specific to one stage implementation
-    pluginer.go                    // entry point core/internal/stage/stages/plugin.go calls: resolves a registered id and dispatches the callback; enforces limits.pluginConcurrency/limits.pluginTimeout
-    registry.go                    // tracks which plugin ids are currently registered by the connected RPC host
-    caller.go                      // the interface pluginer dispatches through — implemented by services/rpc/internal/streamer and injected, since pkg can't import services/rpc/internal directly
+  /plugin                         // DEFERRED, not in v1 — removed from the codebase along with __rpc/SDK support (JOB_SPEC_REFERENCE.md §5). Was: the `plugin` stage channel, kept global since it's meant for whatever plugins we allow creating, not specific to one stage implementation. Reintroduce alongside services/rpc when that lands: a pluginer.go (entry point core/internal/stage/stages/plugin.go calls, resolving a registered id and dispatching the callback, enforcing limits.pluginConcurrency/limits.pluginTimeout), a registry.go (tracks which plugin ids are currently registered by the connected RPC host), and a caller.go (the interface pluginer dispatches through, implemented by services/rpc/internal/streamer and injected, since pkg can't import services/rpc/internal directly).
 
 /services
   /core                          // "Core" container in the diagram — the one engine that executes a spec, regardless of which front end produced it
