@@ -1,0 +1,9 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: header, credential: token}
+  request: {body: {target: "{{ .URL }}"}}
+  response: {body: "$.html"}
+wantErr: true
+wantField: auth.name
+wantMessage: "`auth.name` is required when `auth.type` is `header` or `query`"

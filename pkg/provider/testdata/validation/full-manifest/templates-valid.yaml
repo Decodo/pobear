@@ -1,0 +1,60 @@
+input: |
+  name: acme
+  endpoint: https://api.acme.test/v1/scrape
+  auth: {type: bearer, credential: token}
+  response: {body: "$.html"}
+  templates:
+    - name: universal
+      default: true
+      options:
+        - name: render
+          type: bool
+          default: false
+        - name: geo
+          type: string
+          pattern: '^[a-z]{2}$'
+      request:
+        body: {source: universal, url: "{{ .URL }}", render: "{{ .Options.render }}", geo: "{{ .Options.geo }}"}
+    - name: amazon_product
+      endpoint: https://api.acme.test/v1/amazon
+      method: GET
+      options:
+        - name: domain
+          type: enum
+          values: [com, "co.uk", de]
+          default: com
+      request:
+        body: {query: "{{ .URL }}", domain: "{{ .Options.domain }}"}
+wantErr: false
+wantManifest:
+  name: acme
+  endpoint: https://api.acme.test/v1/scrape
+  method: POST
+  auth:
+    type: bearer
+    credential: token
+  response:
+    body: "$.html"
+  errors: []
+  templates:
+    - name: universal
+      default: true
+      options:
+        - name: render
+          type: bool
+          default: false
+        - name: geo
+          type: string
+          pattern: '^[a-z]{2}$'
+      request:
+        body: {source: universal, url: "{{ .URL }}", render: "{{ .Options.render }}", geo: "{{ .Options.geo }}"}
+    - name: amazon_product
+      endpoint: https://api.acme.test/v1/amazon
+      method: GET
+      options:
+        - name: domain
+          type: enum
+          values: [com, "co.uk", de]
+          default: com
+      request:
+        body: {query: "{{ .URL }}", domain: "{{ .Options.domain }}"}

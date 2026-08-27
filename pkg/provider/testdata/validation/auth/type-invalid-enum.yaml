@@ -1,0 +1,9 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: bogus, credential: token}
+  request: {body: {target: "{{ .URL }}"}}
+  response: {body: "$.html"}
+wantErr: true
+wantField: auth.type
+wantMessage: "`auth.type` must be one of `basic`, `bearer`, `header`, `query`, got \"bogus\""

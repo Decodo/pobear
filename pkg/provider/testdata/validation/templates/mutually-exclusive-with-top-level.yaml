@@ -1,0 +1,12 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: bearer, credential: token}
+  request: {body: {target: "{{ .URL }}"}}
+  response: {body: "$.html"}
+  templates:
+    - name: t1
+      request: {body: {target: "{{ .URL }}"}}
+wantErr: true
+wantField: templates
+wantMessage: "`templates` must not be set together with top-level `options`/`request`"

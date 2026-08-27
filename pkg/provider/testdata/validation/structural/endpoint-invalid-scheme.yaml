@@ -1,0 +1,9 @@
+input: |
+  name: minimal
+  endpoint: ftp://api.minimal.test/scrape
+  auth: {type: bearer, credential: token}
+  request: {body: {target: "{{ .URL }}"}}
+  response: {body: "$.html"}
+wantErr: true
+wantField: endpoint
+wantMessage: "`endpoint` must be an absolute `http`/`https` URL, got \"ftp://api.minimal.test/scrape\""

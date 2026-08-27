@@ -1,0 +1,9 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: bearer, credential: token}
+  request: {body: {target: "{{ .URL }}"}, query: {ids: [1, 2, 3]}}
+  response: {body: "$.html"}
+wantErr: true
+wantField: request.query.ids
+wantMessage: "`request.query.ids` must be a scalar, got a list"

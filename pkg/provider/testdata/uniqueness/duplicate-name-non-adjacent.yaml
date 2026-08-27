@@ -1,0 +1,7 @@
+manifests:
+  - "name: acme"
+  - "name: other"
+  - "name: acme"
+wantErr: true
+wantField: name
+wantMessage: "manifest name \"acme\" is already declared"

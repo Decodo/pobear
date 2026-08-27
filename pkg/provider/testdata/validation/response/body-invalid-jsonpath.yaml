@@ -1,0 +1,9 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: bearer, credential: token}
+  request: {body: {target: "{{ .URL }}"}}
+  response: {body: "$["}
+wantErr: true
+wantField: response.body
+wantMessage: "`response.body` is not a valid JSONPath: \"$[\""

@@ -1,0 +1,10 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: bearer, credential: token}
+  request: {body: {target: "{{ .URL }}"}}
+  response: {body: "$.html"}
+  errors: [{status: 500, kind: bogus}]
+wantErr: true
+wantField: errors[0].kind
+wantMessage: "`errors[0].kind` must be one of `auth`, `network`, `timeout`, `http`, `blocked`, `rateLimit`, `provider`, got \"bogus\""
