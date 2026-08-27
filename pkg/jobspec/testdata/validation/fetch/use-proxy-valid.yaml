@@ -1,0 +1,5 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: proxy, proxy: "http://p.test"}
+wantErr: false

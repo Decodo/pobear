@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local, profile: bogus}
+wantErr: true
+wantField: fetch.profile
+wantMessage: "`fetch.profile` must be one of `chrome`, `firefox`, `safari`, got \"bogus\""

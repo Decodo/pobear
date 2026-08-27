@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local}
+  sink: {use: stream}
+mode: rpc
+wantErr: false

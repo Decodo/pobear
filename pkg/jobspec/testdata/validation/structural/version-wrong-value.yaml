@@ -1,0 +1,7 @@
+input: |
+  version: 2
+  source: {urls: [https://a.test]}
+  fetch: {use: local}
+wantErr: true
+wantField: version
+wantMessage: "`version` must be 1, got 2"

@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local, template: universal}
+wantErr: true
+wantField: fetch.template
+wantMessage: "`fetch.template` requires `fetch.use: provider`, got \"local\""

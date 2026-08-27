@@ -1,0 +1,25 @@
+input: |
+  version: 1
+  source: {urls: [https://example.com]}
+  fetch: {use: local}
+wantErr: false
+wantSpec:
+  version: 1
+  source:
+    urls: [https://example.com]
+  fetch:
+    use: local
+    profile: chrome
+    timeout: 30s
+    noRedirects: false
+    headers: {}
+  limits:
+    concurrency: 8
+    rps: 0
+    retries: 3
+    backoff: exponential
+    pluginConcurrency: 0
+    pluginTimeout: 30s
+  stages: []
+  sink:
+    use: stdout

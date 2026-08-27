@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {crawl: {seeds: [https://a.test], scope: everywhere}}
+  fetch: {use: local}
+wantErr: true
+wantField: source.crawl.scope
+wantMessage: "`source.crawl.scope` must be one of `same-host`, `same-domain`, `any`, got \"everywhere\""

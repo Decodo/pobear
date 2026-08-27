@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {crawl: {seeds: [https://a.test], depth: -1}}
+  fetch: {use: local}
+wantErr: true
+wantField: source.crawl.depth
+wantMessage: "`source.crawl.depth` must be >= 0, got -1"

@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: bogus}
+wantErr: true
+wantField: fetch.use
+wantMessage: "`fetch.use` must be one of `local`, `proxy`, `provider`, got \"bogus\""

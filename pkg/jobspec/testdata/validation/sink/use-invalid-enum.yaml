@@ -1,0 +1,8 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local}
+  sink: {use: bogus}
+wantErr: true
+wantField: sink.use
+wantMessage: "`sink.use` must be one of `stdout`, `ndjson`, `json`, `stream`, got \"bogus\""

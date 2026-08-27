@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {crawl: {seeds: [https://a.test], maxPages: -5}}
+  fetch: {use: local}
+wantErr: true
+wantField: source.crawl.maxPages
+wantMessage: "`source.crawl.maxPages` must be > 0, got -5"

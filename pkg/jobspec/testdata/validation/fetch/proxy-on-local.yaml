@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local, proxy: "http://p.test"}
+wantErr: true
+wantField: fetch.proxy
+wantMessage: "`fetch.proxy` requires `fetch.use: proxy`, got \"local\""

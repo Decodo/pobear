@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {urls: ["ftp://a.test/file"]}
+  fetch: {use: local}
+wantErr: true
+wantField: source.urls
+wantMessage: "`source.urls` must be absolute `http`/`https` URLs, got \"ftp://a.test/file\""

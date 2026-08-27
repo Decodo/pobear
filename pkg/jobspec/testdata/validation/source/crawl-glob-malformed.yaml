@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {crawl: {seeds: [https://a.test], include: ["[unterminated"]}}
+  fetch: {use: local}
+wantErr: true
+wantField: source.crawl.include
+wantMessage: "`source.crawl.include` is not a valid glob pattern: \"[unterminated\""

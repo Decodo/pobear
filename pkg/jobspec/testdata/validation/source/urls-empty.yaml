@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {urls: []}
+  fetch: {use: local}
+wantErr: true
+wantField: source.urls
+wantMessage: "`source.urls` must contain at least one URL, got none"

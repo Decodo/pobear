@@ -1,0 +1,67 @@
+input: |
+  version: 1
+  source:
+    crawl:
+      seeds: [https://a.test]
+      depth: 2
+      maxPages: 50
+      maxDuration: 30m
+      scope: same-host
+      include: ["**/blog/**"]
+      exclude: ["**/tag/**"]
+      sitemap: false
+      robots: respect
+  fetch:
+    use: local
+    profile: firefox
+    timeout: 10s
+    noRedirects: true
+    headers: {"X-Custom": "1"}
+  limits:
+    concurrency: 4
+    rps: 1
+    retries: 5
+    backoff: exponential
+    pluginConcurrency: 0
+    pluginTimeout: 30s
+  stages:
+    - use: markdown
+    - use: css
+      fields: {title: "h1", price: ".price@text"}
+  sink:
+    use: ndjson
+    path: out.ndjson
+wantErr: false
+wantSpec:
+  version: 1
+  source:
+    crawl:
+      seeds: [https://a.test]
+      depth: 2
+      maxPages: 50
+      maxDuration: 30m
+      scope: same-host
+      include: ["**/blog/**"]
+      exclude: ["**/tag/**"]
+      sitemap: false
+      robots: respect
+  fetch:
+    use: local
+    profile: firefox
+    timeout: 10s
+    noRedirects: true
+    headers: {"X-Custom": "1"}
+  limits:
+    concurrency: 4
+    rps: 1
+    retries: 5
+    backoff: exponential
+    pluginConcurrency: 0
+    pluginTimeout: 30s
+  stages:
+    - use: markdown
+    - use: css
+      fields: {title: "h1", price: ".price@text"}
+  sink:
+    use: ndjson
+    path: out.ndjson

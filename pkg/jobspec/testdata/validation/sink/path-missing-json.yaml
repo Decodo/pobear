@@ -1,0 +1,8 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local}
+  sink: {use: json}
+wantErr: true
+wantField: sink.path
+wantMessage: "`sink.path` is required when `sink.use` is `ndjson` or `json`"

@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local, timeout: "notaduration"}
+wantErr: true
+wantField: fetch.timeout
+wantMessage: "`fetch.timeout` is not a valid duration: \"notaduration\""

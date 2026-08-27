@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {crawl: {seeds: [https://a.test], maxDuration: "notaduration"}}
+  fetch: {use: local}
+wantErr: true
+wantField: source.crawl.maxDuration
+wantMessage: "`source.crawl.maxDuration` is not a valid duration: \"notaduration\""
