@@ -15,10 +15,6 @@ import (
 	"github.com/pobear/pobear/pkg/provider"
 )
 
-// fixture is the schema of every *.yaml file under testdata/validation,
-// grouped into subdirectories by PROVIDER_REFERENCE.md section
-// (structural/, auth/, options/, request/, response/, errors/,
-// templates/, full-manifest/).
 type fixture struct {
 	Input        string             `yaml:"input"`
 	WantErr      bool               `yaml:"wantErr"`

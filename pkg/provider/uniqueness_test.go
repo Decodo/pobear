@@ -14,10 +14,6 @@ import (
 	"github.com/pobear/pobear/pkg/provider"
 )
 
-// uniquenessFixture is the schema of every *.yaml file under
-// testdata/uniqueness. Each Manifests entry is a raw manifest document,
-// decoded directly (not through the still-stubbed Parse) into a
-// *provider.Manifest, since this suite tests ValidateUnique in isolation.
 type uniquenessFixture struct {
 	Manifests   []string `yaml:"manifests"`
 	WantField   string   `yaml:"wantField"`
