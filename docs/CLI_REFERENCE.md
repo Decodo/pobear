@@ -102,12 +102,12 @@ fetched 1, errors 0, skipped 0          # ← this line is on stderr
 
 ```
 $ pobear scrape https://example.com --css 'title=h1' --css 'link=a@href'
-{"url":"https://example.com", …, "data":{"title":"Example Domain","link":"https://www.iana.org/domains/example"}}
+{"url":"https://example.com", …, "data":{"title":["Example Domain"],"link":["https://www.iana.org/domains/example"]}}
 ```
 
 `--extract` and `--css` compose freely — each adds its own stage to the pipeline
 (§6 of `JOB_SPEC_REFERENCE.md`), so `--extract markdown --css title=h1` produces
-both a `markdown` stage and a `css` stage, writing `data.markdown` and `data.title`
+both a stage using `markdown` and a stage using `css`, writing `data.markdown` and `data.title`
 in the same item. The only place the combination matters is `--output-format raw`
 (below), which requires the *total* result to be a single value across every stage.
 
@@ -116,6 +116,9 @@ in the same item. The only place the combination matters is `--output-format raw
 Valid only when exactly one URL is targeted and exactly one extraction result would
 otherwise land in `data` — one bare `--extract` stage, or exactly one `--css` field.
 Anything more (a URL list file, or more than one field) is ambiguous and rejected.
+Since `css` always writes a list (`JOB_SPEC_REFERENCE.md` §6), `--output-format raw`
+additionally requires that field's list to hold exactly one element — one CSS field
+matching zero or 2+ elements is also rejected as ambiguous, same as multiple fields.
 
 ```
 $ pobear scrape https://example.com --extract markdown --output-format raw

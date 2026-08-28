@@ -117,7 +117,7 @@ with a compatible type and value.
 | `pluginTimeout` | duration string | `30s` | `__rpc` mode only; ignored elsewhere |
 
 `__rpc` mode, and everything gated behind it (`pluginConcurrency`, `pluginTimeout`,
-the `plugin` stage below), is deferred — not part of the v1 release. `pkg/plugin`
+the `plugin` extraction method below), is deferred — not part of the v1 release. `pkg/plugin`
 has been removed from the codebase; these fields stay documented as the intended
 shape for when `__rpc`/SDK support lands.
 
@@ -134,16 +134,22 @@ collisions, below).
 |---|---|---|
 | `raw` | — | `data.raw`: the untouched body |
 | `markdown` | — | `data.markdown`: HTML converted to Markdown |
-| `css` | `fields: {name: "selector"}` or `{name: "selector@attr"}` | `data[name]` per field; `null` if nothing matched |
+| `css` | `fields: {name: "selector"}` or `{name: "selector@attr"}` | `data[name]` per field — always a list of every matching element's value, in document order; `[]` if nothing matched |
 | `plugin` | `id: "<registered id>"` | whatever the host callback returns |
 
 **Rules:**
-- `use` must be one of the four names above; anything else is rejected at load time.
-- A `plugin` stage is rejected outside `__rpc` mode (there is no reverse channel to
-  answer it in plain CLI mode) — a clear error, not a hang. `__rpc` mode is
-  deferred (see §5), so in practice `plugin` is unreachable in v1.
+- `use` must be one of the four extraction-method names above; anything else is
+  rejected at load time.
+- A stage configured with `use: plugin` is rejected outside `__rpc` mode (there
+  is no reverse channel to answer it in plain CLI mode) — a clear error, not a
+  hang. `__rpc` mode is deferred (see §5), so in practice `plugin` is
+  unreachable in v1.
 - If two stages write the same `data` key, the second write wins and a warning is
   printed naming both stages by position — never a silent overwrite.
+- `css` always writes a list per field (`[]string`, or `[]any` if `@attr` values
+  can differ in kind — they don't today), regardless of match count: zero matches
+  is `[]`, not `null`; one match is a one-element list; several matches are all
+  of them, in document order. There is no scalar shape for `css` output.
 
 Every fetched item already carries the untouched body in a top-level `body` field
 (see `CLI_REFERENCE.md`'s examples), independent of `stages`. An empty `stages: []`
@@ -166,7 +172,7 @@ the same `data` map.
 - `json` buffers every item and writes one JSON array to `path` on completion, so a
   reader never observes a half-written array.
 - `stream` pushes items to the RPC streamer instead of a local file/stdout. Like the
-  `plugin` stage (§6), it's only meaningful when there's a wire connection to push
+  `plugin` extraction method (§6), it's only meaningful when there's a wire connection to push
   over: a `sink.use: stream` spec is rejected outside `__rpc` mode, a clear error
   rather than a hang.
 
@@ -196,8 +202,8 @@ a crawl:
   that doesn't match `pattern`; an `int` value outside `min`/`max`.
 - `limits`: any field `<= 0` where the rule requires `> 0`; `backoff` not
   `exponential`; negative `rps`.
-- `stages[].use` not one of the four known stage names; a `plugin` stage outside
-  `__rpc` mode; a `css` stage with no `fields`.
+- `stages[].use` not one of the four known extraction-method names; a stage using
+  `plugin` outside `__rpc` mode; a stage using `css` with no `fields`.
 - `sink.use` outside its enum; `path` missing when required, or present when
   forbidden; `sink.use: stream` outside `__rpc` mode.
 
