@@ -45,10 +45,13 @@ of page you're asking it to scrape. Never both.
 
 | Rule |
 |---|
-| Required string. Must be unique across every manifest `pobear` loads — two manifests sharing a name is a load-time error, not "last one wins." |
+| Required string, matching `[a-z0-9_]+`. Must be unique across every manifest `pobear` loads — two manifests sharing a name is a load-time error, not "last one wins." |
 
 This is the value passed to `--provider <name>` / `fetch.name`, and it's the `<NAME>`
-segment of the credential environment variable (§5).
+segment of the credential environment variable (§5). The charset restriction exists
+because that segment is joined unmodified into a shell environment variable name —
+`pkg/credentials.EnvVar` does no normalization, so a name outside `[a-z0-9_]+` would
+produce an env var name that isn't legally exportable in most shells.
 
 ---
 
@@ -87,6 +90,8 @@ job spec. It's read from `POBEAR_PROVIDER_<NAME>_<CREDENTIAL>`, both segments
 uppercased — `name: acme` + `credential: token` → `POBEAR_PROVIDER_ACME_TOKEN`.
 `pobear auth <name>` prompts for it (not echoed) and stores it for every subsequent
 run; `pobear scrape --provider <name>` fails with a clear auth error if it's unset.
+The on-disk credentials store `pobear auth` writes to is created with `0o600`
+permissions, since it holds plaintext secrets.
 
 **`type: basic`** stores one secret like every other type — a single
 `username:password` string, entered as one answer to the `pobear auth <name>`
@@ -315,7 +320,7 @@ and already trusts:
 - `templates` (if set): at least one entry; names unique; at most one
   `default: true`; each entry's `endpoint` (if set) is an absolute `http`/`https`
   URL; each entry's `options`/`request` follow the same rules as §6/§7.
-- No two loaded manifests share a `name`.
+- No two loaded manifests share a `name`, and `name` matches `[a-z0-9_]+` (§2).
 
 A manifest failing any of these fails at `pobear` startup with a message naming the
 manifest and the field — it never partially loads.
