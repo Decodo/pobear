@@ -20,7 +20,7 @@
   /credentials                    // shared provider-credential store (POBEAR_PROVIDER_<NAME>_<CREDENTIAL> / ~/.pobear/credentials) — written by cli/internal/providerator's provider-auth.go, read by core's provider fetch tier at request time
   /fault                          // the fault-kind taxonomy (auth/network/timeout/http/blocked/rateLimit/provider + job-level spec/parse/plugin) — what a manifest's errors[] classifies a response into, and what fetch's rungs (retry-escalation) and exitcode both key off of
   /exitcode                       // maps a finished job's outcome (via pkg/fault) to the CLI's process exit code (0/1/3/4/5; 2 is reserved for a Go panic)
-  /plugin                         // DEFERRED, not in v1 — removed from the codebase along with __rpc/SDK support (JOB_SPEC_REFERENCE.md §5). Was: the `plugin` stage channel, kept global since it's meant for whatever plugins we allow creating, not specific to one stage implementation. Reintroduce alongside services/rpc when that lands: a pluginer.go (entry point core/internal/stage/stages/plugin.go calls, resolving a registered id and dispatching the callback, enforcing limits.pluginConcurrency/limits.pluginTimeout), a registry.go (tracks which plugin ids are currently registered by the connected RPC host), and a caller.go (the interface pluginer dispatches through, implemented by services/rpc/internal/streamer and injected, since pkg can't import services/rpc/internal directly).
+  /plugin                         // DEFERRED, not in v1 — removed from the codebase along with __rpc/SDK support (JOB_SPEC_REFERENCE.md §5). Was: the `plugin` extraction method's channel, kept global since it's meant for whatever plugins we allow creating, not specific to one extractor implementation. Reintroduce alongside services/rpc when that lands: a pluginer.go (entry point core/internal/stage/extractors/plugin.go calls, resolving a registered id and dispatching the callback, enforcing limits.pluginConcurrency/limits.pluginTimeout), a registry.go (tracks which plugin ids are currently registered by the connected RPC host), and a caller.go (the interface pluginer dispatches through, implemented by services/rpc/internal/streamer and injected, since pkg can't import services/rpc/internal directly).
 
 /services
   /core                          // "Core" container in the diagram — the one engine that executes a spec, regardless of which front end produced it
@@ -43,12 +43,12 @@
           proxy.go                   // proxy tier: fetch routed through a user-supplied proxy URL
           provider.go                // provider tier: fetch via a named manifest — auth (via pkg/credentials), request templating (via pkg/provider), response JSONPath extraction, error-kind mapping (via pkg/fault)
       /stage
-        stager.go                  // stager: runs the `stages` pipeline over a fetched item, in declared order, dispatching each to its implementation; also owns the data-key-collision warning when two stages write the same key
-        /stages                     // the different stage implementations stager can dispatch to — this is the "stage" interface from the diagram
-          raw.go                      // `raw` stage -> data.raw: the untouched body
-          markdown.go                 // `markdown` stage -> data.markdown
-          css.go                      // `css` stage -> data[name] per selector(@attr)
-          plugin.go                   // `plugin` stage: thin adapter into pkg/plugin's pluginer; only legal under __rpc (JOB_SPEC_REFERENCE §6)
+        stager.go                  // stager: runs the `stages` pipeline over a fetched item, in declared order, dispatching each configured stage to the Extractor its `use` selects; also owns the data-key-collision warning when two stages write the same key
+        /extractors                 // the different extraction methods a stage's `use` can select — this is the "Extractor" interface stager dispatches to (raw/markdown/css/plugin are extraction methods, not stages themselves; a "stage" is the configured {use, ...config} pipeline slot they get plugged into)
+          raw.go                      // `raw` extractor -> data.raw: the untouched body
+          markdown.go                 // `markdown` extractor -> data.markdown
+          css.go                      // `css` extractor -> data[name] per selector(@attr)
+          plugin.go                   // `plugin` extractor: thin adapter into pkg/plugin's pluginer; only legal under __rpc (JOB_SPEC_REFERENCE §6)
       /sink
         sinker.go                  // sinker: reads sink.use and dispatches a finished item to whichever sink implementation is selected
         /sinks                      // the different sink implementations sinker can dispatch to — this is the "sink" interface from the diagram
