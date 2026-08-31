@@ -138,18 +138,13 @@ collisions, below).
 | `plugin` | `id: "<registered id>"` | whatever the host callback returns |
 
 **Rules:**
-- `use` must be one of the four extraction-method names above; anything else is
-  rejected at load time.
-- A stage configured with `use: plugin` is rejected outside `__rpc` mode (there
-  is no reverse channel to answer it in plain CLI mode) — a clear error, not a
-  hang. `__rpc` mode is deferred (see §5), so in practice `plugin` is
-  unreachable in v1.
-- If two stages write the same `data` key, the second write wins and a warning is
-  printed naming both stages by position — never a silent overwrite.
-- `css` always writes a list per field (`[]string`, or `[]any` if `@attr` values
-  can differ in kind — they don't today), regardless of match count: zero matches
-  is `[]`, not `null`; one match is a one-element list; several matches are all
-  of them, in document order. There is no scalar shape for `css` output.
+- `use` must be one of the four names above; anything else is rejected at load time.
+- A `plugin` stage is rejected outside `__rpc` mode (there is no reverse channel to
+  answer it in plain CLI mode) — a clear error, not a hang. `__rpc` mode is
+  deferred (see §5), so in practice `plugin` is unreachable in v1.
+- If two or more stages write the same `data` key, the last write wins and a
+  warning is printed for each overwrite, naming the two stages involved by
+  position — never a silent overwrite.
 
 Every fetched item already carries the untouched body in a top-level `body` field
 (see `CLI_REFERENCE.md`'s examples), independent of `stages`. An empty `stages: []`
