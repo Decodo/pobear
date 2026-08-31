@@ -175,6 +175,12 @@ the same `data` map.
   `plugin` extraction method (§6), it's only meaningful when there's a wire connection to push
   over: a `sink.use: stream` spec is rejected outside `__rpc` mode, a clear error
   rather than a hang.
+- A closed sink never silently accepts more items: calling `Write` after `Close`
+  returns a non-nil error, on all sink kinds.
+- `Close` with zero items written still produces valid output: `json` writes an
+  empty array (`[]`, not `null`), and `ndjson` still creates `path` as an empty
+  (0-byte) file — a downstream reader never sees a missing file just because
+  nothing was fetched.
 
 ---
 
