@@ -1,0 +1,10 @@
+version: 1
+source:
+  urls: ["{{base}}/page1.html"]
+fetch:
+  use: local
+stages:
+  - use: markdown
+sink:
+  use: ndjson
+  path: /dev/null

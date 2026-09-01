@@ -1,0 +1,15 @@
+version: 1
+source:
+  crawl:
+    seeds: ["{{base}}/page1.html"]
+    depth: 0
+    maxPages: 10
+    scope: same-host
+    robots: ignore
+fetch:
+  use: local
+stages:
+  - use: raw
+sink:
+  use: ndjson
+  path: /dev/null

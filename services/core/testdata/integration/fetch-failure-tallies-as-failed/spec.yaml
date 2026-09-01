@@ -1,0 +1,10 @@
+version: 1
+source:
+  urls: ["http://127.0.0.1:1/unreachable"]
+fetch:
+  use: local
+stages:
+  - use: raw
+sink:
+  use: ndjson
+  path: /dev/null

@@ -1,0 +1,5 @@
+items:
+  - url: "{{base}}/page1.html"
+    status: 200
+    data:
+      raw: "<!doctype html><html><body><h1>Hello</h1></body></html>"
