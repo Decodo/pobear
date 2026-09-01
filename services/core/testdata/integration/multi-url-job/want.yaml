@@ -1,0 +1,12 @@
+items:
+  - url: "{{base}}/page1.html"
+    status: 200
+    data:
+      raw: "<h1>Page One</h1>"
+  - url: "{{base}}/page2.html"
+    status: 200
+    data:
+      raw: "<h1>Page Two</h1>"
+result:
+  succeeded: 2
+  failed: 0

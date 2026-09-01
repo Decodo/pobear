@@ -1,0 +1,8 @@
+items:
+  - url: "{{base}}/page1.html"
+    status: 200
+    data:
+      raw: "<h1>Seed</h1>"
+result:
+  succeeded: 1
+  failed: 0

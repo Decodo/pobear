@@ -1,0 +1,8 @@
+items:
+  - url: "{{base}}/page1.html"
+    status: 200
+    data:
+      title: ["Paragraph"]
+result:
+  succeeded: 1
+  failed: 0

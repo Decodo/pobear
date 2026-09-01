@@ -1,0 +1,5 @@
+items:
+  - url: "{{base}}/page1.html"
+    status: 200
+    data:
+      markdown: "# Hello\n\nWorld"
