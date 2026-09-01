@@ -103,3 +103,13 @@ Things the diagram implies but the reference specs don't pin down yet:
 - Dedupe (`core/internal/job/workers/crawl/dedupe.go`) has no job spec field yet
   describing how it's controlled — needs a `source.crawl` field (or a documented
   default behavior) before implementation.
+- `cli/internal/wizard`'s full-screen terminal UI (`CLI_REFERENCE.md`'s
+  wizard section) is unbuilt and its own design session hasn't happened yet.
+  Working assumption for that session: bring in a TUI library (tview or
+  bubbletea) rather than hand-rolling raw ANSI/focus-management/reactive
+  re-render logic — unlike the rest of the CLI (`cli/internal/command`,
+  which deliberately stays stdlib-`flag`-only, no new dependency, since its
+  flag surface is small and `CLI_REFERENCE.md` pins exact error text a
+  framework like cobra would fight rather than help with), a full-screen
+  reactive TUI is exactly the kind of undifferentiated complexity a
+  dedicated library exists to solve.
