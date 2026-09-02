@@ -16,11 +16,19 @@ const (
 )
 
 func IsFetchOutcome(k Kind) bool {
-	_ = k
-	return false
+	switch k {
+	case Auth, Network, Timeout, HTTP, Blocked, RateLimit, Provider:
+		return true
+	default:
+		return false
+	}
 }
 
 func Valid(k Kind) bool {
-	_ = k
-	return false
+	switch k {
+	case Auth, Network, Timeout, HTTP, Blocked, RateLimit, Provider, Spec, Parse, Plugin:
+		return true
+	default:
+		return false
+	}
 }
