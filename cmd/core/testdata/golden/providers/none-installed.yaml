@@ -1,0 +1,5 @@
+args: providers
+stdout: ""
+stderr: |
+    no providers installed
+exit: 0

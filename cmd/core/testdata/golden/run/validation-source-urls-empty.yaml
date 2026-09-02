@@ -1,0 +1,9 @@
+args: run -
+stdin: |
+    version: 1
+    source: {urls: []}
+    fetch: {use: local}
+stdout: ""
+stderr: |
+    pobear: spec: `source.urls` must contain at least one URL, got none
+exit: 3

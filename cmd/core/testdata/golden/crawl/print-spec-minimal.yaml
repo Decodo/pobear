@@ -1,0 +1,18 @@
+args: crawl {{base}}/x --depth 0 --print-spec
+stdout: |
+    {
+      "version": 1,
+      "source": {
+        "crawl": {
+          "seeds": [
+            "{{base}}/x"
+          ],
+          "depth": 0
+        }
+      },
+      "fetch": {
+        "use": "local"
+      }
+    }
+stderr: ""
+exit: 0

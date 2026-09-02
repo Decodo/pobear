@@ -1,0 +1,10 @@
+args: run -
+stdin: |
+    version: 1
+    source: {urls: [https://a.test]}
+    fetch: {use: local}
+    stages: [{use: css}]
+stdout: ""
+stderr: |
+    pobear: spec: `stages[0].fields` is required for a `css` stage
+exit: 3

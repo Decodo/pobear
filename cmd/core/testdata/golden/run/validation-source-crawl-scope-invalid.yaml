@@ -1,0 +1,9 @@
+args: run -
+stdin: |
+    version: 1
+    source: {crawl: {seeds: [https://a.test], scope: everywhere}}
+    fetch: {use: local}
+stdout: ""
+stderr: |
+    pobear: spec: `source.crawl.scope` must be one of `same-host`, `same-domain`, `any`, got "everywhere"
+exit: 3

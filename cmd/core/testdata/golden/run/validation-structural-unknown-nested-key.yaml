@@ -1,0 +1,9 @@
+args: run -
+stdin: |
+    version: 1
+    source: {urls: [https://a.test]}
+    fetch: {use: local, bogus: true}
+stdout: ""
+stderr: |
+    pobear: spec: unknown field `fetch.bogus`
+exit: 3

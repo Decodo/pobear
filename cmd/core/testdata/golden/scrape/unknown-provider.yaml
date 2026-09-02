@@ -1,0 +1,5 @@
+args: scrape https://example.com --provider bogus-provider
+stdout: ""
+stderr: |
+    pobear: unknown provider "bogus-provider"
+exit: 3

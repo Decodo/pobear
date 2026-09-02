@@ -1,0 +1,22 @@
+args: providers decodo --json
+stdout: |
+    {"name":"decodo","templates":[{"name":"universal","default":true,"options":[{"name":"render","type":"bool","default":false},{"name":"geo","type":"string","pattern":"^[a-z]{2}$"}]},{"name":"amazon_product","options":[{"name":"domain","type":"enum","values":["com","co.uk","de"],"default":"com"}]}]}
+stderr: ""
+exit: 0
+providers:
+    decodo.yaml: |
+        name: decodo
+        endpoint: https://scraper-api.decodo.com/v2/scrape
+        auth: {type: bearer, credential: token}
+        templates:
+          - name: universal
+            default: true
+            options:
+              - {name: render, type: bool, default: false}
+              - {name: geo, type: string, pattern: '^[a-z]{2}$'}
+            request: {body: {source: universal, url: "{{ .URL }}"}}
+          - name: amazon_product
+            options:
+              - {name: domain, type: enum, values: [com, co.uk, de], default: com}
+            request: {body: {query: "{{ .URL }}"}}
+        response: {body: "$.html"}

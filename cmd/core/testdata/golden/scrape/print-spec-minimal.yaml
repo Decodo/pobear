@@ -1,0 +1,15 @@
+args: scrape {{base}}/x --print-spec
+stdout: |
+    {
+      "version": 1,
+      "source": {
+        "urls": [
+          "{{base}}/x"
+        ]
+      },
+      "fetch": {
+        "use": "local"
+      }
+    }
+stderr: ""
+exit: 0

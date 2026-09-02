@@ -1,0 +1,9 @@
+args: run -
+stdin: |
+    version: 1
+    source: {urls: [https://a.test]}
+    fetch: {use: local, template: universal}
+stdout: ""
+stderr: |
+    pobear: spec: `fetch.template` requires `fetch.use: provider`, got "local"
+exit: 3

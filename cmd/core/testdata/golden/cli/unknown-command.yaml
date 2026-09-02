@@ -1,0 +1,5 @@
+args: bogus
+stdout: ""
+stderr: |
+    pobear: unknown command "bogus"
+exit: 3

@@ -1,0 +1,5 @@
+args: crawl https://example.com --depth 0 --provider bogus-provider
+stdout: ""
+stderr: |
+    pobear: unknown provider "bogus-provider"
+exit: 3

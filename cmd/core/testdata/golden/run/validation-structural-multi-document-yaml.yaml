@@ -1,0 +1,13 @@
+args: run -
+stdin: |
+    version: 1
+    source: {urls: [https://a.test]}
+    fetch: {use: local}
+    ---
+    version: 1
+    source: {urls: [https://b.test]}
+    fetch: {use: local}
+stdout: ""
+stderr: |
+    pobear: spec: spec document must contain exactly one YAML document
+exit: 3

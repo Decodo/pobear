@@ -1,0 +1,9 @@
+args: run -
+stdin: |
+    version: 1
+    source: {urls: [https://a.test]}
+    fetch: {use: local, name: acme}
+stdout: ""
+stderr: |
+    pobear: spec: `fetch.name` requires `fetch.use: provider`, got "local"
+exit: 3

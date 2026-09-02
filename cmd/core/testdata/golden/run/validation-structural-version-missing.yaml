@@ -1,0 +1,8 @@
+args: run -
+stdin: |
+    source: {urls: [https://a.test]}
+    fetch: {use: local}
+stdout: ""
+stderr: |
+    pobear: spec: `version` is required
+exit: 3

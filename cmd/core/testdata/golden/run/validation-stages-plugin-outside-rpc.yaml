@@ -1,0 +1,10 @@
+args: run -
+stdin: |
+    version: 1
+    source: {urls: [https://a.test]}
+    fetch: {use: local}
+    stages: [{use: plugin, id: myplugin}]
+stdout: ""
+stderr: |
+    pobear: spec: `stages[0].use: plugin` is only allowed under `__rpc` mode
+exit: 3
