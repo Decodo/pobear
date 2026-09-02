@@ -1,0 +1,10 @@
+args: run -
+stdin: |
+    version: 1
+    source: {urls: [https://a.test]}
+    fetch: {use: local}
+    limits: {rps: -1}
+stdout: ""
+stderr: |
+    pobear: spec: `limits.rps` must be >= 0, got -1
+exit: 3

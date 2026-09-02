@@ -1,0 +1,9 @@
+args: run -
+stdin: |
+    version: 1
+    source: {crawl: {seeds: ["not-a-url"]}}
+    fetch: {use: local}
+stdout: ""
+stderr: |
+    pobear: spec: `source.crawl.seeds` must be absolute `http`/`https` URLs, got "not-a-url"
+exit: 3

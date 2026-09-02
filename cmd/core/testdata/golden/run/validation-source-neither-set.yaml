@@ -1,0 +1,9 @@
+args: run -
+stdin: |
+    version: 1
+    source: {}
+    fetch: {use: local}
+stdout: ""
+stderr: |
+    pobear: spec: `source` must set exactly one of `urls` or `crawl`, but neither is set
+exit: 3

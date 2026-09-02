@@ -1,0 +1,10 @@
+args: run -
+stdin: |
+    version: 1
+    source: {urls: [https://a.test]}
+    fetch: {use: local}
+    sink: {use: stream}
+stdout: ""
+stderr: |
+    pobear: spec: `sink.use: stream` is only allowed under `__rpc` mode
+exit: 3

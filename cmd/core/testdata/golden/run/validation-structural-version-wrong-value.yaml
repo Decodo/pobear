@@ -1,0 +1,9 @@
+args: run -
+stdin: |
+    version: 2
+    source: {urls: [https://a.test]}
+    fetch: {use: local}
+stdout: ""
+stderr: |
+    pobear: spec: `version` must be 1, got 2
+exit: 3

@@ -1,0 +1,9 @@
+args: run -
+stdin: |
+    version: 1
+    source: {urls: [https://a.test]}
+    fetch: {use: local, profile: bogus}
+stdout: ""
+stderr: |
+    pobear: spec: `fetch.profile` must be one of `chrome`, `firefox`, `safari`, got "bogus"
+exit: 3

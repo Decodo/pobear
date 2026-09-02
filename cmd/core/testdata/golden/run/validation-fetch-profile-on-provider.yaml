@@ -1,0 +1,9 @@
+args: run -
+stdin: |
+    version: 1
+    source: {urls: [https://a.test]}
+    fetch: {use: provider, name: acme, profile: chrome}
+stdout: ""
+stderr: |
+    pobear: spec: `fetch.profile` requires `fetch.use: local` or `fetch.use: proxy`, got "provider"
+exit: 3

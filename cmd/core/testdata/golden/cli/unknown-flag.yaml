@@ -1,0 +1,5 @@
+args: scrape --nope
+stdout: ""
+stderr: |
+    pobear: unknown flag: --nope
+exit: 3

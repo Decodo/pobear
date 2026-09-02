@@ -83,6 +83,7 @@ $ pobear scrape https://ip.decodo.com --print-spec-verbose
   "source": { "urls": ["https://ip.decodo.com"] },
   "fetch": { "use": "local", "profile": "chrome", "timeout": "30s", "noRedirects": false },
   "limits": { "concurrency": 8, "rps": 0, "retries": 3, "backoff": "exponential", "pluginConcurrency": 0, "pluginTimeout": "30s" },
+  "stages": [],
   "sink": { "use": "stdout" }
 }
 ```
@@ -93,9 +94,8 @@ same document spelled out in full.
 
 ```
 $ pobear scrape https://example.com --extract markdown
-{"url":"https://example.com","finalUrl":"https://example.com","status":200,
- "headers":{...},"body":"<!doctype html>…","depth":0,
- "fetch":{"via":"local","attempts":1,"ms":142},
+{"url":"https://example.com","finalUrl":"https://example.com","parentUrl":"","status":200,
+ "body":"<!doctype html>…","depth":0,
  "data":{"markdown":"# Example Domain\n\nThis domain is for use in…"}}
 fetched 1, errors 0, skipped 0          # ← this line is on stderr
 ```
@@ -157,9 +157,19 @@ $ echo $?
 3
 
 $ pobear scrape https://example.com --opt render=true          # no --provider set
-pobear: spec: fetch.options requires fetch.use: provider, got "local"
+pobear: spec: `fetch.options` requires `fetch.use: provider`, got "local"
 $ echo $?
 3
+```
+
+Every `--provider` also needs a saved credential (see `pobear auth <provider>` below) —
+without one, the CLI fails before any fetch is attempted:
+
+```
+$ pobear scrape https://example.com --provider decodo
+pobear: missing credential for provider "decodo" (run: pobear auth decodo)
+$ echo $?
+1
 ```
 
 ### `--template <name>` — when a provider has more than one mode
@@ -269,9 +279,11 @@ $ pobear crawl https://example.com --depth 2 --print-spec-verbose
 {
   "version": 1,
   "source": { "crawl": { "seeds": ["https://example.com"], "depth": 2,
-    "maxPages": 100, "maxDuration": "", "scope": "same-host", "sitemap": false, "robots": "respect" } },
+    "maxPages": 100, "maxDuration": "", "scope": "same-host", "include": [], "exclude": [],
+    "sitemap": false, "robots": "respect" } },
   "fetch": { "use": "local", "profile": "chrome", "timeout": "30s", "noRedirects": false },
   "limits": { "concurrency": 8, "rps": 2, "retries": 3, "backoff": "exponential", "pluginConcurrency": 0, "pluginTimeout": "30s" },
+  "stages": [],
   "sink": { "use": "stdout" }
 }
 ```
@@ -280,8 +292,8 @@ $ pobear crawl https://example.com --depth 2 --print-spec-verbose
 $ pobear crawl https://example.com --depth 1 --extract markdown --out pages.ndjson
 fetched 2, errors 0, skipped 0
 $ cat pages.ndjson
-{"url":"https://example.com/","finalUrl":"https://example.com/","parentUrl":"","status":200,"depth":0,"data":{"markdown":"# Example Domain..."}}
-{"url":"https://example.com/about","finalUrl":"https://example.com/about","parentUrl":"https://example.com/","status":200,"depth":1,"data":{"markdown":"# About..."}}
+{"url":"https://example.com/","finalUrl":"https://example.com/","parentUrl":"","status":200,"body":"<!doctype html>…","depth":0,"data":{"markdown":"# Example Domain..."}}
+{"url":"https://example.com/about","finalUrl":"https://example.com/about","parentUrl":"https://example.com/","status":200,"body":"<!doctype html>…","depth":1,"data":{"markdown":"# About..."}}
 ```
 
 `parentUrl` is the page a URL was discovered on — empty for a seed, otherwise the
@@ -317,7 +329,7 @@ fetched 1, errors 0, skipped 0
 ```
 $ echo 'fetch: {use: local}' > bad.yaml     # neither urls nor crawl set
 $ pobear run bad.yaml
-pobear: spec: source must set exactly one of urls or crawl, but neither is set
+pobear: spec: `source` must set exactly one of `urls` or `crawl`, but neither is set
 $ echo $?
 3
 ```

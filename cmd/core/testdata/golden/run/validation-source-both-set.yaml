@@ -1,0 +1,9 @@
+args: run -
+stdin: |
+    version: 1
+    source: {urls: [https://a.test], crawl: {seeds: [https://a.test]}}
+    fetch: {use: local}
+stdout: ""
+stderr: |
+    pobear: spec: `source` must set exactly one of `urls` or `crawl`, but both are set
+exit: 3
