@@ -12,12 +12,20 @@ const (
 
 func FromValidationFault(k fault.Kind) int {
 	_ = k
-	return -1
+	return UsageError
 }
 
 func FromRun(succeeded, failed int, kinds []fault.Kind) int {
-	_ = succeeded
-	_ = failed
-	_ = kinds
-	return -1
+	if failed == 0 {
+		return Success
+	}
+	if succeeded > 0 {
+		return PartialFailure
+	}
+	for _, k := range kinds {
+		if k != fault.Auth {
+			return Fatal
+		}
+	}
+	return AuthFailure
 }
