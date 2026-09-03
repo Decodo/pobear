@@ -1,0 +1,9 @@
+args: run -
+stdin: |
+    version: 1
+    source: {urls: ["ftp://a.test/file"]}
+    fetch: {use: local}
+stdout: ""
+stderr: |
+    pobear: spec: `source.urls` must be absolute `http`/`https` URLs, got "ftp://a.test/file"
+exit: 3

@@ -4,4 +4,46 @@
 // See docs/PROJECT_STRUCTURE.md for how this fits together.
 package main
 
-func main() {}
+import (
+	"bufio"
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"strings"
+
+	"github.com/pobear/pobear/services/cli"
+	"github.com/pobear/pobear/services/core"
+)
+
+func main() {
+	os.Exit(run())
+}
+
+func run() int {
+	providersDir := os.Getenv("POBEAR_PROVIDERS_DIR")
+	if providersDir == "" {
+		providersDir = "providers"
+	}
+
+	credentialsPath, err := cli.DefaultCredentialsPath()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "pobear: %v\n", err)
+		return 5
+	}
+
+	coreService := core.New(providersDir, credentialsPath, os.Stdout)
+	cliService := cli.New(providersDir, coreService, credentialsPath, termPrompt)
+
+	return cliService.Run(context.Background(), os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
+}
+
+func termPrompt(label string) (string, error) {
+	fmt.Fprintf(os.Stderr, "%s: ", label)
+	line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return "", err
+	}
+	return strings.TrimRight(line, "\r\n"), nil
+}

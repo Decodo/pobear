@@ -1,0 +1,9 @@
+args: run -
+stdin: |
+    version: 1
+    source: {urls: [https://a.test]}
+    fetch: {use: local, timeout: "notaduration"}
+stdout: ""
+stderr: |
+    pobear: spec: `fetch.timeout` is not a valid duration: "notaduration"
+exit: 3

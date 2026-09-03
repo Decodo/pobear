@@ -1,0 +1,9 @@
+args: run -
+stdin: |
+    version: 1
+    source: {crawl: {seeds: [https://a.test], maxDuration: "notaduration"}}
+    fetch: {use: local}
+stdout: ""
+stderr: |
+    pobear: spec: `source.crawl.maxDuration` is not a valid duration: "notaduration"
+exit: 3

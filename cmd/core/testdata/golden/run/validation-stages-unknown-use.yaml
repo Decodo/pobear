@@ -1,0 +1,10 @@
+args: run -
+stdin: |
+    version: 1
+    source: {urls: [https://a.test]}
+    fetch: {use: local}
+    stages: [{use: bogus}]
+stdout: ""
+stderr: |
+    pobear: spec: `stages[0].use` must be one of `raw`, `markdown`, `css`, `plugin`, got "bogus"
+exit: 3

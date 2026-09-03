@@ -1,0 +1,9 @@
+args: run -
+stdin: |
+    version: 1
+    source: {crawl: {seeds: [https://a.test], robots: maybe}}
+    fetch: {use: local}
+stdout: ""
+stderr: |
+    pobear: spec: `source.crawl.robots` must be one of `respect`, `ignore`, got "maybe"
+exit: 3

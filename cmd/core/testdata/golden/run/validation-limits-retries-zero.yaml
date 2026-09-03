@@ -1,0 +1,10 @@
+args: run -
+stdin: |
+    version: 1
+    source: {urls: [https://a.test]}
+    fetch: {use: local}
+    limits: {retries: 0}
+stdout: ""
+stderr: |
+    pobear: spec: `limits.retries` must be >= 1, got 0
+exit: 3

@@ -1,0 +1,5 @@
+args: providers bogus-provider
+stdout: ""
+stderr: |
+    pobear: unknown provider "bogus-provider"
+exit: 3

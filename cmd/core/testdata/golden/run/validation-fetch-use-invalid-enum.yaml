@@ -1,0 +1,9 @@
+args: run -
+stdin: |
+    version: 1
+    source: {urls: [https://a.test]}
+    fetch: {use: bogus}
+stdout: ""
+stderr: |
+    pobear: spec: `fetch.use` must be one of `local`, `proxy`, `provider`, got "bogus"
+exit: 3

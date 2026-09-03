@@ -1,0 +1,40 @@
+args: crawl {{base}}/x --depth 0 --print-spec-verbose
+stdout: |
+    {
+      "version": 1,
+      "source": {
+        "crawl": {
+          "seeds": [
+            "{{base}}/x"
+          ],
+          "depth": 0,
+          "maxPages": 100,
+          "maxDuration": "",
+          "scope": "same-host",
+          "include": [],
+          "exclude": [],
+          "sitemap": false,
+          "robots": "respect"
+        }
+      },
+      "fetch": {
+        "use": "local",
+        "profile": "chrome",
+        "timeout": "30s",
+        "noRedirects": false
+      },
+      "limits": {
+        "concurrency": 8,
+        "rps": 2,
+        "retries": 3,
+        "backoff": "exponential",
+        "pluginConcurrency": 0,
+        "pluginTimeout": "30s"
+      },
+      "stages": [],
+      "sink": {
+        "use": "stdout"
+      }
+    }
+stderr: ""
+exit: 0

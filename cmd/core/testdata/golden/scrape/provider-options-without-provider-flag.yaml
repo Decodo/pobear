@@ -1,0 +1,5 @@
+args: scrape https://example.com --opt render=true
+stdout: ""
+stderr: |
+    pobear: spec: `fetch.options` requires `fetch.use: provider`, got "local"
+exit: 3

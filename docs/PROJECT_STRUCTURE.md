@@ -25,6 +25,7 @@
 /services
   /core                          // "Core" container in the diagram — the one engine that executes a spec, regardless of which front end produced it
     service.go
+    build.go                     // New(providersDir, credentialsPath, stdout): the one public constructor that wires up this service's whole internal/ dependency graph — public because cmd/core can't import services/core/internal/... directly (Go's internal-import rule); rebuilds the Fetcher/Stager/Sinker/Scrape/Crawl/Executor graph fresh per job, parameterized by that job's own resolved spec
     /internal
       /job
         parser.go                 // job-parser: load-time validation of a spec (§8) before anything runs
@@ -59,6 +60,7 @@
 
   /cli                           // "CLI" container in the diagram
     service.go                    // Commander: parses argv, routes to a subcommand; maps a finished job's outcome to a process exit code via pkg/exitcode
+    build.go                     // New(providersDir, coreService, credentialsPath, prompt): the one public constructor that wires up this service's whole internal/ dependency graph, same internal-import-rule reason as services/core/build.go
     /internal
       /command
         version.go                  // `pobear version` — no deps, just prints the binary version
