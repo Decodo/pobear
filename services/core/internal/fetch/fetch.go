@@ -16,22 +16,74 @@ type Tier interface {
 
 var ErrUnknownTier = errors.New("fetch: unknown tier")
 
-var ErrNotImplemented = errors.New("fetch: not implemented")
-
 type Fetcher struct {
-	tiers       map[string]Tier
-	concurrency int
-	retries     int
-	backoff     func(attempt int) time.Duration
+	tiers   map[string]Tier
+	retries int
+	backoff func(attempt int) time.Duration
+	sem     chan struct{}
 }
 
 func NewFetcher(ts map[string]Tier, concurrency, retries int, backoff func(attempt int) time.Duration) *Fetcher {
-	return &Fetcher{tiers: ts, concurrency: concurrency, retries: retries, backoff: backoff}
+	f := &Fetcher{tiers: ts, retries: retries, backoff: backoff}
+	if concurrency > 0 {
+		f.sem = make(chan struct{}, concurrency)
+	}
+	return f
 }
 
 func (f *Fetcher) Fetch(ctx context.Context, cfg jobspec.Fetch, url string) (*tiers.Result, fault.Kind, error) {
-	_ = ctx
-	_ = cfg
-	_ = url
-	return nil, "", ErrNotImplemented
+	tier, ok := f.tiers[cfg.Use]
+	if !ok {
+		return nil, "", ErrUnknownTier
+	}
+
+	release, err := f.acquire(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	defer release()
+
+	retries := max(f.retries, 1)
+
+	var result *tiers.Result
+	var kind fault.Kind
+
+	for attempt := 1; attempt <= retries; attempt++ {
+		result, kind, err = tier.Fetch(ctx, cfg, url)
+
+		if err == nil && kind == "" {
+			return result, kind, nil
+		}
+		if attempt == retries {
+			return result, kind, err
+		}
+		if err := f.waitBackoff(ctx, attempt); err != nil {
+			return nil, "", err
+		}
+	}
+
+	return result, kind, err
+}
+
+func (f *Fetcher) acquire(ctx context.Context) (release func(), err error) {
+	if f.sem == nil {
+		return func() {}, nil
+	}
+	select {
+	case f.sem <- struct{}{}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	return func() { <-f.sem }, nil
+}
+
+func (f *Fetcher) waitBackoff(ctx context.Context, attempt int) error {
+	timer := time.NewTimer(f.backoff(attempt))
+	select {
+	case <-ctx.Done():
+		timer.Stop()
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }

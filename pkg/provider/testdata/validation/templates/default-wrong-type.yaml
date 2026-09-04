@@ -1,0 +1,12 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: bearer, credential: token}
+  response: {body: "$.html"}
+  templates:
+    - name: t1
+      default: "yes"
+      request: {body: {target: "{{ .URL }}"}}
+wantErr: true
+wantField: templates[0].default
+wantMessage: "`templates[0].default` must be a bool, got yes"

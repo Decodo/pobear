@@ -26,17 +26,16 @@ func parseTemplates(root map[string]any) ([]Template, *ValidationError) {
 			return nil, err
 		}
 
-		nameRaw, hasName := m["name"]
-		if !hasName {
-			return nil, utils.Errorf(field+".name", "`%s.name` is required", field)
-		}
-		name, _ := nameRaw.(string)
-		if idx, dup := seenNames[name]; dup {
-			return nil, utils.Errorf(field+".name", "`%s.name` duplicates `templates[%d].name`: %q", field, idx, name)
+		name, err := requireUniqueName(m, field, "", "templates", seenNames)
+		if err != nil {
+			return nil, err
 		}
 		seenNames[name] = i
 
-		isDefault := utils.GetBool(m, "default", false)
+		isDefault, err := utils.GetBool(m, "default", field+".default", false)
+		if err != nil {
+			return nil, err
+		}
 		if isDefault {
 			if haveDefault {
 				return nil, utils.Errorf(field+".default", "at most one of `templates[].default` may be `true`")

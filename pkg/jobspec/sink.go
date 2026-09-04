@@ -13,7 +13,7 @@ func parseSink(root map[string]any, mode Mode) (Sink, *ValidationError) {
 	}
 
 	use := utils.GetString(m, "use", "stdout")
-	if err := utils.EnumField("sink.use", use, "stdout", "ndjson", "json", "stream"); err != nil {
+	if err := utils.EnumField("sink.use", use, "stdout", "ndjson", "json", "yaml", "stream"); err != nil {
 		return Sink{}, err
 	}
 	if use == "stream" && mode != ModeRPC {
@@ -27,13 +27,13 @@ func parseSink(root map[string]any, mode Mode) (Sink, *ValidationError) {
 	}
 
 	switch use {
-	case "ndjson", "json":
+	case "ndjson", "json", "yaml":
 		if !hasPath || path == "" {
-			return Sink{}, utils.Errorf("sink.path", "`sink.path` is required when `sink.use` is `ndjson` or `json`")
+			return Sink{}, utils.Errorf("sink.path", "`sink.path` is required when `sink.use` is `ndjson`, `json`, or `yaml`")
 		}
 	case "stdout", "stream":
 		if hasPath {
-			return Sink{}, utils.Errorf("sink.path", "`sink.path` is only allowed when `sink.use` is `ndjson` or `json`")
+			return Sink{}, utils.Errorf("sink.path", "`sink.path` is only allowed when `sink.use` is `ndjson`, `json`, or `yaml`")
 		}
 	}
 

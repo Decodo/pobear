@@ -2,7 +2,6 @@ package workers
 
 import (
 	"context"
-	"errors"
 
 	"github.com/pobear/pobear/pkg/fault"
 	"github.com/pobear/pobear/pkg/jobspec"
@@ -26,8 +25,6 @@ type LinkExtractor interface {
 	Extract(body []byte) []string
 }
 
-var ErrNotImplemented = errors.New("workers: not implemented")
-
 type Scrape struct {
 	fetcher Fetcher
 	stager  Stager
@@ -40,10 +37,28 @@ func NewScrape(f Fetcher, st Stager, sk Sinker, le LinkExtractor) *Scrape {
 }
 
 func (s *Scrape) Run(ctx context.Context, spec *jobspec.Spec, url, parentURL string, depth int) (links []string, kind fault.Kind, err error) {
-	_ = ctx
-	_ = spec
-	_ = url
-	_ = parentURL
-	_ = depth
-	return nil, "", ErrNotImplemented
+	result, fetchKind, fetchErr := s.fetcher.Fetch(ctx, spec.Fetch, url)
+	if fetchErr != nil || fetchKind != "" {
+		return nil, fetchKind, fetchErr
+	}
+
+	data, _, stageErr := s.stager.Run(ctx, result.Body, spec.Stages)
+	if stageErr != nil {
+		return nil, "", stageErr
+	}
+
+	item := sinks.Item{
+		URL:       url,
+		FinalURL:  result.FinalURL,
+		ParentURL: parentURL,
+		Status:    result.Status,
+		Body:      string(result.Body),
+		Depth:     depth,
+		Data:      data,
+	}
+	if err := s.sinker.Write(ctx, item); err != nil {
+		return nil, "", err
+	}
+
+	return s.links.Extract(result.Body), "", nil
 }

@@ -36,8 +36,28 @@ func NewExecutor(scrape ScrapeWorker, crawl CrawlWorker, sink SinkCloser) *Execu
 	return &Executor{scrape: scrape, crawl: crawl, sink: sink}
 }
 
-func (e *Executor) Run(ctx context.Context, spec *jobspec.Spec) (Result, error) {
-	_ = ctx
-	_ = spec
-	return Result{}, ErrNotImplemented
+func (e *Executor) Run(ctx context.Context, spec *jobspec.Spec) (result Result, err error) {
+	defer func() {
+		if closeErr := e.sink.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+
+	if spec.Source.Crawl != nil {
+		result, err = e.crawl.Run(ctx, spec)
+		return
+	}
+
+	for _, url := range spec.Source.URLs {
+		_, kind, scrapeErr := e.scrape.Run(ctx, spec, url, "", 0)
+		if scrapeErr == nil && kind == "" {
+			result.Succeeded++
+			continue
+		}
+		result.Failed++
+		if kind != "" {
+			result.Kinds = append(result.Kinds, kind)
+		}
+	}
+	return
 }

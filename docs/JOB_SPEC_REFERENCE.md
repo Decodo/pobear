@@ -159,23 +159,26 @@ the same `data` map.
 
 | Field | Type | Default | Rule |
 |---|---|---|---|
-| `use` | enum: `stdout` \| `ndjson` \| `json` \| `stream` | `stdout` | anything else rejected |
-| `path` | string | — | **required** when `use` is `ndjson`/`json`; **rejected** when `use` is `stdout`/`stream` |
+| `use` | enum: `stdout` \| `ndjson` \| `json` \| `yaml` \| `stream` | `stdout` | anything else rejected |
+| `path` | string | — | **required** when `use` is `ndjson`/`json`/`yaml`; **rejected** when `use` is `stdout`/`stream` |
 
 - `stdout` streams NDJSON to stdout.
 - `ndjson` streams NDJSON to `path` as items complete.
 - `json` buffers every item and writes one JSON array to `path` on completion, so a
   reader never observes a half-written array.
+- `yaml` buffers every item and writes one YAML sequence to `path` on completion —
+  same buffer-until-complete shape as `json`, same field names, just YAML instead
+  of JSON on disk.
 - `stream` pushes items to the RPC streamer instead of a local file/stdout. Like the
   `plugin` extraction method (§6), it's only meaningful when there's a wire connection to push
   over: a `sink.use: stream` spec is rejected outside `__rpc` mode, a clear error
   rather than a hang.
 - A closed sink never silently accepts more items: calling `Write` after `Close`
   returns a non-nil error, on all sink kinds.
-- `Close` with zero items written still produces valid output: `json` writes an
-  empty array (`[]`, not `null`), and `ndjson` still creates `path` as an empty
-  (0-byte) file — a downstream reader never sees a missing file just because
-  nothing was fetched.
+- `Close` with zero items written still produces valid output: `json`/`yaml` write
+  an empty array/sequence (`[]`, not `null`), and `ndjson` still creates `path` as
+  an empty (0-byte) file — a downstream reader never sees a missing file just
+  because nothing was fetched.
 
 ---
 

@@ -79,6 +79,15 @@ func TestLoad(t *testing.T) {
 			wantErr:      true,
 		},
 		{
+			name:         "malformed-line-does-not-block-a-different-lookup",
+			fileExists:   true,
+			fileContent:  "bogus line without an equals sign\nPOBEAR_PROVIDER_ACME_TOKEN=works\n",
+			providerName: "acme",
+			credential:   "token",
+			wantSecret:   "works",
+			wantOK:       true,
+		},
+		{
 			name:         "neither-set",
 			fileExists:   true,
 			providerName: "acme",

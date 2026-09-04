@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {crawl: {seeds: [https://a.test], sitemap: "yes"}}
+  fetch: {use: local}
+wantErr: true
+wantField: source.crawl.sitemap
+wantMessage: "`source.crawl.sitemap` must be a bool, got yes"

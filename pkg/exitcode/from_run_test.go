@@ -22,6 +22,8 @@ func TestFromRun(t *testing.T) {
 		{name: "total-failure-mixed-with-auth", succeeded: 0, failed: 2, kinds: []fault.Kind{fault.Auth, fault.Network}, want: exitcode.Fatal},
 		{name: "total-failure-auth-last", succeeded: 0, failed: 2, kinds: []fault.Kind{fault.Network, fault.Auth}, want: exitcode.Fatal},
 		{name: "total-failure-unknown-kind", succeeded: 0, failed: 1, kinds: []fault.Kind{"authentication"}, want: exitcode.Fatal},
+		{name: "total-failure-all-unclassified", succeeded: 0, failed: 2, kinds: nil, want: exitcode.Fatal},
+		{name: "total-failure-partially-unclassified", succeeded: 0, failed: 2, kinds: []fault.Kind{fault.Auth}, want: exitcode.Fatal},
 		{name: "partial-failure-auth-only", succeeded: 2, failed: 1, kinds: []fault.Kind{fault.Auth}, want: exitcode.PartialFailure},
 		{name: "partial-failure-other-kind", succeeded: 2, failed: 1, kinds: []fault.Kind{fault.Network}, want: exitcode.PartialFailure},
 		{name: "partial-failure-mixed", succeeded: 3, failed: 2, kinds: []fault.Kind{fault.Auth, fault.Timeout}, want: exitcode.PartialFailure},
@@ -29,8 +31,8 @@ func TestFromRun(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if len(c.kinds) != c.failed {
-				t.Fatalf("test case %q: len(kinds) = %d, failed = %d — must match", c.name, len(c.kinds), c.failed)
+			if len(c.kinds) > c.failed {
+				t.Fatalf("test case %q: len(kinds) = %d, failed = %d — kinds can't exceed failed", c.name, len(c.kinds), c.failed)
 			}
 
 			got := exitcode.FromRun(c.succeeded, c.failed, c.kinds)

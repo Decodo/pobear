@@ -11,8 +11,6 @@ type SpecParser interface {
 	Parse(data []byte, mode jobspec.Mode) (*jobspec.Spec, error)
 }
 
-var ErrNotImplemented = errors.New("job: not implemented")
-
 type Parser struct {
 	parse SpecParser
 }
@@ -22,7 +20,13 @@ func NewParser(p SpecParser) *Parser {
 }
 
 func (p *Parser) Parse(data []byte, mode jobspec.Mode) (*jobspec.Spec, fault.Kind, error) {
-	_ = data
-	_ = mode
-	return nil, "", ErrNotImplemented
+	spec, err := p.parse.Parse(data, mode)
+	if err == nil {
+		return spec, "", nil
+	}
+
+	if _, ok := errors.AsType[*jobspec.ValidationError](err); ok {
+		return nil, fault.Spec, err
+	}
+	return nil, fault.Parse, err
 }

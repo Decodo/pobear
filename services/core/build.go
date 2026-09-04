@@ -62,16 +62,13 @@ func (e *liveExecutor) Run(ctx context.Context, spec *jobspec.Spec) (job.Result,
 	}
 	stager := stage.NewStager(extractorMap)
 
-	var sinkImpl sink.Sink
-	switch spec.Sink.Use {
-	case "ndjson":
-		sinkImpl = &sinks.NDJSON{Path: spec.Sink.Path}
-	case "json":
-		sinkImpl = &sinks.JSON{Path: spec.Sink.Path}
-	default:
-		sinkImpl = &sinks.Stdout{Out: e.stdout}
+	sinkMap := map[string]sink.Sink{
+		"stdout": &sinks.Stdout{Out: e.stdout},
+		"ndjson": &sinks.NDJSON{Path: spec.Sink.Path},
+		"json":   &sinks.JSON{Path: spec.Sink.Path},
+		"yaml":   &sinks.YAML{Path: spec.Sink.Path},
 	}
-	sinker := sink.NewSinker(map[string]sink.Sink{spec.Sink.Use: sinkImpl}, spec.Sink.Use)
+	sinker := sink.NewSinker(sinkMap, spec.Sink.Use)
 
 	scrapeWorker := workers.NewScrape(fetcher, stager, sinker, noLinks{})
 	crawlWorker := crawlAdapter{crawl: crawl.NewCrawl(scrapeWorker, nil, nil)}

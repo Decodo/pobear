@@ -12,17 +12,26 @@ func parseLimits(root map[string]any) (Limits, *ValidationError) {
 		return Limits{}, err
 	}
 
-	concurrency := utils.GetInt(m, "concurrency", 8)
+	concurrency, err := utils.GetInt(m, "concurrency", "limits.concurrency", 8)
+	if err != nil {
+		return Limits{}, err
+	}
 	if concurrency <= 0 {
 		return Limits{}, utils.Errorf("limits.concurrency", "`limits.concurrency` must be > 0, got %d", concurrency)
 	}
 
-	rps := utils.GetInt(m, "rps", 0)
+	rps, err := utils.GetInt(m, "rps", "limits.rps", 0)
+	if err != nil {
+		return Limits{}, err
+	}
 	if rps < 0 {
 		return Limits{}, utils.Errorf("limits.rps", "`limits.rps` must be >= 0, got %d", rps)
 	}
 
-	retries := utils.GetInt(m, "retries", 3)
+	retries, err := utils.GetInt(m, "retries", "limits.retries", 3)
+	if err != nil {
+		return Limits{}, err
+	}
 	if retries < 1 {
 		return Limits{}, utils.Errorf("limits.retries", "`limits.retries` must be >= 1, got %d", retries)
 	}
@@ -37,12 +46,17 @@ func parseLimits(root map[string]any) (Limits, *ValidationError) {
 		return Limits{}, utils.Errorf("limits.pluginTimeout", "`limits.pluginTimeout` is not a valid duration: %q", pluginTimeout)
 	}
 
+	pluginConcurrency, err := utils.GetInt(m, "pluginConcurrency", "limits.pluginConcurrency", 0)
+	if err != nil {
+		return Limits{}, err
+	}
+
 	return Limits{
 		Concurrency:       concurrency,
 		RPS:               rps,
 		Retries:           retries,
 		Backoff:           backoff,
-		PluginConcurrency: utils.GetInt(m, "pluginConcurrency", 0),
+		PluginConcurrency: pluginConcurrency,
 		PluginTimeout:     pluginTimeout,
 	}, nil
 }

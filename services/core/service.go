@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"errors"
 
 	"github.com/pobear/pobear/pkg/fault"
 	"github.com/pobear/pobear/pkg/jobspec"
@@ -17,8 +16,6 @@ type JobExecutor interface {
 	Run(ctx context.Context, spec *jobspec.Spec) (job.Result, error)
 }
 
-var ErrNotImplemented = errors.New("core: not implemented")
-
 type Service struct {
 	parser   SpecParser
 	executor JobExecutor
@@ -29,8 +26,11 @@ func NewService(parser SpecParser, executor JobExecutor) *Service {
 }
 
 func (s *Service) Run(ctx context.Context, data []byte, mode jobspec.Mode) (job.Result, fault.Kind, error) {
-	_ = ctx
-	_ = data
-	_ = mode
-	return job.Result{}, "", ErrNotImplemented
+	spec, kind, err := s.parser.Parse(data, mode)
+	if err != nil {
+		return job.Result{}, kind, err
+	}
+
+	result, err := s.executor.Run(ctx, spec)
+	return result, "", err
 }
