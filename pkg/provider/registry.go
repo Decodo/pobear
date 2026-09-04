@@ -5,13 +5,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/pobear/pobear/pkg/utils"
 )
 
 func ValidateUnique(manifests []*Manifest) error {
 	seen := make(map[string]bool, len(manifests))
 	for _, m := range manifests {
 		if seen[m.Name] {
-			return vErr("name", "manifest name %q is already declared", m.Name)
+			return utils.Errorf("name", "manifest name %q is already declared", m.Name)
 		}
 		seen[m.Name] = true
 	}

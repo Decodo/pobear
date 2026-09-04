@@ -3,6 +3,9 @@ package provider
 import (
 	"fmt"
 	"regexp"
+	"slices"
+
+	"github.com/pobear/pobear/pkg/utils"
 )
 
 func parseOptions(root map[string]any, key, prefix string) ([]Option, *ValidationError) {
@@ -12,41 +15,38 @@ func parseOptions(root map[string]any, key, prefix string) ([]Option, *Validatio
 	}
 	list, ok := raw.([]any)
 	if !ok {
-		return nil, vErr(prefix+key, "`%s%s` must be a list", prefix, key)
+		return nil, utils.Errorf(prefix+key, "`%s%s` must be a list", prefix, key)
 	}
 
 	options := make([]Option, 0, len(list))
 	seen := make(map[string]int)
 	for i, item := range list {
 		field := fmt.Sprintf("%s%s[%d]", prefix, key, i)
-		m, ok := item.(map[string]any)
-		if !ok {
-			return nil, vErr(field, "`%s` must be a mapping", field)
-		}
-		if err := checkUnknownKeys(m, field, "name", "type", "default", "pattern", "min", "max", "values"); err != nil {
+		m, err := utils.AsMapping(item, field, "name", "type", "default", "pattern", "min", "max", "values")
+		if err != nil {
 			return nil, err
 		}
 
 		nameRaw, hasName := m["name"]
 		if !hasName {
-			return nil, vErr(field+".name", "`%s.name` is required", field)
+			return nil, utils.Errorf(field+".name", "`%s.name` is required", field)
 		}
 		name, _ := nameRaw.(string)
 		if name == "url" {
-			return nil, vErr(field+".name", "`%s.name` must not be `url` (reserved)", field)
+			return nil, utils.Errorf(field+".name", "`%s.name` must not be `url` (reserved)", field)
 		}
 		if idx, dup := seen[name]; dup {
-			return nil, vErr(field+".name", "`%s.name` duplicates `%s%s[%d].name`: %q", field, prefix, key, idx, name)
+			return nil, utils.Errorf(field+".name", "`%s.name` duplicates `%s%s[%d].name`: %q", field, prefix, key, idx, name)
 		}
 		seen[name] = i
 
 		typeRaw, hasType := m["type"]
 		if !hasType {
-			return nil, vErr(field+".type", "`%s.type` is required", field)
+			return nil, utils.Errorf(field+".type", "`%s.type` is required", field)
 		}
 		typ, _ := typeRaw.(string)
-		if typ != "bool" && typ != "string" && typ != "int" && typ != "enum" {
-			return nil, vErr(field+".type", "`%s.type` must be one of `bool`, `string`, `int`, `enum`, got %q", field, typ)
+		if err := utils.EnumField(field+".type", typ, "bool", "string", "int", "enum"); err != nil {
+			return nil, err
 		}
 
 		opt := Option{Name: name, Type: typ}
@@ -54,7 +54,7 @@ func parseOptions(root map[string]any, key, prefix string) ([]Option, *Validatio
 		if v, ok := m["pattern"]; ok {
 			pattern, _ := v.(string)
 			if _, err := regexp.Compile(pattern); err != nil {
-				return nil, vErr(field+".pattern", "`%s.pattern` is not a valid regular expression: %q", field, pattern)
+				return nil, utils.Errorf(field+".pattern", "`%s.pattern` is not a valid regular expression: %q", field, pattern)
 			}
 			opt.Pattern = pattern
 		}
@@ -69,7 +69,7 @@ func parseOptions(root map[string]any, key, prefix string) ([]Option, *Validatio
 			max = &n
 		}
 		if min != nil && max != nil && *min > *max {
-			return nil, vErr(field+".min", "`%s.min` must be <= `%s.max`, got min: %d, max: %d", field, field, *min, *max)
+			return nil, utils.Errorf(field+".min", "`%s.min` must be <= `%s.max`, got min: %d, max: %d", field, field, *min, *max)
 		}
 		opt.Min = min
 		opt.Max = max
@@ -83,7 +83,7 @@ func parseOptions(root map[string]any, key, prefix string) ([]Option, *Validatio
 			}
 		}
 		if typ == "enum" && len(values) == 0 {
-			return nil, vErr(field+".values", "`%s.values` is required for an `enum` option", field)
+			return nil, utils.Errorf(field+".values", "`%s.values` is required for an `enum` option", field)
 		}
 		opt.Values = values
 
@@ -103,32 +103,14 @@ func validateOptionDefault(v any, typ string, values []string, min, max *int, fi
 	switch typ {
 	case "enum":
 		s, _ := v.(string)
-		found := false
-		for _, val := range values {
-			if val == s {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return vErr(field+".default", "`%s.default` must be one of %s, got %q", field, backtickList(values), s)
+		if !slices.Contains(values, s) {
+			return utils.Errorf(field+".default", "`%s.default` must be one of %s, got %q", field, utils.BacktickList(values), s)
 		}
 	case "int":
 		n, _ := v.(int)
 		if (min != nil && n < *min) || (max != nil && n > *max) {
-			return vErr(field+".default", "`%s.default` must be between `%s.min` and `%s.max`, got %d", field, field, field, n)
+			return utils.Errorf(field+".default", "`%s.default` must be between `%s.min` and `%s.max`, got %d", field, field, field, n)
 		}
 	}
 	return nil
-}
-
-func backtickList(values []string) string {
-	out := ""
-	for i, v := range values {
-		if i > 0 {
-			out += ", "
-		}
-		out += "`" + v + "`"
-	}
-	return out
 }

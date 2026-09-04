@@ -2,22 +2,14 @@ package provider
 
 import (
 	"bytes"
-	"fmt"
 	"io"
-	"net/url"
-	"sort"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/pobear/pobear/pkg/utils"
 )
 
-type ValidationError struct {
-	Field   string
-	Message string
-}
-
-func (e *ValidationError) Error() string {
-	return e.Field + ": " + e.Message
-}
+type ValidationError = utils.ValidationError
 
 func Parse(data []byte) (*Manifest, error) {
 	doc, verr := decodeSingleDocument(data)
@@ -30,29 +22,26 @@ func Parse(data []byte) (*Manifest, error) {
 		return nil, &ValidationError{Field: "$document", Message: "manifest document must be a mapping"}
 	}
 
-	if err := checkUnknownKeys(root, "", "name", "endpoint", "method", "auth", "options", "request", "response", "errors", "templates"); err != nil {
+	if err := utils.CheckUnknownKeys(root, "", "name", "endpoint", "method", "auth", "options", "request", "response", "errors", "templates"); err != nil {
 		return nil, err
 	}
 
 	nameRaw, hasName := root["name"]
 	if !hasName {
-		return nil, vErr("name", "`name` is required")
+		return nil, utils.Errorf("name", "`name` is required")
 	}
 	name, _ := nameRaw.(string)
 
 	endpointRaw, hasEndpoint := root["endpoint"]
 	if !hasEndpoint {
-		return nil, vErr("endpoint", "`endpoint` is required")
+		return nil, utils.Errorf("endpoint", "`endpoint` is required")
 	}
 	endpoint, _ := endpointRaw.(string)
-	if !isAbsoluteHTTPURL(endpoint) {
-		return nil, vErr("endpoint", "`endpoint` must be an absolute `http`/`https` URL, got %q", endpoint)
+	if !utils.IsAbsoluteHTTPURL(endpoint) {
+		return nil, utils.Errorf("endpoint", "`endpoint` must be an absolute `http`/`https` URL, got %q", endpoint)
 	}
 
-	method := "POST"
-	if v, ok := root["method"]; ok {
-		method, _ = v.(string)
-	}
+	method := utils.GetString(root, "method", "POST")
 
 	auth, err := parseAuth(root)
 	if err != nil {
@@ -63,7 +52,7 @@ func Parse(data []byte) (*Manifest, error) {
 	_, hasTopOptions := root["options"]
 	_, hasTopRequest := root["request"]
 	if hasTemplates && (hasTopOptions || hasTopRequest) {
-		return nil, vErr("templates", "`templates` must not be set together with top-level `options`/`request`")
+		return nil, utils.Errorf("templates", "`templates` must not be set together with top-level `options`/`request`")
 	}
 
 	response, err := parseResponse(root)
@@ -129,45 +118,4 @@ func decodeSingleDocument(data []byte) (any, *ValidationError) {
 	}
 
 	return first, nil
-}
-
-func vErr(field, format string, args ...any) *ValidationError {
-	return &ValidationError{Field: field, Message: fmt.Sprintf(format, args...)}
-}
-
-func checkUnknownKeys(m map[string]any, prefix string, allowed ...string) *ValidationError {
-	allowedSet := make(map[string]bool, len(allowed))
-	for _, a := range allowed {
-		allowedSet[a] = true
-	}
-
-	keys := sortedKeys(m)
-	for _, k := range keys {
-		if allowedSet[k] {
-			continue
-		}
-		field := k
-		if prefix != "" {
-			field = prefix + "." + k
-		}
-		return vErr(field, "unknown field `%s`", field)
-	}
-	return nil
-}
-
-func sortedKeys(m map[string]any) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func isAbsoluteHTTPURL(s string) bool {
-	u, err := url.Parse(s)
-	if err != nil {
-		return false
-	}
-	return u.IsAbs() && (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
 }

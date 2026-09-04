@@ -1,15 +1,19 @@
 package provider
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/pobear/pobear/pkg/utils"
+)
 
 func parseTemplates(root map[string]any) ([]Template, *ValidationError) {
 	raw := root["templates"]
 	list, ok := raw.([]any)
 	if !ok {
-		return nil, vErr("templates", "`templates` must be a list")
+		return nil, utils.Errorf("templates", "`templates` must be a list")
 	}
 	if len(list) == 0 {
-		return nil, vErr("templates", "`templates` must have at least one entry")
+		return nil, utils.Errorf("templates", "`templates` must have at least one entry")
 	}
 
 	templates := make([]Template, 0, len(list))
@@ -17,49 +21,35 @@ func parseTemplates(root map[string]any) ([]Template, *ValidationError) {
 	haveDefault := false
 	for i, item := range list {
 		field := fmt.Sprintf("templates[%d]", i)
-		m, ok := item.(map[string]any)
-		if !ok {
-			return nil, vErr(field, "`%s` must be a mapping", field)
-		}
-		if err := checkUnknownKeys(m, field, "name", "default", "endpoint", "method", "options", "request"); err != nil {
+		m, err := utils.AsMapping(item, field, "name", "default", "endpoint", "method", "options", "request")
+		if err != nil {
 			return nil, err
 		}
 
 		nameRaw, hasName := m["name"]
 		if !hasName {
-			return nil, vErr(field+".name", "`%s.name` is required", field)
+			return nil, utils.Errorf(field+".name", "`%s.name` is required", field)
 		}
 		name, _ := nameRaw.(string)
 		if idx, dup := seenNames[name]; dup {
-			return nil, vErr(field+".name", "`%s.name` duplicates `templates[%d].name`: %q", field, idx, name)
+			return nil, utils.Errorf(field+".name", "`%s.name` duplicates `templates[%d].name`: %q", field, idx, name)
 		}
 		seenNames[name] = i
 
-		isDefault := false
-		if v, ok := m["default"]; ok {
-			b, _ := v.(bool)
-			if b {
-				if haveDefault {
-					return nil, vErr(field+".default", "at most one of `templates[].default` may be `true`")
-				}
-				haveDefault = true
+		isDefault := utils.GetBool(m, "default", false)
+		if isDefault {
+			if haveDefault {
+				return nil, utils.Errorf(field+".default", "at most one of `templates[].default` may be `true`")
 			}
-			isDefault = b
+			haveDefault = true
 		}
 
-		endpoint := ""
-		if v, ok := m["endpoint"]; ok {
-			s, _ := v.(string)
-			if !isAbsoluteHTTPURL(s) {
-				return nil, vErr(field+".endpoint", "`%s.endpoint` must be an absolute `http`/`https` URL, got %q", field, s)
-			}
-			endpoint = s
+		endpoint := utils.GetString(m, "endpoint", "")
+		if _, hasEndpoint := m["endpoint"]; hasEndpoint && !utils.IsAbsoluteHTTPURL(endpoint) {
+			return nil, utils.Errorf(field+".endpoint", "`%s.endpoint` must be an absolute `http`/`https` URL, got %q", field, endpoint)
 		}
 
-		method := ""
-		if v, ok := m["method"]; ok {
-			method, _ = v.(string)
-		}
+		method := utils.GetString(m, "method", "")
 
 		options, err := parseOptions(m, "options", field+".")
 		if err != nil {

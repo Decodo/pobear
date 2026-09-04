@@ -1,17 +1,18 @@
 package provider
 
-import "github.com/ohler55/ojg/jp"
+import (
+	"github.com/ohler55/ojg/jp"
+
+	"github.com/pobear/pobear/pkg/utils"
+)
 
 func parseResponse(root map[string]any) (Response, *ValidationError) {
 	raw, ok := root["response"]
 	if !ok {
-		return Response{}, vErr("response", "`response` is required")
+		return Response{}, utils.Errorf("response", "`response` is required")
 	}
-	m, ok := raw.(map[string]any)
-	if !ok {
-		return Response{}, vErr("response", "`response` must be a mapping")
-	}
-	if err := checkUnknownKeys(m, "response", "status", "body", "finalUrl"); err != nil {
+	m, err := utils.AsMapping(raw, "response", "status", "body", "finalUrl")
+	if err != nil {
 		return Response{}, err
 	}
 
@@ -26,7 +27,7 @@ func parseResponse(root map[string]any) (Response, *ValidationError) {
 
 	bodyRaw, hasBody := m["body"]
 	if !hasBody {
-		return Response{}, vErr("response.body", "`response.body` is required")
+		return Response{}, utils.Errorf("response.body", "`response.body` is required")
 	}
 	body, _ := bodyRaw.(string)
 	if err := validateJSONPath(body, "response.body"); err != nil {
@@ -47,7 +48,7 @@ func parseResponse(root map[string]any) (Response, *ValidationError) {
 
 func validateJSONPath(s, field string) *ValidationError {
 	if _, err := jp.ParseString(s); err != nil {
-		return vErr(field, "`%s` is not a valid JSONPath: %q", field, s)
+		return utils.Errorf(field, "`%s` is not a valid JSONPath: %q", field, s)
 	}
 	return nil
 }

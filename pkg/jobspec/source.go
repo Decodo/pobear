@@ -1,17 +1,17 @@
 package jobspec
 
 import (
-	"net/url"
-
 	"github.com/bmatcuk/doublestar/v4"
+
+	"github.com/pobear/pobear/pkg/utils"
 )
 
 func parseSource(root map[string]any) (Source, *ValidationError) {
 	raw, ok := root["source"]
 	if !ok {
-		return Source{}, vErr("source", "`source` is required")
+		return Source{}, utils.Errorf("source", "`source` is required")
 	}
-	m, err := asMapping(raw, "source", "urls", "crawl")
+	m, err := utils.AsMapping(raw, "source", "urls", "crawl")
 	if err != nil {
 		return Source{}, err
 	}
@@ -20,9 +20,9 @@ func parseSource(root map[string]any) (Source, *ValidationError) {
 	_, hasCrawl := m["crawl"]
 	switch {
 	case hasURLs && hasCrawl:
-		return Source{}, vErr("source", "`source` must set exactly one of `urls` or `crawl`, but both are set")
+		return Source{}, utils.Errorf("source", "`source` must set exactly one of `urls` or `crawl`, but both are set")
 	case !hasURLs && !hasCrawl:
-		return Source{}, vErr("source", "`source` must set exactly one of `urls` or `crawl`, but neither is set")
+		return Source{}, utils.Errorf("source", "`source` must set exactly one of `urls` or `crawl`, but neither is set")
 	case hasURLs:
 		urls, err := parseURLList(m["urls"], "source.urls")
 		if err != nil {
@@ -39,7 +39,7 @@ func parseSource(root map[string]any) (Source, *ValidationError) {
 }
 
 func parseCrawlSource(raw any) (*CrawlSource, *ValidationError) {
-	m, err := asMapping(raw, "source.crawl", "seeds", "depth", "maxPages", "maxDuration", "scope", "include", "exclude", "sitemap", "robots")
+	m, err := utils.AsMapping(raw, "source.crawl", "seeds", "depth", "maxPages", "maxDuration", "scope", "include", "exclude", "sitemap", "robots")
 	if err != nil {
 		return nil, err
 	}
@@ -49,23 +49,23 @@ func parseCrawlSource(raw any) (*CrawlSource, *ValidationError) {
 		return nil, err
 	}
 
-	depth := getInt(m, "depth", 0)
+	depth := utils.GetInt(m, "depth", 0)
 	if depth < 0 {
-		return nil, vErr("source.crawl.depth", "`source.crawl.depth` must be >= 0, got %d", depth)
+		return nil, utils.Errorf("source.crawl.depth", "`source.crawl.depth` must be >= 0, got %d", depth)
 	}
 
-	maxPages := getInt(m, "maxPages", 100)
+	maxPages := utils.GetInt(m, "maxPages", 100)
 	if maxPages <= 0 {
-		return nil, vErr("source.crawl.maxPages", "`source.crawl.maxPages` must be > 0, got %d", maxPages)
+		return nil, utils.Errorf("source.crawl.maxPages", "`source.crawl.maxPages` must be > 0, got %d", maxPages)
 	}
 
-	maxDuration := getString(m, "maxDuration", "")
-	if maxDuration != "" && !validDuration(maxDuration) {
-		return nil, vErr("source.crawl.maxDuration", "`source.crawl.maxDuration` is not a valid duration: %q", maxDuration)
+	maxDuration := utils.GetString(m, "maxDuration", "")
+	if maxDuration != "" && !utils.ValidDuration(maxDuration) {
+		return nil, utils.Errorf("source.crawl.maxDuration", "`source.crawl.maxDuration` is not a valid duration: %q", maxDuration)
 	}
 
-	scope := getString(m, "scope", "same-host")
-	if err := enumField("source.crawl.scope", scope, "same-host", "same-domain", "any"); err != nil {
+	scope := utils.GetString(m, "scope", "same-host")
+	if err := utils.EnumField("source.crawl.scope", scope, "same-host", "same-domain", "any"); err != nil {
 		return nil, err
 	}
 
@@ -78,8 +78,8 @@ func parseCrawlSource(raw any) (*CrawlSource, *ValidationError) {
 		return nil, err
 	}
 
-	robots := getString(m, "robots", "respect")
-	if err := enumField("source.crawl.robots", robots, "respect", "ignore"); err != nil {
+	robots := utils.GetString(m, "robots", "respect")
+	if err := utils.EnumField("source.crawl.robots", robots, "respect", "ignore"); err != nil {
 		return nil, err
 	}
 
@@ -91,35 +91,31 @@ func parseCrawlSource(raw any) (*CrawlSource, *ValidationError) {
 		Scope:       scope,
 		Include:     include,
 		Exclude:     exclude,
-		Sitemap:     getBool(m, "sitemap", false),
+		Sitemap:     utils.GetBool(m, "sitemap", false),
 		Robots:      robots,
 	}, nil
 }
 
-// parseURLList requires a non-empty list of absolute http(s) URLs — used for
-// both source.urls and source.crawl.seeds, which share the exact same rule.
 func parseURLList(raw any, field string) ([]string, *ValidationError) {
 	list, _ := raw.([]any)
 	if len(list) == 0 {
-		return nil, vErr(field, "`%s` must contain at least one URL, got none", field)
+		return nil, utils.Errorf(field, "`%s` must contain at least one URL, got none", field)
 	}
 
 	urls := make([]string, 0, len(list))
 	for _, item := range list {
 		s, ok := item.(string)
 		if !ok {
-			return nil, vErr(field, "`%s` must be absolute `http`/`https` URLs, got %v", field, item)
+			return nil, utils.Errorf(field, "`%s` must be absolute `http`/`https` URLs, got %v", field, item)
 		}
-		if !isAbsoluteHTTPURL(s) {
-			return nil, vErr(field, "`%s` must be absolute `http`/`https` URLs, got %q", field, s)
+		if !utils.IsAbsoluteHTTPURL(s) {
+			return nil, utils.Errorf(field, "`%s` must be absolute `http`/`https` URLs, got %q", field, s)
 		}
 		urls = append(urls, s)
 	}
 	return urls, nil
 }
 
-// parseGlobList validates a source.crawl.include/exclude list's doublestar
-// glob syntax — it does not match URLs, that's crawl's own runtime job.
 func parseGlobList(m map[string]any, key, field string) ([]string, *ValidationError) {
 	raw, ok := m[key]
 	if !ok {
@@ -127,27 +123,19 @@ func parseGlobList(m map[string]any, key, field string) ([]string, *ValidationEr
 	}
 	list, ok := raw.([]any)
 	if !ok {
-		return nil, vErr(field, "`%s` must be a list", field)
+		return nil, utils.Errorf(field, "`%s` must be a list", field)
 	}
 
 	globs := make([]string, 0, len(list))
 	for _, item := range list {
 		s, ok := item.(string)
 		if !ok {
-			return nil, vErr(field, "`%s` is not a valid glob pattern: %v", field, item)
+			return nil, utils.Errorf(field, "`%s` is not a valid glob pattern: %v", field, item)
 		}
 		if !doublestar.ValidatePattern(s) {
-			return nil, vErr(field, "`%s` is not a valid glob pattern: %q", field, s)
+			return nil, utils.Errorf(field, "`%s` is not a valid glob pattern: %q", field, s)
 		}
 		globs = append(globs, s)
 	}
 	return globs, nil
-}
-
-func isAbsoluteHTTPURL(s string) bool {
-	u, err := url.Parse(s)
-	if err != nil {
-		return false
-	}
-	return u.IsAbs() && (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
 }

@@ -1,6 +1,10 @@
 package jobspec
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/pobear/pobear/pkg/utils"
+)
 
 func parseStages(root map[string]any, mode Mode) ([]Stage, *ValidationError) {
 	raw, ok := root["stages"]
@@ -9,13 +13,13 @@ func parseStages(root map[string]any, mode Mode) ([]Stage, *ValidationError) {
 	}
 	list, ok := raw.([]any)
 	if !ok {
-		return nil, vErr("stages", "`stages` must be a list")
+		return nil, utils.Errorf("stages", "`stages` must be a list")
 	}
 
 	stages := make([]Stage, 0, len(list))
 	for i, item := range list {
 		field := fmt.Sprintf("stages[%d]", i)
-		m, err := asMapping(item, field, "use", "fields", "id")
+		m, err := utils.AsMapping(item, field, "use", "fields", "id")
 		if err != nil {
 			return nil, err
 		}
@@ -25,14 +29,14 @@ func parseStages(root map[string]any, mode Mode) ([]Stage, *ValidationError) {
 		case "raw", "markdown":
 		case "css":
 			if _, ok := m["fields"]; !ok {
-				return nil, vErr(field+".fields", "`%s.fields` is required for a `css` stage", field)
+				return nil, utils.Errorf(field+".fields", "`%s.fields` is required for a `css` stage", field)
 			}
 		case "plugin":
 			if mode != ModeRPC {
-				return nil, vErr(field+".use", "`%s.use: plugin` is only allowed under `__rpc` mode", field)
+				return nil, utils.Errorf(field+".use", "`%s.use: plugin` is only allowed under `__rpc` mode", field)
 			}
 		default:
-			return nil, vErr(field+".use", "`%s.use` must be one of `raw`, `markdown`, `css`, `plugin`, got %q", field, use)
+			return nil, utils.Errorf(field+".use", "`%s.use` must be one of `raw`, `markdown`, `css`, `plugin`, got %q", field, use)
 		}
 
 		stage := Stage{Use: use}
@@ -55,13 +59,13 @@ func parseStages(root map[string]any, mode Mode) ([]Stage, *ValidationError) {
 func parseStringMap(raw any, field string) (map[string]string, *ValidationError) {
 	m, ok := raw.(map[string]any)
 	if !ok {
-		return nil, vErr(field, "`%s` must be a mapping", field)
+		return nil, utils.Errorf(field, "`%s` must be a mapping", field)
 	}
 	out := make(map[string]string, len(m))
 	for k, v := range m {
 		s, ok := v.(string)
 		if !ok {
-			return nil, vErr(field, "`%s.%s` must be a string", field, k)
+			return nil, utils.Errorf(field, "`%s.%s` must be a string", field, k)
 		}
 		out[k] = s
 	}
