@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/pobear/pobear/pkg/exitcode"
@@ -9,11 +10,7 @@ import (
 
 type Version struct{}
 
-func (v *Version) Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	_ = ctx
-	_ = args
-	_ = stdin
-	_ = stdout
-	_ = stderr
-	return exitcode.Fatal
+func (v *Version) Run(_ context.Context, _ []string, _ io.Reader, stdout, _ io.Writer) int {
+	fmt.Fprintln(stdout, "pobear 0.0.1")
+	return exitcode.Success
 }

@@ -22,8 +22,8 @@ func TestProvidersNoInstalledManifests(t *testing.T) {
 	if got != 0 {
 		t.Fatalf("Run() = %d, want 0", got)
 	}
-	if want := "no providers installed (looked in "; !hasPrefix(stdout.String(), want) {
-		t.Fatalf("stdout = %q, want prefix %q", stdout.String(), want)
+	if want := "no providers installed\n"; stderr.String() != want {
+		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
 	}
 }
 

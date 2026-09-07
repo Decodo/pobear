@@ -27,6 +27,14 @@ func TestSave(t *testing.T) {
 			wantFileContent: "POBEAR_PROVIDER_ACME_TOKEN=newsecret\n",
 		},
 		{
+			name:            "creates-parent-dir",
+			fileExists:      false,
+			providerName:    "acme",
+			credential:      "token",
+			secret:          "newsecret",
+			wantFileContent: "POBEAR_PROVIDER_ACME_TOKEN=newsecret\n",
+		},
+		{
 			name:            "empty-file",
 			fileExists:      true,
 			providerName:    "acme",
@@ -73,6 +81,9 @@ func TestSave(t *testing.T) {
 			}
 
 			credPath := filepath.Join(t.TempDir(), "credentials")
+			if c.name == "creates-parent-dir" {
+				credPath = filepath.Join(t.TempDir(), ".pobear", "credentials")
+			}
 			if c.fileExists {
 				if err := os.WriteFile(credPath, []byte(c.initialFileContent), 0o600); err != nil {
 					t.Fatalf("write fixture credentials file: %v", err)

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/pobear/pobear/pkg/exitcode"
@@ -17,11 +18,17 @@ func NewService(commands map[string]command.Command) *Service {
 }
 
 func (s *Service) Run(ctx context.Context, argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	_ = ctx
-	_ = argv
-	_ = stdin
-	_ = stdout
-	_ = stderr
-	_ = s.commands
-	return exitcode.Fatal
+	name := "wizard"
+	var args []string
+	if len(argv) > 0 {
+		name = argv[0]
+		args = argv[1:]
+	}
+
+	cmd, ok := s.commands[name]
+	if !ok {
+		fmt.Fprintf(stderr, "pobear: unknown command %q\n", name)
+		return exitcode.UsageError
+	}
+	return cmd.Run(ctx, args, stdin, stdout, stderr)
 }

@@ -19,8 +19,8 @@ func New(providersDir string, coreService *core.Service, credentialsPath string,
 		"version":   &command.Version{},
 		"providers": &command.Providers{Providers: providers},
 		"auth":      &command.Auth{Providers: providers, Prompt: prompt, Path: credentialsPath},
-		"scrape":    &command.Scrape{Runner: runner, Providers: providers},
-		"crawl":     &command.Crawl{Runner: runner, Providers: providers},
+		"scrape":    &command.Scrape{Runner: runner, Providers: providers, CredentialsPath: credentialsPath},
+		"crawl":     &command.Crawl{Runner: runner, Providers: providers, CredentialsPath: credentialsPath},
 		"run":       &command.Run{Parser: jobspecParser{}, Runner: runner},
 	}
 
