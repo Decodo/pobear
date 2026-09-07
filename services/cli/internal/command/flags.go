@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
 	"github.com/pobear/pobear/pkg/exitcode"
@@ -30,17 +30,45 @@ func newCLIError(code int, format string, args ...any) *cliError {
 	return &cliError{code: code, message: fmt.Sprintf(format, args...)}
 }
 
+func (e *cliError) Error() string { return e.message }
+
 func (e *cliError) print(stderr io.Writer) {
 	fmt.Fprintf(stderr, "pobear: %s\n", e.message)
 }
 
-type stringSliceFlag []string
+var errArgsHandled = errors.New("command: argument error already reported")
 
-func (s *stringSliceFlag) String() string { return strings.Join(*s, ",") }
+func requireExactlyOne(usageNoun string) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		if len(args) == 1 {
+			return nil
+		}
+		fmt.Fprintf(cmd.ErrOrStderr(), "pobear: %s\n\n%s", usageNoun, cmd.UsageString())
+		return errArgsHandled
+	}
+}
 
-func (s *stringSliceFlag) Set(v string) error {
-	*s = append(*s, v)
-	return nil
+func runCobraCommand(cmd *cobra.Command, args []string, stdin io.Reader, stdout, stderr io.Writer, code *int) int {
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+	cmd.SetArgs(args)
+	cmd.SetIn(stdin)
+	cmd.SetOut(stdout)
+	cmd.SetErr(stderr)
+
+	if err := cmd.Execute(); err != nil {
+		if errors.Is(err, errArgsHandled) {
+			return exitcode.UsageError
+		}
+		var cerr *cliError
+		if errors.As(err, &cerr) {
+			cerr.print(stderr)
+			return cerr.code
+		}
+		fmt.Fprintf(stderr, "pobear: %v\n", err)
+		return exitcode.UsageError
+	}
+	return *code
 }
 
 type commonFlags struct {
@@ -50,10 +78,10 @@ type commonFlags struct {
 	profile          string
 	render           bool
 	geo              string
-	opts             stringSliceFlag
+	opts             []string
 	timeout          string
 	extract          string
-	css              stringSliceFlag
+	css              []string
 	out              string
 	outputFormat     string
 	printSpec        bool
@@ -63,52 +91,91 @@ type commonFlags struct {
 	rps              int
 }
 
-func registerCommonFlags(fs *flag.FlagSet, f *commonFlags, defaultRPS int) {
-	fs.StringVar(&f.proxy, "proxy", "", "")
-	fs.StringVar(&f.provider, "provider", "", "")
-	fs.StringVar(&f.template, "template", "", "")
-	fs.StringVar(&f.profile, "profile", "chrome", "")
-	fs.BoolVar(&f.render, "render", false, "")
-	fs.StringVar(&f.geo, "geo", "", "")
-	fs.Var(&f.opts, "opt", "")
-	fs.StringVar(&f.timeout, "timeout", "30s", "")
-	fs.StringVar(&f.extract, "extract", "", "")
-	fs.Var(&f.css, "css", "")
-	fs.StringVar(&f.out, "out", "", "")
-	fs.StringVar(&f.outputFormat, "output-format", "json", "")
-	fs.BoolVar(&f.printSpec, "print-spec", false, "")
-	fs.BoolVar(&f.printSpecVerbose, "print-spec-verbose", false, "")
-	fs.IntVar(&f.concurrency, "concurrency", 8, "")
-	fs.IntVar(&f.retries, "retries", 3, "")
-	fs.IntVar(&f.rps, "rps", defaultRPS, "")
+func registerCommonFlags(cmd *cobra.Command, f *commonFlags, defaultRPS int) {
+	flags := cmd.Flags()
+	flags.StringVar(&f.proxy, "proxy", "", "fetch through this proxy URL (tier 2)")
+	flags.StringVar(&f.provider, "provider", "", "fetch through this provider's manifest (tier 2)")
+	flags.StringVar(&f.template, "template", "", "the provider template to use (default: the provider's own default template, if any)")
+	flags.StringVar(&f.profile, "profile", "chrome", "local/proxy TLS fingerprint: chrome, firefox, or safari")
+	flags.BoolVar(&f.render, "render", false, "sugar for --opt render=true")
+	flags.StringVar(&f.geo, "geo", "", "sugar for --opt geo=<code>")
+	flags.StringArrayVar(&f.opts, "opt", nil, "set a provider option as name=value (repeatable)")
+	flags.StringVar(&f.timeout, "timeout", "30s", "per-request timeout")
+	flags.StringVar(&f.extract, "extract", "", "add an extraction stage: raw or markdown")
+	flags.StringArrayVar(&f.css, "css", nil, "add a css extraction field as name=selector[@attr] (repeatable)")
+	flags.StringVar(&f.out, "out", "", "write NDJSON to this file instead of stdout")
+	flags.StringVar(&f.outputFormat, "output-format", "json", "raw prints just the extracted value, no envelope")
+	flags.BoolVar(&f.printSpec, "print-spec", false, "print the job spec, don't run it")
+	flags.BoolVar(&f.printSpecVerbose, "print-spec-verbose", false, "like --print-spec, but every field is shown fully resolved")
+	flags.IntVar(&f.concurrency, "concurrency", 8, "maximum concurrent fetches")
+	flags.IntVar(&f.retries, "retries", 3, "retries per fetch before giving up")
+	flags.IntVar(&f.rps, "rps", defaultRPS, "requests/sec across every host combined (0 = unlimited)")
 }
 
-func splitPositional(args []string) (positional string, rest []string, ok bool) {
-	if len(args) > 0 && (args[0] == "-" || !strings.HasPrefix(args[0], "-")) {
-		return args[0], args[1:], true
+func wireProviderHelp(cmd *cobra.Command, providers *providerator.Providerator, providerName *string) {
+	defaultHelp := cmd.HelpFunc()
+	cmd.SetHelpFunc(func(c *cobra.Command, a []string) {
+		defaultHelp(c, a)
+		if *providerName == "" {
+			return
+		}
+		printProviderHelp(c.OutOrStdout(), providers, *providerName)
+	})
+}
+
+func printProviderHelp(w io.Writer, providers *providerator.Providerator, providerName string) {
+	manifests, err := providers.Load()
+	if err != nil {
+		return
 	}
-	return "", args, false
-}
+	m, ok := providerator.Lookup(manifests, providerName)
+	if !ok {
+		return
+	}
 
-func checkKnownFlags(fs *flag.FlagSet, args []string) *cliError {
-	known := map[string]bool{}
-	fs.VisitAll(func(fl *flag.Flag) { known[fl.Name] = true })
-	for _, a := range args {
-		if !strings.HasPrefix(a, "-") {
-			continue
+	fmt.Fprintln(w)
+	if len(m.Templates) == 0 {
+		fmt.Fprintf(w, "Provider %q\n\n", m.Name)
+		for _, o := range m.Options {
+			fmt.Fprintf(w, "  --opt %s\n", formatOptFlagLine(o))
 		}
-		name := strings.TrimLeft(a, "-")
-		if eq := strings.IndexByte(name, '='); eq >= 0 {
-			name = name[:eq]
+		return
+	}
+
+	defaultName, _ := resolvedTemplateName(m, "")
+	fmt.Fprintf(w, "Provider %q — %d templates (default: %s). Pass --template to switch.\n\n", m.Name, len(m.Templates), defaultName)
+	for i, t := range m.Templates {
+		name := t.Name
+		if t.Default {
+			name += " (default)"
 		}
-		if !known[name] {
-			return newCLIError(exitcode.UsageError, "unknown flag: %s", a)
+		fmt.Fprintf(w, "  %s\n", name)
+		for _, o := range t.Options {
+			fmt.Fprintf(w, "    --opt %s\n", formatOptFlagLine(o))
+		}
+		if i < len(m.Templates)-1 {
+			fmt.Fprintln(w)
 		}
 	}
-	return nil
 }
 
-func mergeOptions(render bool, geo string, opts stringSliceFlag) map[string]string {
+func formatOptFlagLine(o provider.Option) string {
+	typeDesc := o.Type
+	if o.Type == "enum" {
+		typeDesc = "enum: " + strings.Join(o.Values, "|")
+	}
+	head := fmt.Sprintf("%s=<%s>", o.Name, typeDesc)
+	switch {
+	case o.Default != nil:
+		return fmt.Sprintf("%-30s default: %v", head, o.Default)
+	case o.Pattern != "":
+		return fmt.Sprintf("%-30s pattern: %s", head, o.Pattern)
+	default:
+		return head
+	}
+}
+
+func mergeOptions(render bool, geo string, opts []string) map[string]string {
 	m := map[string]string{}
 	if render {
 		m["render"] = "true"
@@ -140,7 +207,7 @@ func stringMapToAny(m map[string]string) map[string]any {
 	return out
 }
 
-func buildStages(extract string, css stringSliceFlag) ([]jobspec.Stage, *cliError) {
+func buildStages(extract string, css []string) ([]jobspec.Stage, *cliError) {
 	var stages []jobspec.Stage
 	if extract != "" {
 		stages = append(stages, jobspec.Stage{Use: extract})
@@ -159,7 +226,7 @@ func buildStages(extract string, css stringSliceFlag) ([]jobspec.Stage, *cliErro
 	return stages, nil
 }
 
-func extractedFieldNames(extract string, css stringSliceFlag) []string {
+func extractedFieldNames(extract string, css []string) []string {
 	var names []string
 	if extract != "" {
 		names = append(names, extract)
@@ -299,43 +366,40 @@ func resolveProviderOptions(providers *providerator.Providerator, credentialsPat
 	return validated, nil
 }
 
-func handleBuildError(err error, stderr io.Writer) int {
+func buildErrorToCLIError(err error) *cliError {
 	var verr *jobspec.ValidationError
 	if errors.As(err, &verr) {
-		fmt.Fprintf(stderr, "pobear: spec: %s\n", verr.Message)
-		return exitcode.UsageError
+		return newCLIError(exitcode.UsageError, "spec: %s", verr.Message)
 	}
-	fmt.Fprintf(stderr, "pobear: %v\n", err)
-	return exitcode.Fatal
+	return newCLIError(exitcode.Fatal, "%v", err)
 }
 
-func printSpecOrRun(ctx context.Context, runner JobRunner, resolvedIn, defaultsIn jobgen.Input, printSpec, printSpecVerbose bool, outputFormat string, rawField string, stdout, stderr io.Writer) int {
+func printSpecOrRun(ctx context.Context, runner JobRunner, resolvedIn, defaultsIn jobgen.Input, printSpec, printSpecVerbose bool, outputFormat string, rawField string, stdout, stderr io.Writer) (int, *cliError) {
 	resolved, err := jobgen.Build(resolvedIn)
 	if err != nil {
-		return handleBuildError(err, stderr)
+		return 0, buildErrorToCLIError(err)
 	}
 
 	if printSpecVerbose {
-		return printJSON(resolved, stdout, stderr)
+		return printJSON(resolved, stdout)
 	}
 	if printSpec {
 		defaults, err := jobgen.Build(defaultsIn)
 		if err != nil {
-			return handleBuildError(err, stderr)
+			return 0, buildErrorToCLIError(err)
 		}
 		data, err := jobgen.MinimalJSON(resolved, defaults)
 		if err != nil {
-			fmt.Fprintf(stderr, "pobear: %v\n", err)
-			return exitcode.Fatal
+			return 0, newCLIError(exitcode.Fatal, "%v", err)
 		}
 		fmt.Fprintln(stdout, string(data))
-		return exitcode.Success
+		return exitcode.Success, nil
 	}
 
 	if outputFormat == "raw" {
 		return runJobRaw(ctx, runner, resolved, rawField, stdout, stderr)
 	}
-	return runJob(ctx, runner, resolved, stdout, stderr)
+	return runJob(ctx, runner, resolved, stderr)
 }
 
 type verboseFetch struct {
@@ -359,7 +423,7 @@ type verboseSpec struct {
 	Sink    jobspec.Sink    `json:"sink"`
 }
 
-func printJSON(spec *jobspec.Spec, stdout, stderr io.Writer) int {
+func printJSON(spec *jobspec.Spec, stdout io.Writer) (int, *cliError) {
 	v := verboseSpec{
 		Version: spec.Version,
 		Source:  spec.Source,
@@ -374,45 +438,40 @@ func printJSON(spec *jobspec.Spec, stdout, stderr io.Writer) int {
 	}
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
-		fmt.Fprintf(stderr, "pobear: %v\n", err)
-		return exitcode.Fatal
+		return 0, newCLIError(exitcode.Fatal, "%v", err)
 	}
 	fmt.Fprintln(stdout, string(data))
-	return exitcode.Success
+	return exitcode.Success, nil
 }
 
-func runJob(ctx context.Context, runner JobRunner, spec *jobspec.Spec, stdout, stderr io.Writer) int {
-	_ = stdout
+func runJob(ctx context.Context, runner JobRunner, spec *jobspec.Spec, stderr io.Writer) (int, *cliError) {
 	data, err := yaml.Marshal(spec)
 	if err != nil {
-		fmt.Fprintf(stderr, "pobear: %v\n", err)
-		return exitcode.Fatal
+		return 0, newCLIError(exitcode.Fatal, "%v", err)
 	}
 	return execAndSummarize(ctx, runner, data, stderr)
 }
 
-func execAndSummarize(ctx context.Context, runner JobRunner, data []byte, stderr io.Writer) int {
+func execAndSummarize(ctx context.Context, runner JobRunner, data []byte, stderr io.Writer) (int, *cliError) {
 	result, kind, err := runner.Run(ctx, data, jobspec.ModePlain)
 	if err != nil {
-		fmt.Fprintf(stderr, "pobear: %v\n", err)
 		if kind != "" {
-			return exitcode.FromValidationFault(kind)
+			return 0, newCLIError(exitcode.FromValidationFault(kind), "%v", err)
 		}
-		return exitcode.Fatal
+		return 0, newCLIError(exitcode.Fatal, "%v", err)
 	}
 	fmt.Fprintf(stderr, "fetched %d, errors %d, skipped %d\n", result.Succeeded, result.Failed, result.Skipped)
-	return exitcode.FromRun(result.Succeeded, result.Failed, result.Kinds)
+	return exitcode.FromRun(result.Succeeded, result.Failed, result.Kinds), nil
 }
 
 type rawItem struct {
 	Data map[string]any `json:"data"`
 }
 
-func runJobRaw(ctx context.Context, runner JobRunner, spec *jobspec.Spec, fieldName string, stdout, stderr io.Writer) int {
+func runJobRaw(ctx context.Context, runner JobRunner, spec *jobspec.Spec, fieldName string, stdout, stderr io.Writer) (int, *cliError) {
 	tmpDir, err := os.MkdirTemp("", "pobear-raw-*")
 	if err != nil {
-		fmt.Fprintf(stderr, "pobear: %v\n", err)
-		return exitcode.Fatal
+		return 0, newCLIError(exitcode.Fatal, "%v", err)
 	}
 	defer os.RemoveAll(tmpDir)
 	tmpPath := filepath.Join(tmpDir, "out.ndjson")
@@ -422,20 +481,21 @@ func runJobRaw(ctx context.Context, runner JobRunner, spec *jobspec.Spec, fieldN
 
 	data, err := yaml.Marshal(&raw)
 	if err != nil {
-		fmt.Fprintf(stderr, "pobear: %v\n", err)
-		return exitcode.Fatal
+		return 0, newCLIError(exitcode.Fatal, "%v", err)
 	}
 
-	code := execAndSummarize(ctx, runner, data, stderr)
+	code, cerr := execAndSummarize(ctx, runner, data, stderr)
+	if cerr != nil {
+		return 0, cerr
+	}
 	if code != exitcode.Success {
-		return code
+		return code, nil
 	}
 
 	if err := writeRawValue(tmpPath, fieldName, stdout); err != nil {
-		fmt.Fprintf(stderr, "pobear: %v\n", err)
-		return exitcode.Fatal
+		return 0, newCLIError(exitcode.Fatal, "%v", err)
 	}
-	return code
+	return code, nil
 }
 
 func writeRawValue(path, fieldName string, stdout io.Writer) error {

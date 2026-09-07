@@ -599,6 +599,23 @@ $ echo $?
 3
 ```
 
+A command called without an argument it requires prints that error, then the
+command's full help (flags and all) — same as `--help` would, minus the
+provider-schema section below:
+
+```
+$ pobear scrape
+pobear: scrape requires a URL or file argument
+
+Usage:
+  pobear scrape <url|file> [flags]
+
+Flags:
+  ...
+$ echo $?
+3
+```
+
 ## Exit codes, at a glance
 
 | Code | Meaning |

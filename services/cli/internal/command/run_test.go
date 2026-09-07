@@ -90,3 +90,22 @@ func TestRunPrintSpecDoesNotRunTheJob(t *testing.T) {
 		t.Fatalf("runner was called, want it never called for --print-spec")
 	}
 }
+
+func TestRunMissingTargetPrintsHelp(t *testing.T) {
+	args := cliArgs("run")
+
+	cmd := &command.Run{Parser: &fakeSpecParser{}, Runner: &fakeRunner{}}
+
+	var stdout, stderr bytes.Buffer
+	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &stdout, &stderr)
+
+	if got != 3 {
+		t.Fatalf("Run() = %d, want 3 (missing required argument)", got)
+	}
+	if want := "pobear: run requires a job spec path\n"; !strings.HasPrefix(stderr.String(), want) {
+		t.Fatalf("stderr = %q, want prefix %q", stderr.String(), want)
+	}
+	if !strings.Contains(stderr.String(), "Usage:") || !strings.Contains(stderr.String(), "Flags:") {
+		t.Fatalf("stderr = %q, want it to include the command's full usage/flags help", stderr.String())
+	}
+}

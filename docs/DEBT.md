@@ -257,9 +257,11 @@ is inert past validation.
 reactive terminal UI (`services/cli/internal/wizard/tui.go`, per
 `PROJECT_STRUCTURE.md`), but `services/cli/internal/wizard` currently holds only
 a `doc.go` — no types, no tests, no TUI dependency in `go.mod`. `services/cli.New`
-doesn't register a `"wizard"` command at all, so both bare `pobear` and
-`pobear wizard` currently print `pobear: unknown command "wizard"` (exit 3)
-instead of launching anything.
+doesn't register a `"wizard"` command at all. Bare `pobear` now prints a
+clearer "interactive mode is not yet available" message (rather than the
+confusing `unknown command "wizard"` it used to print), but there's still no
+actual wizard to launch; `pobear wizard` explicitly still prints
+`pobear: unknown command "wizard"` (exit 3), since nothing registers that name.
 
 **Why not fixed now:** found while implementing the rest of `services/cli`
 (providerator/jobgen/command) this session — every other package already had

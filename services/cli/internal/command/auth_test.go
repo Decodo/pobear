@@ -3,6 +3,9 @@ package command_test
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pobear/pobear/services/cli/internal/command"
@@ -28,7 +31,7 @@ func TestAuthUnknownProviderErrors(t *testing.T) {
 	}
 }
 
-func TestAuthNoNameArgIsUsageError(t *testing.T) {
+func TestAuthNoNameArgWithNoProvidersInstalled(t *testing.T) {
 	args := cliArgs("auth")
 
 	cmd := &command.Auth{
@@ -36,9 +39,49 @@ func TestAuthNoNameArgIsUsageError(t *testing.T) {
 		Prompt:    func(string) (string, error) { return "secret", nil },
 	}
 
-	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &bytes.Buffer{}, &bytes.Buffer{})
+	var stderr bytes.Buffer
+	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &bytes.Buffer{}, &stderr)
 
 	if got != 3 {
 		t.Fatalf("Run() = %d, want 3 (missing provider name)", got)
+	}
+	want := "pobear: auth requires a provider name (no providers installed)\n\nUsage:\n  pobear auth <provider> [flags]\n"
+	if !hasPrefix(stderr.String(), want) {
+		t.Fatalf("stderr = %q, want prefix %q", stderr.String(), want)
+	}
+}
+
+func TestAuthNoNameArgListsInstalledProviders(t *testing.T) {
+	args := cliArgs("auth")
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "decodo.yaml"), []byte(`
+name: decodo
+endpoint: https://scraper-api.decodo.com/v2/scrape
+auth: {type: bearer, credential: token}
+request: {body: {url: "{{ .URL }}"}}
+response: {body: "$.html"}
+`), 0o600); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	cmd := &command.Auth{
+		Providers: providerator.New(dir),
+		Prompt:    func(string) (string, error) { return "secret", nil },
+	}
+
+	var stderr bytes.Buffer
+	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &bytes.Buffer{}, &stderr)
+
+	if got != 3 {
+		t.Fatalf("Run() = %d, want 3 (missing provider name)", got)
+	}
+	if want := "pobear: you need to specify one of the available providers:\n"; !hasPrefix(stderr.String(), want) {
+		t.Fatalf("stderr = %q, want prefix %q", stderr.String(), want)
+	}
+	if !strings.Contains(stderr.String(), "decodo") {
+		t.Fatalf("stderr = %q, want it to mention decodo", stderr.String())
+	}
+	if want := "\nUsage:\n  pobear auth <provider> [flags]\n"; !strings.Contains(stderr.String(), want) {
+		t.Fatalf("stderr = %q, want it to contain %q", stderr.String(), want)
 	}
 }

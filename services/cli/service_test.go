@@ -76,7 +76,7 @@ func TestServiceUnknownCommand(t *testing.T) {
 	}
 }
 
-func TestServiceNoArgsIsUnknownCommand(t *testing.T) {
+func TestServiceNoArgsPrintsInteractiveModeUnavailable(t *testing.T) {
 	svc := cli.NewService(map[string]command.Command{"scrape": &fakeCommand{}})
 
 	var stderr bytes.Buffer
@@ -85,8 +85,27 @@ func TestServiceNoArgsIsUnknownCommand(t *testing.T) {
 	if got != 3 {
 		t.Fatalf("Run() = %d, want 3", got)
 	}
-	if want := "pobear: unknown command \"wizard\"\n"; stderr.String() != want {
+	if want := "pobear: interactive mode is not yet available; run 'pobear --help' for usage\n"; stderr.String() != want {
 		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
+	}
+}
+
+func TestServiceHelpFlagListsRegisteredCommands(t *testing.T) {
+	argv := strings.Fields("--help")
+
+	svc := cli.NewService(map[string]command.Command{"scrape": &fakeCommand{}, "auth": &fakeCommand{}})
+
+	var stdout, stderr bytes.Buffer
+	got := svc.Run(context.Background(), argv, bytes.NewReader(nil), &stdout, &stderr)
+
+	if got != 0 {
+		t.Fatalf("Run() = %d, want 0", got)
+	}
+	if stderr.String() != "" {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "  auth\n") || !strings.Contains(stdout.String(), "  scrape\n") {
+		t.Fatalf("stdout = %q, want it to list both registered commands", stdout.String())
 	}
 }
 

@@ -3,6 +3,9 @@ package command_test
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pobear/pobear/pkg/fault"
@@ -96,5 +99,65 @@ func TestScrapeOutputFormatRawWithoutExtractionErrors(t *testing.T) {
 
 	if got != 3 {
 		t.Fatalf("Run() = %d, want 3 (no extraction stage set, ambiguous)", got)
+	}
+}
+
+func TestScrapeMissingTargetPrintsHelp(t *testing.T) {
+	args := cliArgs("scrape")
+
+	cmd := &command.Scrape{Runner: &fakeRunner{}, Providers: providerator.New(t.TempDir())}
+
+	var stdout, stderr bytes.Buffer
+	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &stdout, &stderr)
+
+	if got != 3 {
+		t.Fatalf("Run() = %d, want 3 (missing required argument)", got)
+	}
+	if want := "pobear: scrape requires a URL or file argument\n"; !strings.HasPrefix(stderr.String(), want) {
+		t.Fatalf("stderr = %q, want prefix %q", stderr.String(), want)
+	}
+	if !strings.Contains(stderr.String(), "Usage:") || !strings.Contains(stderr.String(), "Flags:") {
+		t.Fatalf("stderr = %q, want it to include the command's full usage/flags help", stderr.String())
+	}
+	if stdout.String() != "" {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+}
+
+func TestScrapeProviderHelpShowsLiveSchema(t *testing.T) {
+	args := cliArgs("scrape --provider decodo --help")
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "decodo.yaml"), []byte(`
+name: decodo
+endpoint: https://scraper-api.decodo.com/v2/scrape
+auth: {type: bearer, credential: token}
+templates:
+  - name: universal
+    default: true
+    options:
+      - {name: render, type: bool, default: false}
+    request: {body: {url: "{{ .URL }}"}}
+  - name: amazon_product
+    options:
+      - {name: domain, type: enum, values: [com, co.uk, de], default: com}
+    request: {body: {query: "{{ .URL }}"}}
+response: {body: "$.html"}
+`), 0o600); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	cmd := &command.Scrape{Runner: &fakeRunner{}, Providers: providerator.New(dir)}
+
+	var stdout, stderr bytes.Buffer
+	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &stdout, &stderr)
+
+	if got != 0 {
+		t.Fatalf("Run() = %d, want 0", got)
+	}
+	if want := `Provider "decodo"`; !strings.Contains(stdout.String(), want) {
+		t.Fatalf("stdout = %q, want it to contain %q", stdout.String(), want)
+	}
+	if !strings.Contains(stdout.String(), "amazon_product") {
+		t.Fatalf("stdout = %q, want it to list the amazon_product template", stdout.String())
 	}
 }

@@ -3,6 +3,7 @@ package command_test
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/pobear/pobear/services/cli/internal/command"
@@ -64,5 +65,24 @@ func TestCrawlUnknownProviderOptionErrors(t *testing.T) {
 	}
 	if want := "pobear: unknown provider \"bogus-provider\"\n"; stderr.String() != want {
 		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
+	}
+}
+
+func TestCrawlMissingTargetPrintsHelp(t *testing.T) {
+	args := cliArgs("crawl")
+
+	cmd := &command.Crawl{Runner: &fakeRunner{}, Providers: providerator.New(t.TempDir())}
+
+	var stdout, stderr bytes.Buffer
+	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &stdout, &stderr)
+
+	if got != 3 {
+		t.Fatalf("Run() = %d, want 3 (missing required argument)", got)
+	}
+	if want := "pobear: crawl requires a URL argument\n"; !strings.HasPrefix(stderr.String(), want) {
+		t.Fatalf("stderr = %q, want prefix %q", stderr.String(), want)
+	}
+	if !strings.Contains(stderr.String(), "Usage:") || !strings.Contains(stderr.String(), "Flags:") {
+		t.Fatalf("stderr = %q, want it to include the command's full usage/flags help", stderr.String())
 	}
 }

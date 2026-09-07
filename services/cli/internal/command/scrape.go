@@ -2,11 +2,10 @@ package command
 
 import (
 	"context"
-	"flag"
-	"fmt"
 	"io"
 
-	"github.com/pobear/pobear/pkg/exitcode"
+	"github.com/spf13/cobra"
+
 	"github.com/pobear/pobear/pkg/fault"
 	"github.com/pobear/pobear/pkg/jobspec"
 	"github.com/pobear/pobear/services/cli/internal/jobgen"
@@ -47,43 +46,47 @@ type Scrape struct {
 	CredentialsPath string
 }
 
-func (s *Scrape) Run(ctx context.Context, args []string, _ io.Reader, stdout, stderr io.Writer) int {
-	target, rest, hasTarget := splitPositional(args)
-
+func (s *Scrape) Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	var f commonFlags
-	fs := flag.NewFlagSet("scrape", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	registerCommonFlags(fs, &f, 0)
+	code := 0
 
-	if cerr := checkKnownFlags(fs, rest); cerr != nil {
-		cerr.print(stderr)
-		return cerr.code
+	cmd := &cobra.Command{
+		Use:   "pobear scrape <url|file>",
+		Short: "Scrape a single URL, or every URL listed in a file",
+		Long: "Scrape a single URL, or every URL listed in a file.\n\n" +
+			"The positional argument is either a single absolute http/https URL, or a\n" +
+			"path to a file listing many: plain text, one URL per line, blank lines and\n" +
+			"lines starting with # skipped.",
+		Args: requireExactlyOne("scrape requires a URL or file argument"),
+		RunE: func(_ *cobra.Command, cmdArgs []string) error {
+			c, cerr := scrapeRun(ctx, s.Runner, s.Providers, s.CredentialsPath, cmdArgs[0], &f, stdout, stderr)
+			code = c
+			if cerr != nil {
+				return cerr
+			}
+			return nil
+		},
 	}
-	if err := fs.Parse(rest); err != nil {
-		fmt.Fprintf(stderr, "pobear: %v\n", err)
-		return exitcode.UsageError
-	}
-	if !hasTarget {
-		fmt.Fprintln(stderr, "pobear: scrape requires a URL or file argument")
-		return exitcode.UsageError
-	}
+	registerCommonFlags(cmd, &f, 0)
+	wireProviderHelp(cmd, s.Providers, &f.provider)
 
+	return runCobraCommand(cmd, args, stdin, stdout, stderr, &code)
+}
+
+func scrapeRun(ctx context.Context, runner JobRunner, providers *providerator.Providerator, credentialsPath, target string, f *commonFlags, stdout, stderr io.Writer) (int, *cliError) {
 	urls, cerr := resolveScrapeURLs(target)
 	if cerr != nil {
-		cerr.print(stderr)
-		return cerr.code
+		return 0, cerr
 	}
 
 	stages, cerr := buildStages(f.extract, f.css)
 	if cerr != nil {
-		cerr.print(stderr)
-		return cerr.code
+		return 0, cerr
 	}
 
 	names := extractedFieldNames(f.extract, f.css)
 	if cerr := validateOutputFormatRaw(f.outputFormat, names); cerr != nil {
-		cerr.print(stderr)
-		return cerr.code
+		return 0, cerr
 	}
 
 	fetchUse := "local"
@@ -98,10 +101,9 @@ func (s *Scrape) Run(ctx context.Context, args []string, _ io.Reader, stdout, st
 	var fetchOptions map[string]any
 	if f.provider != "" {
 		var perr *cliError
-		fetchOptions, perr = resolveProviderOptions(s.Providers, s.CredentialsPath, f.provider, f.template, opts)
+		fetchOptions, perr = resolveProviderOptions(providers, credentialsPath, f.provider, f.template, opts)
 		if perr != nil {
-			perr.print(stderr)
-			return perr.code
+			return 0, perr
 		}
 	} else {
 		fetchOptions = stringMapToAny(opts)
@@ -126,5 +128,6 @@ func (s *Scrape) Run(ctx context.Context, args []string, _ io.Reader, stdout, st
 	if len(names) == 1 {
 		rawField = names[0]
 	}
-	return printSpecOrRun(ctx, s.Runner, resolvedIn, defaultsIn, f.printSpec, f.printSpecVerbose, f.outputFormat, rawField, stdout, stderr)
+
+	return printSpecOrRun(ctx, runner, resolvedIn, defaultsIn, f.printSpec, f.printSpecVerbose, f.outputFormat, rawField, stdout, stderr)
 }
