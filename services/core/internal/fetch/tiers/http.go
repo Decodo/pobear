@@ -6,11 +6,22 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/pobear/pobear/pkg/fault"
 	"github.com/pobear/pobear/pkg/jobspec"
 )
+
+const bodySnippetLimit = 500
+
+func bodySnippet(b []byte) string {
+	s := strings.TrimSpace(string(b))
+	if len(s) > bodySnippetLimit {
+		return s[:bodySnippetLimit] + "…"
+	}
+	return s
+}
 
 func doHTTPFetch(ctx context.Context, client *http.Client, cfg jobspec.Fetch, url string) (*Result, fault.Kind, error) {
 	if cfg.Timeout != "" {
@@ -50,7 +61,7 @@ func doHTTPFetch(ctx context.Context, client *http.Client, cfg jobspec.Fetch, ur
 	}
 
 	result := &Result{Status: resp.StatusCode, Body: body, FinalURL: resp.Request.URL.String()}
-	kind, classifyErr := classifyStatus(resp.StatusCode, cfg.NoRedirects)
+	kind, classifyErr := classifyStatus(resp.StatusCode, cfg.NoRedirects, body)
 	return result, kind, classifyErr
 }
 
@@ -60,13 +71,16 @@ func applyHeaders(req *http.Request, headers map[string]string) {
 	}
 }
 
-func classifyStatus(status int, noRedirects bool) (fault.Kind, error) {
+func classifyStatus(status int, noRedirects bool, body []byte) (fault.Kind, error) {
 	if noRedirects && status >= 300 && status < 400 {
 		return "", nil
 	}
 	kind := classifyDefaultStatus(status)
 	if kind == "" {
 		return "", nil
+	}
+	if snippet := bodySnippet(body); snippet != "" {
+		return kind, fmt.Errorf("tiers: http status %d: %s", status, snippet)
 	}
 	return kind, fmt.Errorf("tiers: http status %d", status)
 }

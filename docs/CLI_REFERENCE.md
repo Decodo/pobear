@@ -105,6 +105,22 @@ $ pobear scrape https://example.com --css 'title=h1' --css 'link=a@href'
 {"url":"https://example.com", …, "data":{"title":["Example Domain"],"link":["https://www.iana.org/domains/example"]}}
 ```
 
+A per-URL failure prints one detail line per failure before the summary,
+naming the URL, its fault kind in brackets, and the underlying error —
+same stderr stream, same for `scrape` and `crawl`. For an HTTP-status-based
+failure (local/proxy) or a provider-tier failure, that error also includes
+a snippet of the actual response body (up to 500 characters), when the
+response had one — usually the most direct way to see *why* a request was
+rejected, since it's often the server's own explanation:
+
+```
+$ pobear scrape https://example.com/blocked
+https://example.com/blocked [blocked]: tiers: http status 403: automated traffic detected
+fetched 0, errors 1, skipped 0
+$ echo $?
+5
+```
+
 `--extract` and `--css` compose freely — each adds its own stage to the pipeline
 (§6 of `JOB_SPEC_REFERENCE.md`), so `--extract markdown --css title=h1` produces
 both a stage using `markdown` and a stage using `css`, writing `data.markdown` and `data.title`

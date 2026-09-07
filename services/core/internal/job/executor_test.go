@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/pobear/pobear/pkg/fault"
@@ -98,6 +99,9 @@ func TestExecutorURLListContinuesPastPerItemFailure(t *testing.T) {
 	}
 	if len(got.Kinds) != 1 || got.Kinds[0] != fault.Network {
 		t.Fatalf("Kinds = %v, want [fault.Network]", got.Kinds)
+	}
+	if len(got.Errors) != 1 || !strings.Contains(got.Errors[0], "https://b.test") || !strings.Contains(got.Errors[0], "connection refused") {
+		t.Fatalf("Errors = %v, want one entry naming the failed URL and its error", got.Errors)
 	}
 	if scrape.calls != 3 {
 		t.Fatalf("expected all 3 URLs attempted despite the middle failure, got %d calls", scrape.calls)

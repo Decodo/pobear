@@ -120,20 +120,28 @@ func printProviderDetail(m *provider.Manifest, stdout io.Writer) {
 }
 
 func formatOptionLine(o provider.Option) string {
+	name := padName(o.Name, 9)
 	typeDesc := o.Type
 	if o.Type == "enum" {
 		typeDesc = "enum: " + strings.Join(o.Values, ", ")
 	}
 	switch {
 	case o.Default != nil:
-		return fmt.Sprintf("%-9s%-34sdefault: %v", o.Name, typeDesc, o.Default)
+		return fmt.Sprintf("%s%-34sdefault: %v", name, typeDesc, o.Default)
 	case o.Pattern != "":
-		return fmt.Sprintf("%-9s%s   pattern: %s", o.Name, typeDesc, o.Pattern)
+		return fmt.Sprintf("%s%s   pattern: %s", name, typeDesc, o.Pattern)
 	case o.Min != nil || o.Max != nil:
-		return fmt.Sprintf("%-9s%s   %s", o.Name, typeDesc, formatMinMax(o.Min, o.Max))
+		return fmt.Sprintf("%s%s   %s", name, typeDesc, formatMinMax(o.Min, o.Max))
 	default:
-		return fmt.Sprintf("%-9s%s", o.Name, typeDesc)
+		return fmt.Sprintf("%s%s", name, typeDesc)
 	}
+}
+
+func padName(name string, width int) string {
+	if len(name) < width {
+		return name + strings.Repeat(" ", width-len(name))
+	}
+	return name + " "
 }
 
 func formatMinMax(min, max *int) string {

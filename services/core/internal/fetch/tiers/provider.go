@@ -41,12 +41,17 @@ func (p *Provider) Fetch(ctx context.Context, cfg jobspec.Fetch, targetURL strin
 		return nil, fault.Auth, err
 	}
 
-	body, query, err := provider.Render(manifest.Request, targetURL, cfg.Options)
+	tmplReq, endpoint, method, err := resolveProviderTemplate(manifest, cfg.Template)
 	if err != nil {
 		return nil, fault.Provider, err
 	}
 
-	req, kind, err := buildHTTPRequest(ctx, manifest, cfg, body, query, secret)
+	body, query, err := provider.Render(tmplReq, targetURL, cfg.Options)
+	if err != nil {
+		return nil, fault.Provider, err
+	}
+
+	req, kind, err := buildHTTPRequest(ctx, manifest, endpoint, method, cfg, body, query, secret)
 	if err != nil {
 		return nil, kind, err
 	}
@@ -76,6 +81,9 @@ func (p *Provider) Fetch(ctx context.Context, cfg jobspec.Fetch, targetURL strin
 	if respKind == "" {
 		return result, "", nil
 	}
+	if snippet := bodySnippet(respBody); snippet != "" {
+		return result, respKind, fmt.Errorf("tiers: provider status %d: %s", status, snippet)
+	}
 	return result, respKind, fmt.Errorf("tiers: provider status %d", status)
 }
 
@@ -99,8 +107,8 @@ func (p *Provider) loadCredential(manifest *provider.Manifest) (string, error) {
 	return secret, nil
 }
 
-func buildHTTPRequest(ctx context.Context, manifest *provider.Manifest, cfg jobspec.Fetch, body map[string]any, query map[string]string, secret string) (*http.Request, fault.Kind, error) {
-	endpoint, err := applyQuery(manifest.Endpoint, query)
+func buildHTTPRequest(ctx context.Context, manifest *provider.Manifest, endpoint, method string, cfg jobspec.Fetch, body map[string]any, query map[string]string, secret string) (*http.Request, fault.Kind, error) {
+	endpoint, err := applyQuery(endpoint, query)
 	if err != nil {
 		return nil, fault.Provider, err
 	}
@@ -114,7 +122,6 @@ func buildHTTPRequest(ctx context.Context, manifest *provider.Manifest, cfg jobs
 		bodyReader = bytes.NewReader(encoded)
 	}
 
-	method := manifest.Method
 	if method == "" {
 		method = http.MethodPost
 	}
@@ -165,6 +172,48 @@ func applyAuth(req *http.Request, auth provider.Auth, secret string) error {
 		return fmt.Errorf("tiers: unknown auth type %q", auth.Type)
 	}
 	return nil
+}
+
+func resolveProviderTemplate(m *provider.Manifest, templateName string) (req provider.Request, endpoint, method string, err error) {
+	if len(m.Templates) == 0 {
+		return m.Request, m.Endpoint, m.Method, nil
+	}
+
+	var t *provider.Template
+	switch {
+	case templateName != "":
+		for i := range m.Templates {
+			if m.Templates[i].Name == templateName {
+				t = &m.Templates[i]
+				break
+			}
+		}
+		if t == nil {
+			return provider.Request{}, "", "", fmt.Errorf("tiers: %s has no template %q", m.Name, templateName)
+		}
+	case len(m.Templates) == 1:
+		t = &m.Templates[0]
+	default:
+		for i := range m.Templates {
+			if m.Templates[i].Default {
+				t = &m.Templates[i]
+				break
+			}
+		}
+		if t == nil {
+			return provider.Request{}, "", "", fmt.Errorf("tiers: %s has more than one template and none is marked default; fetch.template is required", m.Name)
+		}
+	}
+
+	endpoint = t.Endpoint
+	if endpoint == "" {
+		endpoint = m.Endpoint
+	}
+	method = t.Method
+	if method == "" {
+		method = m.Method
+	}
+	return t.Request, endpoint, method, nil
 }
 
 func classifyProviderStatus(status int, mappings []provider.ErrorMapping) fault.Kind {

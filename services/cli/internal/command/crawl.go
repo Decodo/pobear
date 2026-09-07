@@ -71,6 +71,10 @@ func crawlRun(ctx context.Context, runner JobRunner, providers *providerator.Pro
 		return 0, cerr
 	}
 
+	if cerr := validateOutputFormat(f.outputFormat); cerr != nil {
+		return 0, cerr
+	}
+
 	names := extractedFieldNames(f.extract, f.css)
 	if cerr := validateOutputFormatRaw(f.outputFormat, names); cerr != nil {
 		return 0, cerr
@@ -101,9 +105,14 @@ func crawlRun(ctx context.Context, runner JobRunner, providers *providerator.Pro
 		sinkUse, sinkPath = "ndjson", f.out
 	}
 
+	profile := f.profile
+	if fetchUse == "provider" {
+		profile = ""
+	}
+
 	resolvedIn := jobgen.Input{
 		URLs: []string{target}, Crawl: crawlIn, FetchUse: fetchUse, Proxy: f.proxy, Provider: f.provider, Template: f.template,
-		Profile: f.profile, Options: fetchOptions, Timeout: f.timeout, NoRedirects: noRedirects, Stages: stages,
+		Profile: profile, Options: fetchOptions, Timeout: f.timeout, NoRedirects: noRedirects, Stages: stages,
 		Concurrency: f.concurrency, RPS: f.rps, Retries: f.retries, SinkUse: sinkUse, SinkPath: sinkPath,
 	}
 	defaultsIn := jobgen.Input{

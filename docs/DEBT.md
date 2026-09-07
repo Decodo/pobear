@@ -151,37 +151,6 @@ terminal echo either way — but affects every real interactive `pobear auth` ru
 
 ---
 
-## Provider tier fetch has no template-mode support
-
-**What's wrong:** `tiers.Provider.Fetch` calls `provider.Render(manifest.Request,
-url, cfg.Options)` unconditionally — it never looks at `manifest.Templates` or
-`cfg.Template` at all. For a manifest that declares `templates` (`PROVIDER_REFERENCE.md`
-§11) instead of top-level `options`/`request`, `manifest.Request` is the Go zero
-value (`Request{}`, per `pkg/provider.Parse`'s own templates/non-templates split),
-so `Render` produces an empty body and query — the request goes out with none of
-the fields a real templated provider (Decodo's `universal`/`amazon_product` split,
-for instance) needs.
-
-**Why not fixed now:** found while implementing `services/core/internal/fetch/tiers`;
-every fixture manifest exercised by that package's own tests (`provider_test.go`)
-uses the simple top-level form, so there's no test oracle yet for template
-selection's exact rules (§11: use the sole template if there's only one; otherwise
-the one marked `default: true`; `fetch.template` is required and used verbatim
-when neither applies) or for the tier picking that template's own `endpoint`/
-`method` when set, inheriting the manifest's otherwise.
-
-**What fixing it requires:** a test fixture manifest with `templates` set (mirroring
-`pkg/provider/testdata/validation/full-manifest/templates-valid.yaml`'s shape),
-selection logic in `tiers.Provider.Fetch` implementing the §11 rule above, and using
-the selected template's `Endpoint`/`Method`/`Request`/`Options` instead of the
-manifest's own wherever the template sets them.
-
-**Blocks:** any real `pobear scrape --provider <name> --template <name>` run
-against a templates-mode manifest — Decodo's own real manifest (once installed)
-declares `templates`, so this is the mode `--provider decodo` actually needs.
-
----
-
 ## `limits.concurrency` never gets real parallel load
 
 **What's wrong:** `services/core/internal/fetch.Fetcher` builds a real

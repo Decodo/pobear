@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -407,6 +408,9 @@ func TestCrawlTalliesFailuresAndTheirKinds(t *testing.T) {
 	}
 	if len(got.Kinds) != 1 || got.Kinds[0] != fault.Timeout {
 		t.Fatalf("got Kinds=%v, want [fault.Timeout]", got.Kinds)
+	}
+	if len(got.Errors) != 1 || !strings.Contains(got.Errors[0], "https://a.test/child") || !strings.Contains(got.Errors[0], "timed out") {
+		t.Fatalf("got Errors=%v, want one entry naming the failed URL and its error", got.Errors)
 	}
 	for _, v := range scrape.visited {
 		if v == "https://a.test/grandchild" {
