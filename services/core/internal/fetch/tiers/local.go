@@ -13,8 +13,5 @@ type Local struct {
 }
 
 func (l *Local) Fetch(ctx context.Context, cfg jobspec.Fetch, url string) (*Result, fault.Kind, error) {
-	_ = ctx
-	_ = cfg
-	_ = url
-	return nil, "", ErrNotImplemented
+	return doHTTPFetch(ctx, l.Client, cfg, url)
 }

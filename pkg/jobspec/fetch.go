@@ -52,7 +52,10 @@ func parseFetch(root map[string]any) (Fetch, *ValidationError) {
 	}
 	fetch.Timeout = timeout
 
-	fetch.NoRedirects = utils.GetBool(m, "noRedirects", false)
+	fetch.NoRedirects, err = utils.GetBool(m, "noRedirects", "fetch.noRedirects", false)
+	if err != nil {
+		return Fetch{}, err
+	}
 
 	if err := parseFetchHeaders(m, &fetch); err != nil {
 		return Fetch{}, err

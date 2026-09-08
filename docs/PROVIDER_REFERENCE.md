@@ -93,10 +93,12 @@ run; `pobear scrape --provider <name>` fails with a clear auth error if it's uns
 The on-disk credentials store `pobear auth` writes to is created with `0o600`
 permissions, since it holds plaintext secrets.
 
-**`type: basic`** stores one secret like every other type — a single
-`username:password` string, entered as one answer to the `pobear auth <name>`
-prompt and split on the first `:` when the engine builds the `Authorization`
-header. There's no separate username/password pair at the manifest level.
+**`type: basic`** stores one secret like every other type — the already
+base64-encoded `username:password` credential (what a user copies straight out
+of most APIs' own docs/consoles), entered as one answer to the `pobear auth
+<name>` prompt and sent verbatim as `Authorization: Basic <secret>`. pobear
+never encodes or decodes it itself, and there's no separate username/password
+pair at the manifest level.
 
 **`type: query`** sends the credential as a plain query parameter, which means it
 ends up in the request URL — visible in proxy logs, server access logs, and browser

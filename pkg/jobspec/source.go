@@ -49,12 +49,18 @@ func parseCrawlSource(raw any) (*CrawlSource, *ValidationError) {
 		return nil, err
 	}
 
-	depth := utils.GetInt(m, "depth", 0)
+	depth, err := utils.GetInt(m, "depth", "source.crawl.depth", 0)
+	if err != nil {
+		return nil, err
+	}
 	if depth < 0 {
 		return nil, utils.Errorf("source.crawl.depth", "`source.crawl.depth` must be >= 0, got %d", depth)
 	}
 
-	maxPages := utils.GetInt(m, "maxPages", 100)
+	maxPages, err := utils.GetInt(m, "maxPages", "source.crawl.maxPages", 100)
+	if err != nil {
+		return nil, err
+	}
 	if maxPages <= 0 {
 		return nil, utils.Errorf("source.crawl.maxPages", "`source.crawl.maxPages` must be > 0, got %d", maxPages)
 	}
@@ -83,6 +89,11 @@ func parseCrawlSource(raw any) (*CrawlSource, *ValidationError) {
 		return nil, err
 	}
 
+	sitemap, err := utils.GetBool(m, "sitemap", "source.crawl.sitemap", false)
+	if err != nil {
+		return nil, err
+	}
+
 	return &CrawlSource{
 		Seeds:       seeds,
 		Depth:       depth,
@@ -91,7 +102,7 @@ func parseCrawlSource(raw any) (*CrawlSource, *ValidationError) {
 		Scope:       scope,
 		Include:     include,
 		Exclude:     exclude,
-		Sitemap:     utils.GetBool(m, "sitemap", false),
+		Sitemap:     sitemap,
 		Robots:      robots,
 	}, nil
 }
@@ -101,19 +112,10 @@ func parseURLList(raw any, field string) ([]string, *ValidationError) {
 	if len(list) == 0 {
 		return nil, utils.Errorf(field, "`%s` must contain at least one URL, got none", field)
 	}
-
-	urls := make([]string, 0, len(list))
-	for _, item := range list {
-		s, ok := item.(string)
-		if !ok {
-			return nil, utils.Errorf(field, "`%s` must be absolute `http`/`https` URLs, got %v", field, item)
-		}
-		if !utils.IsAbsoluteHTTPURL(s) {
-			return nil, utils.Errorf(field, "`%s` must be absolute `http`/`https` URLs, got %q", field, s)
-		}
-		urls = append(urls, s)
-	}
-	return urls, nil
+	return parseValidatedStringList(list, field,
+		"`%s` must be absolute `http`/`https` URLs, got %v",
+		"`%s` must be absolute `http`/`https` URLs, got %q",
+		utils.IsAbsoluteHTTPURL)
 }
 
 func parseGlobList(m map[string]any, key, field string) ([]string, *ValidationError) {
@@ -125,17 +127,23 @@ func parseGlobList(m map[string]any, key, field string) ([]string, *ValidationEr
 	if !ok {
 		return nil, utils.Errorf(field, "`%s` must be a list", field)
 	}
+	return parseValidatedStringList(list, field,
+		"`%s` is not a valid glob pattern: %v",
+		"`%s` is not a valid glob pattern: %q",
+		doublestar.ValidatePattern)
+}
 
-	globs := make([]string, 0, len(list))
+func parseValidatedStringList(list []any, field, wrongTypeMsg, invalidMsg string, valid func(s string) bool) ([]string, *ValidationError) {
+	items := make([]string, 0, len(list))
 	for _, item := range list {
 		s, ok := item.(string)
 		if !ok {
-			return nil, utils.Errorf(field, "`%s` is not a valid glob pattern: %v", field, item)
+			return nil, utils.Errorf(field, wrongTypeMsg, field, item)
 		}
-		if !doublestar.ValidatePattern(s) {
-			return nil, utils.Errorf(field, "`%s` is not a valid glob pattern: %q", field, s)
+		if !valid(s) {
+			return nil, utils.Errorf(field, invalidMsg, field, s)
 		}
-		globs = append(globs, s)
+		items = append(items, s)
 	}
-	return globs, nil
+	return items, nil
 }

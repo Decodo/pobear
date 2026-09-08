@@ -6,4 +6,4 @@ input: |
 mode: rpc
 wantErr: true
 wantField: sink.path
-wantMessage: "`sink.path` is only allowed when `sink.use` is `ndjson` or `json`"
+wantMessage: "`sink.path` is only allowed when `sink.use` is `ndjson`, `json`, or `yaml`"

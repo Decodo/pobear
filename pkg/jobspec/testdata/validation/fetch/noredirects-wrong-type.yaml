@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local, noRedirects: "yes"}
+wantErr: true
+wantField: fetch.noRedirects
+wantMessage: "`fetch.noRedirects` must be a bool, got yes"

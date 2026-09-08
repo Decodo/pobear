@@ -22,6 +22,9 @@ func FromRun(succeeded, failed int, kinds []fault.Kind) int {
 	if succeeded > 0 {
 		return PartialFailure
 	}
+	if len(kinds) != failed {
+		return Fatal
+	}
 	for _, k := range kinds {
 		if k != fault.Auth {
 			return Fatal

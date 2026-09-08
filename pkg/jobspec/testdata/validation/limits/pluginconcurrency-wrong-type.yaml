@@ -1,0 +1,8 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local}
+  limits: {pluginConcurrency: "four"}
+wantErr: true
+wantField: limits.pluginConcurrency
+wantMessage: "`limits.pluginConcurrency` must be an integer, got four"

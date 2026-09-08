@@ -64,20 +64,28 @@ func GetString(m map[string]any, key, def string) string {
 	return def
 }
 
-func GetInt(m map[string]any, key string, def int) int {
-	if v, ok := m[key]; ok {
-		n, _ := v.(int)
-		return n
+func GetInt(m map[string]any, key, field string, def int) (int, *ValidationError) {
+	v, ok := m[key]
+	if !ok {
+		return def, nil
 	}
-	return def
+	n, ok := v.(int)
+	if !ok {
+		return 0, Errorf(field, "`%s` must be an integer, got %v", field, v)
+	}
+	return n, nil
 }
 
-func GetBool(m map[string]any, key string, def bool) bool {
-	if v, ok := m[key]; ok {
-		b, _ := v.(bool)
-		return b
+func GetBool(m map[string]any, key, field string, def bool) (bool, *ValidationError) {
+	v, ok := m[key]
+	if !ok {
+		return def, nil
 	}
-	return def
+	b, ok := v.(bool)
+	if !ok {
+		return false, Errorf(field, "`%s` must be a bool, got %v", field, v)
+	}
+	return b, nil
 }
 
 func EnumField(field, value string, allowed ...string) *ValidationError {

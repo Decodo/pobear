@@ -14,8 +14,6 @@ type Sink interface {
 
 var ErrUnknownSink = errors.New("sink: unknown sink")
 
-var ErrNotImplemented = errors.New("sink: not implemented")
-
 type Sinker struct {
 	sinks map[string]Sink
 	use   string
@@ -26,11 +24,17 @@ func NewSinker(sinks map[string]Sink, use string) *Sinker {
 }
 
 func (s *Sinker) Write(ctx context.Context, item sinks.Item) error {
-	_ = ctx
-	_ = item
-	return ErrNotImplemented
+	sk, ok := s.sinks[s.use]
+	if !ok {
+		return ErrUnknownSink
+	}
+	return sk.Write(ctx, item)
 }
 
 func (s *Sinker) Close() error {
-	return ErrNotImplemented
+	sk, ok := s.sinks[s.use]
+	if !ok {
+		return ErrUnknownSink
+	}
+	return sk.Close()
 }

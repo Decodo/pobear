@@ -173,3 +173,103 @@ which always feeds a piped `stdin` fixture file).
 
 **Blocks:** nothing currently — `providerator.Auth` doesn't call `Prompt` yet, so
 this has no test-visible effect until that real implementation lands.
+
+---
+
+## Provider tier fetch has no template-mode support
+
+**What's wrong:** `tiers.Provider.Fetch` calls `provider.Render(manifest.Request,
+url, cfg.Options)` unconditionally — it never looks at `manifest.Templates` or
+`cfg.Template` at all. For a manifest that declares `templates` (`PROVIDER_REFERENCE.md`
+§11) instead of top-level `options`/`request`, `manifest.Request` is the Go zero
+value (`Request{}`, per `pkg/provider.Parse`'s own templates/non-templates split),
+so `Render` produces an empty body and query — the request goes out with none of
+the fields a real templated provider (Decodo's `universal`/`amazon_product` split,
+for instance) needs.
+
+**Why not fixed now:** found while implementing `services/core/internal/fetch/tiers`;
+every fixture manifest exercised by that package's own tests (`provider_test.go`)
+uses the simple top-level form, so there's no test oracle yet for template
+selection's exact rules (§11: use the sole template if there's only one; otherwise
+the one marked `default: true`; `fetch.template` is required and used verbatim
+when neither applies) or for the tier picking that template's own `endpoint`/
+`method` when set, inheriting the manifest's otherwise.
+
+**What fixing it requires:** a test fixture manifest with `templates` set (mirroring
+`pkg/provider/testdata/validation/full-manifest/templates-valid.yaml`'s shape),
+selection logic in `tiers.Provider.Fetch` implementing the §11 rule above, and using
+the selected template's `Endpoint`/`Method`/`Request`/`Options` instead of the
+manifest's own wherever the template sets them.
+
+**Blocks:** any real `pobear scrape --provider <name> --template <name>` run
+against a templates-mode manifest — Decodo's own real manifest (once installed)
+declares `templates`, so this is the mode `--provider decodo` actually needs.
+
+---
+
+## `limits.concurrency` never gets real parallel load
+
+**What's wrong:** `services/core/internal/fetch.Fetcher` builds a real
+semaphore sized to `limits.concurrency` and its own tests
+(`fetch_test.go`) confirm it caps concurrent `Fetch` calls correctly, but
+nothing ever calls it concurrently in practice: `job.Executor`'s URL-list
+loop and `job/workers/crawl.Crawl`'s frontier loop both dispatch
+`workers.Scrape.Run` synchronously, one URL at a time, inside a plain
+`for` loop. `limits.concurrency` round-trips correctly into the parsed
+spec and the semaphore is exercised in isolation, but a real multi-URL or
+multi-page job never has more than one fetch in flight regardless of its
+value.
+
+**Why not fixed now:** found during the post-implementation code review of
+`services/core`. Making either loop genuinely concurrent is real
+synchronization work — a worker pool or bounded goroutine fan-out, plus
+deciding how per-URL/per-page errors and sink writes serialize — and would
+very likely break existing tests that assert exact dispatch order/count
+against non-mutex-protected fakes (e.g.
+`TestExecutorURLListDispatchesEachURLAndTalliesSuccesses`'s exact
+`scrape.gotURLs` order, and the crawl package's frontier fakes). That's a
+larger, riskier change than the code-review fix pass this was found in was
+scoped for.
+
+**What fixing it requires:** redesign `job.Executor`'s URL loop and
+`crawl.Crawl`'s frontier loop to dispatch `workers.Scrape.Run` across a
+bounded pool of goroutines sized by `limits.concurrency`, decide how
+results/errors are collected back (a results channel, or a mutex-guarded
+accumulator), make the existing order-sensitive fakes/tests either
+tolerant of reordering or explicitly synchronized, and make `sinks.Sinker`
+writes concurrency-safe if they aren't already (`services/core/internal/sink/sinks`'s
+buffered sinks currently assume single-writer use).
+
+**Blocks:** nothing currently — small jobs work correctly, just serially.
+Blocks realistic throughput on any job with `limits.concurrency` > 1 and
+more than one URL/page.
+
+---
+
+## `fetch.profile` (TLS fingerprint preset) is parsed but never consulted
+
+**What's wrong:** `fetch.profile` (`chrome`/`firefox`/`safari`) is parsed
+and validated by `pkg/jobspec/fetch.go` for `local`/`proxy` tiers — including
+defaulting to `chrome` when unset — but nothing in
+`services/core/internal/fetch/tiers` (the `local`/`proxy` tier
+implementations, both built on `doHTTPFetch` in `tiers/http.go`) ever reads
+`Fetch.Profile` or configures a TLS ClientHello/JA3 fingerprint to match the
+named browser. A real fetch always goes out with Go's default `net/http`
+TLS fingerprint, regardless of which profile the job spec names.
+
+**Why not fixed now:** found during the post-implementation code review of
+`services/core`. TLS fingerprinting needs a real ClientHello-spoofing
+library (e.g. `utls`), which isn't a current dependency, and picking one
+plus wiring per-profile fingerprint tables is a scoped piece of design work
+on its own, well beyond a review fix pass.
+
+**What fixing it requires:** add a TLS fingerprinting dependency (most
+likely `github.com/refraction-networking/utls`), build or source a
+ClientHello spec per supported profile (`chrome`/`firefox`/`safari`), thread
+`Fetch.Profile` from the parsed spec into `tiers.Local`/`tiers.Proxy`'s
+construction, and have `doHTTPFetch` dial through a `utls`-wrapped
+connection using the selected spec instead of the stdlib default transport.
+
+**Blocks:** any real anti-bot-evasion use case that depends on
+`fetch.profile` actually changing the TLS fingerprint — currently the field
+is inert past validation.

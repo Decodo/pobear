@@ -6,13 +6,18 @@ import (
 )
 
 type Stdout struct {
-	Out io.Writer
+	Out    io.Writer
+	closed bool
 }
 
-func (s *Stdout) Write(ctx context.Context, item Item) error {
-	return ErrNotImplemented
+func (s *Stdout) Write(_ context.Context, item Item) error {
+	if s.closed {
+		return errClosed
+	}
+	return writeJSONLine(s.Out, item)
 }
 
 func (s *Stdout) Close() error {
-	return ErrNotImplemented
+	s.closed = true
+	return nil
 }

@@ -59,14 +59,22 @@ func Load(path, providerName, credential string) (secret string, ok bool, err er
 	if content == "" {
 		return "", false, nil
 	}
-	for _, line := range strings.Split(content, "\n") {
+
+	var firstMalformed string
+	for line := range strings.SplitSeq(content, "\n") {
 		k, v, cut := strings.Cut(line, "=")
 		if !cut {
-			return "", false, fmt.Errorf("credentials: malformed line %q in %s", line, path)
+			if firstMalformed == "" {
+				firstMalformed = line
+			}
+			continue
 		}
 		if k == key {
 			return v, true, nil
 		}
+	}
+	if firstMalformed != "" {
+		return "", false, fmt.Errorf("credentials: malformed line %q in %s", firstMalformed, path)
 	}
 	return "", false, nil
 }

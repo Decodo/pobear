@@ -5,4 +5,4 @@ input: |
   sink: {use: bogus}
 wantErr: true
 wantField: sink.use
-wantMessage: "`sink.use` must be one of `stdout`, `ndjson`, `json`, `stream`, got \"bogus\""
+wantMessage: "`sink.use` must be one of `stdout`, `ndjson`, `json`, `yaml`, `stream`, got \"bogus\""
