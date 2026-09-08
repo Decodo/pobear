@@ -1,4 +1,4 @@
-package goldencli
+package clitest
 
 import (
 	"bytes"

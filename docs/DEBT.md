@@ -51,7 +51,7 @@ implemented — will only ever fetch its seed URLs, regardless of `--depth`,
 `--sitemap`, or the default `robots: respect` behavior JOB_SPEC_REFERENCE.md §3.2
 documents.
 
-**Why not fixed now:** this plan's job is wiring + golden test coverage, not new
+**Why not fixed now:** this plan's job is wiring + CLI test coverage, not new
 `services/core` feature work; none of the three has a spec'd real implementation
 to wire in yet.
 
@@ -62,7 +62,7 @@ added to `Extract`, per `PROJECT_STRUCTURE.md`'s existing open item),
 (fetch + parse `/sitemap.xml`) — then rewiring `core.New`'s `liveExecutor` to use
 the real ones instead of the no-op/nil stand-ins.
 
-**Blocks:** any golden CLI test case that exercises actual link-following,
+**Blocks:** any CLI test case that exercises actual link-following,
 robots.txt enforcement, or sitemap seeding — this plan's crawl coverage is
 scoped to `depth: 0` (seed-only) cases only, for exactly this reason.
 
@@ -89,7 +89,7 @@ that plan's wiring-only scope, and `Fetcher.Fetch` itself isn't implemented yet 
 graph, and have `Fetcher.Fetch`'s real implementation consult it before each request.
 
 **Blocks:** no test currently asserts `--rps` actually throttles — `limits.rps`'s
-golden coverage (e.g. `crawl/print-spec-verbose`'s `"rps": 2`) only checks that the
+test coverage (e.g. `crawl/print-spec-verbose`'s `"rps": 2`) only checks that the
 value round-trips into the printed spec, not that it's enforced.
 
 ---
@@ -112,10 +112,10 @@ test-fixture scope.
 
 **What fixing it requires:** add `golang.org/x/term` to `go.mod`, replace
 `termPrompt`'s read with `term.ReadPassword(int(os.Stdin.Fd()))`, and confirm it
-degrades sanely when stdin isn't a real terminal (as it never is under `goldencli`,
+degrades sanely when stdin isn't a real terminal (as it never is under `clitest`,
 which always feeds a piped `stdin` fixture file).
 
-**Blocks:** nothing test-visible — `goldencli`'s piped stdin never exercises real
+**Blocks:** nothing test-visible — `clitest`'s piped stdin never exercises real
 terminal echo either way — but affects every real interactive `pobear auth` run.
 
 ---
@@ -215,5 +215,5 @@ inline `Test`/`Save`/`Run` actions), adding the chosen TUI dependency, then
 implementing `wizard.go`/`tui.go` against that spec, plus registering
 `"wizard"` in `services/cli/build.go`'s command map.
 
-**Blocks:** any real interactive `pobear`/`pobear wizard` invocation — no golden
+**Blocks:** any real interactive `pobear`/`pobear wizard` invocation — no
 fixture currently exercises it either, for the same reason.

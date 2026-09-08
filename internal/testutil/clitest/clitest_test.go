@@ -1,4 +1,4 @@
-package goldencli_test
+package clitest_test
 
 import (
 	"os"
@@ -7,7 +7,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/pobear/pobear/internal/testutil/goldencli"
+	"github.com/pobear/pobear/internal/testutil/clitest"
 )
 
 type testCase struct {
@@ -18,28 +18,28 @@ type testCase struct {
 }
 
 func TestRunMatchingExpectationPasses(t *testing.T) {
-	binPath := goldencli.Build(t)
+	binPath := clitest.Build(t)
 	path := writeCase(t, testCase{Args: "version", Stdout: "pobear 0.0.1\n", Exit: 0})
 
-	goldencli.Run(t, binPath, path)
+	clitest.Run(t, binPath, path)
 }
 
 func TestRunMismatchedExitCodeFails(t *testing.T) {
-	binPath := goldencli.Build(t)
+	binPath := clitest.Build(t)
 	path := writeCase(t, testCase{Args: "version", Stdout: "pobear 0.0.1\n", Exit: 1})
 
 	inner := &testing.T{}
-	goldencli.Run(inner, binPath, path)
+	clitest.Run(inner, binPath, path)
 	if !inner.Failed() {
 		t.Fatalf("expected the inner test to fail on a mismatched exit code, it passed")
 	}
 }
 
-func TestRunSubstitutesBaseInArgsAndGolden(t *testing.T) {
-	binPath := goldencli.Build(t)
+func TestRunSubstitutesBaseInArgsAndStderr(t *testing.T) {
+	binPath := clitest.Build(t)
 	path := writeCase(t, testCase{Args: "scrape {{base}}/page.html", Stderr: "{{base}}/page.html [http]: tiers: http status 404: 404 page not found\nfetched 0, errors 1, skipped 0\n", Exit: 5})
 
-	goldencli.Run(t, binPath, path)
+	clitest.Run(t, binPath, path)
 }
 
 func writeCase(t *testing.T, c testCase) string {
