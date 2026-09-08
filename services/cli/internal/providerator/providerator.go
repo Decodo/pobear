@@ -38,26 +38,22 @@ func Lookup(manifests []*provider.Manifest, name string) (*provider.Manifest, bo
 }
 
 func ResolveTemplate(m *provider.Manifest, templateName string) ([]provider.Option, error) {
-	if len(m.Templates) == 0 {
-		return m.Options, nil
+	rt, err := provider.ResolveTemplate(m, templateName)
+	if err != nil {
+		return nil, wrapTemplateSelectionError(err)
 	}
-	if templateName != "" {
-		for _, t := range m.Templates {
-			if t.Name == templateName {
-				return t.Options, nil
-			}
-		}
-		return nil, fmt.Errorf("providerator: %s has no template %q", m.Name, templateName)
+	return rt.Options, nil
+}
+
+func wrapTemplateSelectionError(err error) error {
+	switch e := err.(type) {
+	case *provider.ErrTemplateNotFound:
+		return fmt.Errorf("providerator: %s has no template %q", e.Manifest, e.Name)
+	case *provider.ErrTemplateAmbiguous:
+		return fmt.Errorf("providerator: %s has more than one template and none is marked default; --template is required", e.Manifest)
+	default:
+		return err
 	}
-	if len(m.Templates) == 1 {
-		return m.Templates[0].Options, nil
-	}
-	for _, t := range m.Templates {
-		if t.Default {
-			return t.Options, nil
-		}
-	}
-	return nil, fmt.Errorf("providerator: %s has more than one template and none is marked default; --template is required", m.Name)
 }
 
 func ValidateOptions(declared []provider.Option, opts map[string]string) (map[string]any, error) {
