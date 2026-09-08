@@ -2,6 +2,7 @@ package jobspec
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/pobear/pobear/pkg/utils"
 )
@@ -53,7 +54,46 @@ func parseStages(root map[string]any, mode Mode) ([]Stage, *ValidationError) {
 
 		stages = append(stages, stage)
 	}
+
+	if err := checkStageDataKeyCollisions(stages); err != nil {
+		return nil, err
+	}
+
 	return stages, nil
+}
+
+func checkStageDataKeyCollisions(stages []Stage) *ValidationError {
+	claimedBy := make(map[string]int)
+	for i, s := range stages {
+		for _, key := range stageDataKeys(s) {
+			if prev, collided := claimedBy[key]; collided {
+				field := fmt.Sprintf("stages[%d]", i)
+				return utils.Errorf(field,
+					"`%s` (%s) writes data key %q, already written by `stages[%d]` (%s) -- data keys must be unique across stages",
+					field, s.Use, key, prev, stages[prev].Use)
+			}
+			claimedBy[key] = i
+		}
+	}
+	return nil
+}
+
+func stageDataKeys(s Stage) []string {
+	switch s.Use {
+	case "raw":
+		return []string{"raw"}
+	case "markdown":
+		return []string{"markdown"}
+	case "css":
+		keys := make([]string, 0, len(s.Fields))
+		for k := range s.Fields {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		return keys
+	default:
+		return nil
+	}
 }
 
 func parseStringMap(raw any, field string) (map[string]string, *ValidationError) {

@@ -1,0 +1,7 @@
+args: scrape {{base}}/page.html --extract raw --css raw=h1
+stdout: ""
+stderr: |
+    pobear: spec: `stages[1]` (css) writes data key "raw", already written by `stages[0]` (raw) -- data keys must be unique across stages
+exit: 3
+fixtures:
+    page.html: <h1>Hello</h1><p>world</p>

@@ -11,37 +11,6 @@ of resolved debt (git history already has that).
 
 ---
 
-## `Stager`'s data-key-collision warning never reaches any visible output
-
-**What's wrong:** `JOB_SPEC_REFERENCE.md` §6 says when two stages write the same
-`data` key, the engine prints a warning naming the two stages involved, on top of
-keeping the last write. `services/core/internal/stage.Stager.Run` already returns
-both the merged `data` and a `warnings []string` (locked by
-`services/core/internal/stage/stager_warnings_test.go`), but
-`services/core/internal/job/workers.Scrape.Run` only forwards `data` into the
-`sinks.Item` it builds — `warnings` is dropped on the floor. Nothing between
-`Stager` and the CLI (or any other output) currently has a path to surface it.
-
-**Why not fixed now:** first found while scoping the `core-integration-tests`
-batch-2 plan (hermetic integration tests for `services/core`) — surfacing
-warnings would mean changing `workers.Scrape`'s return shape or `sinks.Item`'s
-fields, which is real design work outside that plan's scope. Found again while
-scoping CLI golden tests (`cli-tooling-tests`) — same reason, still out of scope
-there: a golden CLI test can't assert on a warning that never reaches stdout/stderr.
-
-**What fixing it requires:** decide how `workers.Scrape.Run` communicates
-warnings to its caller (an added return value, or a field on `sinks.Item`), thread
-it through `job.Executor`, and decide where the CLI prints it (stderr, presumably,
-same as the `fetched N, errors M, skipped K` summary line) and in what format.
-Once that lands, `services/core` gets a `key-collision-last-write-wins`-style
-integration case asserting the warning text, and the CLI plan gets its own golden
-case for the same behavior.
-
-**Blocks:** a golden CLI test case for `stages` key-collision (see
-`docs/superpowers/plans/*cli*.md`'s "What this plan does not do").
-
----
-
 ## Crawl has no URL dedupe — a re-discovered link can be fetched/queued twice
 
 **What's wrong:** `PROJECT_STRUCTURE.md`'s file tree names

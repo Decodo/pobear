@@ -127,8 +127,9 @@ shape for when `__rpc`/SDK support lands.
 
 An ordered list of `{use: <name>, ...config}`. Applied in order; each stage reads
 the fetched body and writes into the item's `data` map — no stage mutates the body,
-so stages are safe to reason about independently of order (except for `data` key
-collisions, below).
+so stages are safe to reason about independently of order. Two stages are never
+allowed to write the same `data` key (see **Rules** below), so there is no
+order-dependent overwrite to reason about either.
 
 | `use` | Config | Writes |
 |---|---|---|
@@ -142,9 +143,15 @@ collisions, below).
 - A `plugin` stage is rejected outside `__rpc` mode (there is no reverse channel to
   answer it in plain CLI mode) — a clear error, not a hang. `__rpc` mode is
   deferred (see §5), so in practice `plugin` is unreachable in v1.
-- If two or more stages write the same `data` key, the last write wins and a
-  warning is printed for each overwrite, naming the two stages involved by
-  position — never a silent overwrite.
+- Two stages writing the same `data` key is rejected at load time, naming both
+  stages involved by position — the same as any other invalid spec, never a
+  silent overwrite and never something that reaches a running job. This is
+  checkable statically for `raw`/`markdown`/`css` (their output keys are fully
+  determined by their own config: a fixed name, or `fields`'s own keys), so it
+  never depends on what the fetched body actually contains. A `plugin` stage's
+  output key is decided by the host callback at runtime, so it's exempt from
+  this check — moot in practice today since `plugin` is unreachable outside
+  `__rpc` mode (deferred, see §5).
 
 Every fetched item already carries the untouched body in a top-level `body` field
 (see `CLI_REFERENCE.md`'s examples), independent of `stages`. An empty `stages: []`
