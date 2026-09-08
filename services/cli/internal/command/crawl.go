@@ -2,11 +2,10 @@ package command
 
 import (
 	"context"
-	"flag"
-	"fmt"
 	"io"
 
-	"github.com/pobear/pobear/pkg/exitcode"
+	"github.com/spf13/cobra"
+
 	"github.com/pobear/pobear/services/cli/internal/jobgen"
 	"github.com/pobear/pobear/services/cli/internal/providerator"
 )
@@ -17,56 +16,64 @@ type Crawl struct {
 	CredentialsPath string
 }
 
-func (c *Crawl) Run(ctx context.Context, args []string, _ io.Reader, stdout, stderr io.Writer) int {
-	target, rest, hasTarget := splitPositional(args)
-
+func (c *Crawl) Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	var f commonFlags
 	var depth, maxPages int
-	var maxDuration, scope, robots string
-	var include, exclude stringSliceFlag
+	var maxDuration, scope string
+	var include, exclude []string
 	var sitemap, ignoreRobots, noRedirects bool
+	code := 0
 
-	fs := flag.NewFlagSet("crawl", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	registerCommonFlags(fs, &f, 2)
-	fs.IntVar(&depth, "depth", 1, "")
-	fs.IntVar(&maxPages, "max-pages", 100, "")
-	fs.StringVar(&maxDuration, "max-duration", "", "")
-	fs.StringVar(&scope, "scope", "same-host", "")
-	fs.Var(&include, "include", "")
-	fs.Var(&exclude, "exclude", "")
-	fs.BoolVar(&sitemap, "sitemap", false, "")
-	fs.BoolVar(&ignoreRobots, "ignore-robots", false, "")
-	fs.BoolVar(&noRedirects, "no-redirects", false, "")
+	cmd := &cobra.Command{
+		Use:   "pobear crawl <url>",
+		Short: "Crawl a site starting from one URL",
+		Long: "Crawl a site starting from one URL, following links up to --depth.\n\n" +
+			"Takes exactly one starting URL -- there's no flag to add extra seeds; a\n" +
+			"crawl with multiple seeds is only reachable by writing the job spec\n" +
+			"directly and running it with 'pobear run'.",
+		Args: requireExactlyOne("crawl requires a URL argument"),
+		RunE: func(_ *cobra.Command, cmdArgs []string) error {
+			robots := "respect"
+			if ignoreRobots {
+				robots = "ignore"
+			}
+			crawlIn := &jobgen.CrawlInput{
+				Depth: depth, MaxPages: maxPages, MaxDuration: maxDuration, Scope: scope,
+				Include: include, Exclude: exclude, Sitemap: sitemap, Robots: robots,
+			}
+			cc, cerr := crawlRun(ctx, c.Runner, c.Providers, c.CredentialsPath, cmdArgs[0], &f, crawlIn, noRedirects, stdout, stderr)
+			code = cc
+			if cerr != nil {
+				return cerr
+			}
+			return nil
+		},
+	}
+	registerCommonFlags(cmd, &f, 2)
+	flags := cmd.Flags()
+	flags.IntVar(&depth, "depth", 1, "link-following depth; 0 = seeds only")
+	flags.IntVar(&maxPages, "max-pages", 100, "stop after fetching this many pages")
+	flags.StringVar(&maxDuration, "max-duration", "", "stop the whole crawl after this long, even if max-pages isn't reached")
+	flags.StringVar(&scope, "scope", "same-host", "same-host, same-domain, or any")
+	flags.StringArrayVar(&include, "include", nil, "only follow links matching this glob (repeatable)")
+	flags.StringArrayVar(&exclude, "exclude", nil, "never follow links matching this glob (repeatable); wins over --include")
+	flags.BoolVar(&sitemap, "sitemap", false, "also seed from /sitemap.xml")
+	flags.BoolVar(&ignoreRobots, "ignore-robots", false, "robots.txt is respected by default")
+	flags.BoolVar(&noRedirects, "no-redirects", false, "treat a 3xx response as a dead end instead of following it")
+	wireProviderHelp(cmd, c.Providers, &f.provider)
 
-	if cerr := checkKnownFlags(fs, rest); cerr != nil {
-		cerr.print(stderr)
-		return cerr.code
-	}
-	if err := fs.Parse(rest); err != nil {
-		fmt.Fprintf(stderr, "pobear: %v\n", err)
-		return exitcode.UsageError
-	}
-	if !hasTarget {
-		fmt.Fprintln(stderr, "pobear: crawl requires a URL argument")
-		return exitcode.UsageError
-	}
+	return runCobraCommand(cmd, args, stdin, stdout, stderr, &code)
+}
 
-	robots = "respect"
-	if ignoreRobots {
-		robots = "ignore"
-	}
-
+func crawlRun(ctx context.Context, runner JobRunner, providers *providerator.Providerator, credentialsPath, target string, f *commonFlags, crawlIn *jobgen.CrawlInput, noRedirects bool, stdout, stderr io.Writer) (int, *cliError) {
 	stages, cerr := buildStages(f.extract, f.css)
 	if cerr != nil {
-		cerr.print(stderr)
-		return cerr.code
+		return 0, cerr
 	}
 
 	names := extractedFieldNames(f.extract, f.css)
 	if cerr := validateOutputFormatRaw(f.outputFormat, names); cerr != nil {
-		cerr.print(stderr)
-		return cerr.code
+		return 0, cerr
 	}
 
 	fetchUse := "local"
@@ -81,10 +88,9 @@ func (c *Crawl) Run(ctx context.Context, args []string, _ io.Reader, stdout, std
 	var fetchOptions map[string]any
 	if f.provider != "" {
 		var perr *cliError
-		fetchOptions, perr = resolveProviderOptions(c.Providers, c.CredentialsPath, f.provider, f.template, opts)
+		fetchOptions, perr = resolveProviderOptions(providers, credentialsPath, f.provider, f.template, opts)
 		if perr != nil {
-			perr.print(stderr)
-			return perr.code
+			return 0, perr
 		}
 	} else {
 		fetchOptions = stringMapToAny(opts)
@@ -95,10 +101,6 @@ func (c *Crawl) Run(ctx context.Context, args []string, _ io.Reader, stdout, std
 		sinkUse, sinkPath = "ndjson", f.out
 	}
 
-	crawlIn := &jobgen.CrawlInput{
-		Depth: depth, MaxPages: maxPages, MaxDuration: maxDuration, Scope: scope,
-		Include: include, Exclude: exclude, Sitemap: sitemap, Robots: robots,
-	}
 	resolvedIn := jobgen.Input{
 		URLs: []string{target}, Crawl: crawlIn, FetchUse: fetchUse, Proxy: f.proxy, Provider: f.provider, Template: f.template,
 		Profile: f.profile, Options: fetchOptions, Timeout: f.timeout, NoRedirects: noRedirects, Stages: stages,
@@ -114,5 +116,6 @@ func (c *Crawl) Run(ctx context.Context, args []string, _ io.Reader, stdout, std
 	if len(names) == 1 {
 		rawField = names[0]
 	}
-	return printSpecOrRun(ctx, c.Runner, resolvedIn, defaultsIn, f.printSpec, f.printSpecVerbose, f.outputFormat, rawField, stdout, stderr)
+
+	return printSpecOrRun(ctx, runner, resolvedIn, defaultsIn, f.printSpec, f.printSpecVerbose, f.outputFormat, rawField, stdout, stderr)
 }

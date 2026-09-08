@@ -3,10 +3,11 @@ package command
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/spf13/cobra"
 
 	"github.com/pobear/pobear/pkg/exitcode"
 	"github.com/pobear/pobear/pkg/provider"
@@ -17,56 +18,65 @@ type Providers struct {
 	Providers *providerator.Providerator
 }
 
-func (p *Providers) Run(_ context.Context, args []string, _ io.Reader, stdout, stderr io.Writer) int {
-	target, rest, hasTarget := splitPositional(args)
-
+func (p *Providers) Run(_ context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	var jsonOut bool
-	fs := flag.NewFlagSet("providers", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	fs.BoolVar(&jsonOut, "json", false, "")
+	code := 0
 
-	if cerr := checkKnownFlags(fs, rest); cerr != nil {
-		cerr.print(stderr)
-		return cerr.code
+	cmd := &cobra.Command{
+		Use:   "pobear providers [name]",
+		Short: "List installed provider manifests, or describe one",
+		Long: "With no name, lists every installed manifest, one line each.\n\n" +
+			"With a name, describes that one manifest in full -- every template,\n" +
+			"every option, its type, constraints, and default.",
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(_ *cobra.Command, cmdArgs []string) error {
+			var name string
+			if len(cmdArgs) == 1 {
+				name = cmdArgs[0]
+			}
+			if cerr := providersRun(p.Providers, name, jsonOut, stdout, stderr); cerr != nil {
+				return cerr
+			}
+			code = exitcode.Success
+			return nil
+		},
 	}
-	if err := fs.Parse(rest); err != nil {
-		fmt.Fprintf(stderr, "pobear: %v\n", err)
-		return exitcode.UsageError
-	}
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "machine-readable schema instead of the human-readable table")
 
-	manifests, err := p.Providers.Load()
+	return runCobraCommand(cmd, args, stdin, stdout, stderr, &code)
+}
+
+func providersRun(providers *providerator.Providerator, name string, jsonOut bool, stdout, stderr io.Writer) *cliError {
+	manifests, err := providers.Load()
 	if err != nil {
-		fmt.Fprintf(stderr, "pobear: %v\n", err)
-		return exitcode.Fatal
+		return newCLIError(exitcode.Fatal, "%v", err)
 	}
 
-	if !hasTarget {
+	if name == "" {
 		if len(manifests) == 0 {
 			fmt.Fprintln(stderr, "no providers installed")
-			return exitcode.Success
+			return nil
 		}
 		printProvidersList(manifests, stdout)
-		return exitcode.Success
+		return nil
 	}
 
-	m, ok := providerator.Lookup(manifests, target)
+	m, ok := providerator.Lookup(manifests, name)
 	if !ok {
-		fmt.Fprintf(stderr, "pobear: unknown provider %q\n", target)
-		return exitcode.UsageError
+		return newCLIError(exitcode.UsageError, "unknown provider %q", name)
 	}
 
 	if jsonOut {
 		data, err := json.Marshal(providerator.BuildSchema(m))
 		if err != nil {
-			fmt.Fprintf(stderr, "pobear: %v\n", err)
-			return exitcode.Fatal
+			return newCLIError(exitcode.Fatal, "%v", err)
 		}
 		fmt.Fprintln(stdout, string(data))
-		return exitcode.Success
+		return nil
 	}
 
 	printProviderDetail(m, stdout)
-	return exitcode.Success
+	return nil
 }
 
 func printProvidersList(manifests []*provider.Manifest, stdout io.Writer) {

@@ -2,10 +2,11 @@ package command
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/spf13/cobra"
 
 	"github.com/pobear/pobear/pkg/exitcode"
 	"github.com/pobear/pobear/pkg/jobspec"
@@ -22,27 +23,33 @@ type Run struct {
 }
 
 func (c *Run) Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	target, rest, hasTarget := splitPositional(args)
-	if !hasTarget {
-		fmt.Fprintln(stderr, "pobear: run requires a job spec path")
-		return exitcode.UsageError
-	}
-
 	var printSpec, printSpecVerbose bool
-	fs := flag.NewFlagSet("run", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	fs.BoolVar(&printSpec, "print-spec", false, "")
-	fs.BoolVar(&printSpecVerbose, "print-spec-verbose", false, "")
+	code := 0
 
-	if cerr := checkKnownFlags(fs, rest); cerr != nil {
-		cerr.print(stderr)
-		return cerr.code
+	cmd := &cobra.Command{
+		Use:   "pobear run <job.yaml|->",
+		Short: "Run a job spec file",
+		Long: "Run a job spec file, or read it from stdin with '-'.\n\n" +
+			"Since '-' reads from stdin, the output of --print-spec from any other\n" +
+			"command is itself a valid input to run.",
+		Args: requireExactlyOne("run requires a job spec path"),
+		RunE: func(_ *cobra.Command, cmdArgs []string) error {
+			cc, cerr := c.run(ctx, cmdArgs[0], printSpec, printSpecVerbose, stdin, stdout, stderr)
+			code = cc
+			if cerr != nil {
+				return cerr
+			}
+			return nil
+		},
 	}
-	if err := fs.Parse(rest); err != nil {
-		fmt.Fprintf(stderr, "pobear: %v\n", err)
-		return exitcode.UsageError
-	}
+	flags := cmd.Flags()
+	flags.BoolVar(&printSpec, "print-spec", false, "print the parsed spec, don't run it")
+	flags.BoolVar(&printSpecVerbose, "print-spec-verbose", false, "like --print-spec, but every field is shown fully resolved")
 
+	return runCobraCommand(cmd, args, stdin, stdout, stderr, &code)
+}
+
+func (c *Run) run(ctx context.Context, target string, printSpec, printSpecVerbose bool, stdin io.Reader, stdout, stderr io.Writer) (int, *cliError) {
 	var data []byte
 	var err error
 	if target == "-" {
@@ -51,26 +58,24 @@ func (c *Run) Run(ctx context.Context, args []string, stdin io.Reader, stdout, s
 		data, err = os.ReadFile(target) //nolint:gosec // target is the CLI's own positional argument, this command's documented file-path contract
 	}
 	if err != nil {
-		fmt.Fprintf(stderr, "pobear: %v\n", err)
-		return exitcode.Fatal
+		return 0, newCLIError(exitcode.Fatal, "%v", err)
 	}
 
 	spec, err := c.Parser.Parse(data, jobspec.ModePlain)
 	if err != nil {
-		return handleBuildError(err, stderr)
+		return 0, buildErrorToCLIError(err)
 	}
 
 	if printSpecVerbose {
-		return printJSON(spec, stdout, stderr)
+		return printJSON(spec, stdout)
 	}
 	if printSpec {
 		out, err := jobgen.MinimalJSON(spec, runDefaultsSpec(spec))
 		if err != nil {
-			fmt.Fprintf(stderr, "pobear: %v\n", err)
-			return exitcode.Fatal
+			return 0, newCLIError(exitcode.Fatal, "%v", err)
 		}
 		fmt.Fprintln(stdout, string(out))
-		return exitcode.Success
+		return exitcode.Success, nil
 	}
 
 	return execAndSummarize(ctx, c.Runner, data, stderr)

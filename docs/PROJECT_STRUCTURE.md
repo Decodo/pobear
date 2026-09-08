@@ -69,7 +69,9 @@
         run.go                     // `pobear run <job.yaml|->` — parses an already-complete spec directly, skips jobgen
         providers.go                // `pobear providers [name]` — reads providerator
         auth.go                     // `pobear auth <provider>` — calls providerator's provider-auth.go
+        flags.go                   // shared spf13/cobra flag registration, provider-option resolution, and the print-spec/run/output-format-raw execution glue every subcommand above calls into
         // note: these are CLI *subcommands* (flag parsing only) — distinct from services/core/internal/job/workers' scrape.go/crawl.go, which are the actual fetch/stage/sink workers. Same names, different layer.
+        // each subcommand builds its own standalone *cobra.Command (not a shared command tree) purely for its flag parsing, Args validation, and auto-generated --help; service.go's own top-level dispatch (bare invocation, unknown-command, --help listing) is unchanged and doesn't go through cobra at all. A missing required positional argument prints that command's full help (flags.go's requireExactlyOne), and `--provider <name> --help` appends that provider's live-loaded option schema (flags.go's wireProviderHelp) — see CLI_REFERENCE.md.
       /jobgen
         jobgen.go                  // job-generator (CLI-side): flags (or wizard form state) -> a validated job spec; what --print-spec prints
       /providerator

@@ -3,6 +3,9 @@
 /dist/
 pobear
 
+# git worktrees
+/.worktrees/
+
 # go
 *.test
 *.out
