@@ -75,13 +75,13 @@ func TestRunNonValidationParseErrorIsFatal(t *testing.T) {
 }
 
 func TestRunPrintSpecDoesNotRunTheJob(t *testing.T) {
-	args := cliArgs("run job.yaml --print-spec")
+	args := cliArgs("run - --print-spec")
 
 	runner := &fakeRunner{}
 	parser := &fakeSpecParser{spec: &jobspec.Spec{Version: 1, Source: jobspec.Source{URLs: []string{"https://a.test"}}, Fetch: jobspec.Fetch{Use: "local"}}}
 	cmd := &command.Run{Parser: parser, Runner: runner}
 
-	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &bytes.Buffer{}, &bytes.Buffer{})
+	got := cmd.Run(context.Background(), args, strings.NewReader("version: 1"), &bytes.Buffer{}, &bytes.Buffer{})
 
 	if got != 0 {
 		t.Fatalf("Run() = %d, want 0", got)

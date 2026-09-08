@@ -54,6 +54,23 @@ func TestStdoutWriteStreamsOneLinePerItem(t *testing.T) {
 	}
 }
 
+func TestStdoutWriteDoesNotHTMLEscapeBody(t *testing.T) {
+	var buf bytes.Buffer
+	s := &sinks.Stdout{Out: &buf}
+
+	item := sinks.Item{URL: "https://a.test", Status: 200, Body: "<h1>Hello</h1>", Data: map[string]any{"raw": "<h1>Hello</h1>"}}
+	if err := s.Write(context.Background(), item); err != nil {
+		t.Fatalf("Write: expected no error, got %v", err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatalf("Close: expected no error, got %v", err)
+	}
+
+	if !strings.Contains(buf.String(), `"body":"<h1>Hello</h1>"`) {
+		t.Fatalf("output = %q, want literal <h1>Hello</h1>, not HTML-escaped", buf.String())
+	}
+}
+
 func TestStdoutWriteAfterCloseErrors(t *testing.T) {
 	var buf bytes.Buffer
 	s := &sinks.Stdout{Out: &buf}

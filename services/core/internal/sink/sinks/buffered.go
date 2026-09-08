@@ -1,6 +1,7 @@
 package sinks
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -9,8 +10,18 @@ import (
 
 var errClosed = errors.New("sinks: write after close")
 
+func marshalJSONNoEscape(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return bytes.TrimRight(buf.Bytes(), "\n"), nil
+}
+
 func writeJSONLine(w io.Writer, item Item) error {
-	data, err := json.Marshal(item)
+	data, err := marshalJSONNoEscape(item)
 	if err != nil {
 		return err
 	}

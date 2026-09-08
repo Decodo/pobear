@@ -19,14 +19,14 @@ type testCase struct {
 
 func TestRunMatchingExpectationPasses(t *testing.T) {
 	binPath := goldencli.Build(t)
-	path := writeCase(t, testCase{Args: "version", Stderr: "pobear: providerator: not implemented\n", Exit: 5})
+	path := writeCase(t, testCase{Args: "version", Stdout: "pobear 0.0.1\n", Exit: 0})
 
 	goldencli.Run(t, binPath, path)
 }
 
 func TestRunMismatchedExitCodeFails(t *testing.T) {
 	binPath := goldencli.Build(t)
-	path := writeCase(t, testCase{Args: "version", Stderr: "pobear: providerator: not implemented\n", Exit: 0})
+	path := writeCase(t, testCase{Args: "version", Stdout: "pobear 0.0.1\n", Exit: 1})
 
 	inner := &testing.T{}
 	goldencli.Run(inner, binPath, path)
@@ -37,7 +37,7 @@ func TestRunMismatchedExitCodeFails(t *testing.T) {
 
 func TestRunSubstitutesBaseInArgsAndGolden(t *testing.T) {
 	binPath := goldencli.Build(t)
-	path := writeCase(t, testCase{Args: "scrape {{base}}/page.html", Stderr: "pobear: providerator: not implemented\n", Exit: 5})
+	path := writeCase(t, testCase{Args: "scrape {{base}}/page.html", Stderr: "fetched 0, errors 1, skipped 0\n", Exit: 5})
 
 	goldencli.Run(t, binPath, path)
 }

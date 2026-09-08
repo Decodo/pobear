@@ -2,7 +2,6 @@ package sinks
 
 import (
 	"context"
-	"encoding/json"
 )
 
 type JSON struct {
@@ -17,5 +16,5 @@ func (j *JSON) Write(_ context.Context, item Item) error {
 }
 
 func (j *JSON) Close() error {
-	return bufferedClose(&j.closed, j.Path, j.items, json.Marshal)
+	return bufferedClose(&j.closed, j.Path, j.items, marshalJSONNoEscape)
 }

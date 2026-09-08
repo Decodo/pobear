@@ -3,6 +3,7 @@ package credentials
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -38,6 +39,9 @@ func Save(path, providerName, credential, secret string) error {
 		lines = append(lines, line)
 	}
 
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return err
+	}
 	return os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o600) //nolint:gosec // path is the caller-supplied credentials file, not user-controlled input
 }
 

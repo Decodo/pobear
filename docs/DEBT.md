@@ -125,54 +125,29 @@ value round-trips into the printed spec, not that it's enforced.
 
 ---
 
-## `--output-format raw` has no seam in the real composition root
-
-**What's wrong:** `cmd/core/main.go` calls `core.New(providersDir, credentialsPath,
-os.Stdout)` once, before argv is parsed, so `services/core`'s `sinks.Stdout` always
-writes the full JSON envelope straight to the process's stdout. `command.Scrape.Run`
-gets its own `stdout io.Writer` parameter but has no way to intercept or transform
-the items `core` emits, so once `Scrape.Run` is really implemented it has no path to
-print "just the extracted value, no envelope" as `CLI_REFERENCE.md`'s
-`--output-format raw` section requires.
-
-**Why not fixed now:** found while writing golden fixtures for
-`scrape/output-format-raw*` in the `cli-goldencli-tests` plan; the fix is a
-`core.New`/`cli.New` composition-root design change (an item-callback or
-alternate-writer seam), outside that plan's wiring-only scope.
-
-**What fixing it requires:** decide how `core` hands raw items to a caller that
-wants to reformat them instead of writing a fixed envelope — likely an
-item-callback parameter on `core.New` (or a `core.Service` method `command.Scrape`
-calls directly instead of going through the standard sink path) — then implement
-`--output-format raw`'s single-value extraction/validation logic in `command.Scrape`
-against that seam.
-
-**Blocks:** the real implementation of `scrape/output-format-raw`,
-`output-format-raw-two-fields`, and `output-format-raw-zero-fields`'s golden cases.
-
----
-
 ## `pobear auth`'s terminal prompt echoes the secret it promises not to
 
 **What's wrong:** `CLI_REFERENCE.md`'s `pobear auth <provider>` section says the
 secret prompt is "not echoed," but `cmd/core/main.go`'s `termPrompt` reads with a
 plain `bufio.Reader` over `os.Stdin` — nothing disables terminal echo, so a real
 interactive `pobear auth decodo` prints the token in the clear as it's typed.
+`providerator.Auth` now really calls this `prompt` function (`services/cli`'s real
+implementation), so a real interactive `pobear auth` run hits this bug today, not
+just once `providerator.Auth` gets implemented.
 
 **Why not fixed now:** found during the `cli-goldencli-tests` plan's final review;
 `termPrompt` is real, already-shipped code, but suppressing terminal echo portably
 needs a new dependency (`golang.org/x/term`'s `ReadPassword`, which also handles
 Windows), and adding a new module dependency is a decision beyond that plan's
-test-fixture scope. `providerator.Auth` doesn't call `prompt` yet either
-(`_ = prompt`), so nothing currently exercises this path.
+test-fixture scope.
 
 **What fixing it requires:** add `golang.org/x/term` to `go.mod`, replace
 `termPrompt`'s read with `term.ReadPassword(int(os.Stdin.Fd()))`, and confirm it
 degrades sanely when stdin isn't a real terminal (as it never is under `goldencli`,
 which always feeds a piped `stdin` fixture file).
 
-**Blocks:** nothing currently — `providerator.Auth` doesn't call `Prompt` yet, so
-this has no test-visible effect until that real implementation lands.
+**Blocks:** nothing test-visible — `goldencli`'s piped stdin never exercises real
+terminal echo either way — but affects every real interactive `pobear auth` run.
 
 ---
 
@@ -273,3 +248,32 @@ connection using the selected spec instead of the stdlib default transport.
 **Blocks:** any real anti-bot-evasion use case that depends on
 `fetch.profile` actually changing the TLS fingerprint — currently the field
 is inert past validation.
+
+---
+
+## `pobear wizard` (bare `pobear`) is entirely unimplemented
+
+**What's wrong:** `CLI_REFERENCE.md`'s wizard section describes a full-screen
+reactive terminal UI (`services/cli/internal/wizard/tui.go`, per
+`PROJECT_STRUCTURE.md`), but `services/cli/internal/wizard` currently holds only
+a `doc.go` — no types, no tests, no TUI dependency in `go.mod`. `services/cli.New`
+doesn't register a `"wizard"` command at all, so both bare `pobear` and
+`pobear wizard` currently print `pobear: unknown command "wizard"` (exit 3)
+instead of launching anything.
+
+**Why not fixed now:** found while implementing the rest of `services/cli`
+(providerator/jobgen/command) this session — every other package already had
+real stub files and a full test-first suite to implement against; wizard has
+neither, and is a categorically bigger, differently-shaped task (a reactive TUI,
+needing its own design/brainstorm pass and a TUI library choice like
+`bubbletea`) rather than "implement this stub to green."
+
+**What fixing it requires:** a brainstorm/design pass picking a TUI approach,
+writing the test-first spec for the form-reactivity rules `CLI_REFERENCE.md`
+describes (field visibility changing with `Fetch via`/`Extract`/`Template`,
+inline `Test`/`Save`/`Run` actions), adding the chosen TUI dependency, then
+implementing `wizard.go`/`tui.go` against that spec, plus registering
+`"wizard"` in `services/cli/build.go`'s command map.
+
+**Blocks:** any real interactive `pobear`/`pobear wizard` invocation — no golden
+fixture currently exercises it either, for the same reason.
