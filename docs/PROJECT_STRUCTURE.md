@@ -44,7 +44,7 @@
           proxy.go                   // proxy tier: fetch routed through a user-supplied proxy URL
           provider.go                // provider tier: fetch via a named manifest — auth (via pkg/credentials), request templating (via pkg/provider), response JSONPath extraction, error-kind mapping (via pkg/fault)
       /stage
-        stager.go                  // stager: runs the `stages` pipeline over a fetched item, in declared order, dispatching each configured stage to the Extractor its `use` selects; also owns the data-key-collision warning when two stages write the same key
+        stager.go                  // stager: runs the `stages` pipeline over a fetched item, in declared order, dispatching each configured stage to the Extractor its `use` selects and merging their results into one `data` map — never has to arbitrate a key collision between two stages, since `pkg/jobspec` rejects any spec where that's possible before this ever runs
         /extractors                 // the different extraction methods a stage's `use` can select — this is the "Extractor" interface stager dispatches to (raw/markdown/css/plugin are extraction methods, not stages themselves; a "stage" is the configured {use, ...config} pipeline slot they get plugged into)
           raw.go                      // `raw` extractor -> data.raw: the untouched body
           markdown.go                 // `markdown` extractor -> data.markdown
@@ -110,10 +110,7 @@ Things the diagram implies but the reference specs don't pin down yet:
 - `cli/internal/wizard`'s full-screen terminal UI (`CLI_REFERENCE.md`'s
   wizard section) is unbuilt and its own design session hasn't happened yet.
   Working assumption for that session: bring in a TUI library (tview or
-  bubbletea) rather than hand-rolling raw ANSI/focus-management/reactive
-  re-render logic — unlike the rest of the CLI (`cli/internal/command`,
-  which deliberately stays stdlib-`flag`-only, no new dependency, since its
-  flag surface is small and `CLI_REFERENCE.md` pins exact error text a
-  framework like cobra would fight rather than help with), a full-screen
-  reactive TUI is exactly the kind of undifferentiated complexity a
-  dedicated library exists to solve.
+  bubbletea) for the same reason `cli/internal/command` itself moved onto
+  `spf13/cobra` for flag parsing/help/usage — a full-screen reactive TUI is
+  exactly the kind of undifferentiated complexity a dedicated library exists
+  to solve, more so than a flag parser.

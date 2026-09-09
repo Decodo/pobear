@@ -21,8 +21,8 @@ func TestRenderBodyAndQuery(t *testing.T) {
 	if body["url"] != "https://a.test/page" {
 		t.Errorf(`body["url"] = %v, want %q`, body["url"], "https://a.test/page")
 	}
-	if body["render"] != "true" {
-		t.Errorf(`body["render"] = %v, want %q`, body["render"], "true")
+	if body["render"] != true {
+		t.Errorf(`body["render"] = %v (%T), want the real bool true, not its stringified form`, body["render"], body["render"])
 	}
 	if body["count"] != 3 {
 		t.Errorf(`body["count"] = %v, want 3 (non-string values pass through untouched)`, body["count"])
@@ -32,6 +32,46 @@ func TestRenderBodyAndQuery(t *testing.T) {
 	}
 	if query["device"] != "mobile" {
 		t.Errorf(`query["device"] = %q, want %q`, query["device"], "mobile")
+	}
+}
+
+func TestRenderBareOptionsRefPreservesNativeType(t *testing.T) {
+	req := provider.Request{
+		Body: map[string]any{
+			"page_count": "{{ .Options.page_count }}",
+			"parse":      "{{ .Options.parse }}",
+			"geo":        "{{ .Options.geo }}",
+		},
+	}
+	options := map[string]any{"page_count": 3, "parse": false, "geo": "us"}
+
+	body, _, err := provider.Render(req, "https://a.test", options)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if body["page_count"] != 3 {
+		t.Errorf(`body["page_count"] = %v (%T), want the real int 3`, body["page_count"], body["page_count"])
+	}
+	if body["parse"] != false {
+		t.Errorf(`body["parse"] = %v (%T), want the real bool false`, body["parse"], body["parse"])
+	}
+	if body["geo"] != "us" {
+		t.Errorf(`body["geo"] = %v, want %q`, body["geo"], "us")
+	}
+}
+
+func TestRenderComposedTemplateStillStringifies(t *testing.T) {
+	req := provider.Request{Body: map[string]any{"ua": "device-{{ .Options.device }}"}}
+	options := map[string]any{"device": "mobile"}
+
+	body, _, err := provider.Render(req, "https://a.test", options)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if body["ua"] != "device-mobile" {
+		t.Errorf(`body["ua"] = %v, want %q (a template mixing text with a reference has no single typed value, so it stays a string)`, body["ua"], "device-mobile")
 	}
 }
 

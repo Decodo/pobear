@@ -107,5 +107,6 @@ func (a crawlAdapter) Run(ctx context.Context, spec *jobspec.Spec) (job.Result, 
 		Failed:    result.Failed,
 		Skipped:   result.Skipped,
 		Kinds:     result.Kinds,
+		Errors:    result.Errors,
 	}, err
 }

@@ -98,10 +98,13 @@ func TestProviderFetchUnknownManifest(t *testing.T) {
 		Credentials: fakeCredentialLoader{},
 	}
 	cfg := jobspec.Fetch{Use: "provider", Name: "missing"}
-	_, _, err := p.Fetch(context.Background(), cfg, "https://target.example/page")
+	_, gotFault, err := p.Fetch(context.Background(), cfg, "https://target.example/page")
 
 	if err == nil {
 		t.Fatal("expected an error, got nil")
+	}
+	if gotFault != fault.Provider {
+		t.Errorf("fault = %q, want %q (an unknown provider name is a spec/provider problem, not the target site blocking us)", gotFault, fault.Provider)
 	}
 }
 
@@ -190,6 +193,7 @@ func TestProviderFetchFallsBackToDefaultClassificationWhenUnmapped(t *testing.T)
 
 	p := &tiers.Provider{
 		Client:      srv.Client(),
+		Manifests:   fakeManifestLookup{byName: map[string]*provider.Manifest{"acme": testManifest(srv.URL)}},
 		Credentials: fakeCredentialLoader{secret: "sekret", ok: true},
 	}
 	cfg := jobspec.Fetch{Use: "provider", Name: "acme"}

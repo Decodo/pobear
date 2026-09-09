@@ -33,7 +33,7 @@ type Provider struct {
 func (p *Provider) Fetch(ctx context.Context, cfg jobspec.Fetch, targetURL string) (*Result, fault.Kind, error) {
 	manifest, err := p.lookupManifest(cfg.Name)
 	if err != nil {
-		return nil, fault.Blocked, err
+		return nil, fault.Provider, err
 	}
 
 	secret, err := p.loadCredential(manifest)
@@ -175,45 +175,22 @@ func applyAuth(req *http.Request, auth provider.Auth, secret string) error {
 }
 
 func resolveProviderTemplate(m *provider.Manifest, templateName string) (req provider.Request, endpoint, method string, err error) {
-	if len(m.Templates) == 0 {
-		return m.Request, m.Endpoint, m.Method, nil
+	rt, err := provider.ResolveTemplate(m, templateName)
+	if err != nil {
+		return provider.Request{}, "", "", wrapTemplateSelectionError(err)
 	}
+	return rt.Request, rt.Endpoint, rt.Method, nil
+}
 
-	var t *provider.Template
-	switch {
-	case templateName != "":
-		for i := range m.Templates {
-			if m.Templates[i].Name == templateName {
-				t = &m.Templates[i]
-				break
-			}
-		}
-		if t == nil {
-			return provider.Request{}, "", "", fmt.Errorf("tiers: %s has no template %q", m.Name, templateName)
-		}
-	case len(m.Templates) == 1:
-		t = &m.Templates[0]
+func wrapTemplateSelectionError(err error) error {
+	switch e := err.(type) {
+	case *provider.ErrTemplateNotFound:
+		return fmt.Errorf("tiers: %s has no template %q", e.Manifest, e.Name)
+	case *provider.ErrTemplateAmbiguous:
+		return fmt.Errorf("tiers: %s has more than one template and none is marked default; fetch.template is required", e.Manifest)
 	default:
-		for i := range m.Templates {
-			if m.Templates[i].Default {
-				t = &m.Templates[i]
-				break
-			}
-		}
-		if t == nil {
-			return provider.Request{}, "", "", fmt.Errorf("tiers: %s has more than one template and none is marked default; fetch.template is required", m.Name)
-		}
+		return err
 	}
-
-	endpoint = t.Endpoint
-	if endpoint == "" {
-		endpoint = m.Endpoint
-	}
-	method = t.Method
-	if method == "" {
-		method = m.Method
-	}
-	return t.Request, endpoint, method, nil
 }
 
 func classifyProviderStatus(status int, mappings []provider.ErrorMapping) fault.Kind {

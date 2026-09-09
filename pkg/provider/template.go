@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sync"
 	"text/template"
 
@@ -16,7 +17,7 @@ func Render(req Request, url string, options map[string]any) (body map[string]an
 		Options map[string]any
 	}{URL: url, Options: options}
 
-	body, err = renderValues(req.Body, data)
+	body, err = renderValues(req.Body, data, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -43,7 +44,9 @@ func Render(req Request, url string, options map[string]any) (body map[string]an
 	return body, query, nil
 }
 
-func renderValues(m map[string]any, data any) (map[string]any, error) {
+var bareOptionsRefPattern = regexp.MustCompile(`^\{\{\s*\.Options\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}$`)
+
+func renderValues(m map[string]any, data any, options map[string]any) (map[string]any, error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -52,6 +55,17 @@ func renderValues(m map[string]any, data any) (map[string]any, error) {
 		s, ok := v.(string)
 		if !ok {
 			out[k] = v
+			continue
+		}
+		if match := bareOptionsRefPattern.FindStringSubmatch(s); match != nil {
+			val, present := options[match[1]]
+			if !present {
+				continue
+			}
+			if str, isStr := val.(string); isStr && str == "" {
+				continue
+			}
+			out[k] = val
 			continue
 		}
 		rendered, err := renderTemplateString(s, data)
@@ -96,6 +110,73 @@ func renderTemplateString(s string, data any) (string, error) {
 		return "", nil
 	}
 	return rendered, nil
+}
+
+type ResolvedTemplate struct {
+	Name     string
+	Options  []Option
+	Request  Request
+	Endpoint string
+	Method   string
+}
+
+type ErrTemplateNotFound struct {
+	Manifest string
+	Name     string
+}
+
+func (e *ErrTemplateNotFound) Error() string {
+	return fmt.Sprintf("%s has no template %q", e.Manifest, e.Name)
+}
+
+type ErrTemplateAmbiguous struct {
+	Manifest string
+}
+
+func (e *ErrTemplateAmbiguous) Error() string {
+	return fmt.Sprintf("%s has more than one template and none is marked default", e.Manifest)
+}
+
+func ResolveTemplate(m *Manifest, templateName string) (*ResolvedTemplate, error) {
+	if len(m.Templates) == 0 {
+		return &ResolvedTemplate{Options: m.Options, Request: m.Request, Endpoint: m.Endpoint, Method: m.Method}, nil
+	}
+
+	var t *Template
+	switch {
+	case templateName != "":
+		for i := range m.Templates {
+			if m.Templates[i].Name == templateName {
+				t = &m.Templates[i]
+				break
+			}
+		}
+		if t == nil {
+			return nil, &ErrTemplateNotFound{Manifest: m.Name, Name: templateName}
+		}
+	case len(m.Templates) == 1:
+		t = &m.Templates[0]
+	default:
+		for i := range m.Templates {
+			if m.Templates[i].Default {
+				t = &m.Templates[i]
+				break
+			}
+		}
+		if t == nil {
+			return nil, &ErrTemplateAmbiguous{Manifest: m.Name}
+		}
+	}
+
+	endpoint := t.Endpoint
+	if endpoint == "" {
+		endpoint = m.Endpoint
+	}
+	method := t.Method
+	if method == "" {
+		method = m.Method
+	}
+	return &ResolvedTemplate{Name: t.Name, Options: t.Options, Request: t.Request, Endpoint: endpoint, Method: method}, nil
 }
 
 func Extract(resp Response, httpStatus int, httpBody []byte, requestURL string) (status int, body []byte, finalURL string, err error) {

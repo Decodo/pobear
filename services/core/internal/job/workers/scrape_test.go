@@ -25,17 +25,16 @@ func (f *fakeFetcher) Fetch(_ context.Context, _ jobspec.Fetch, url string) (*ti
 }
 
 type fakeStager struct {
-	data     map[string]any
-	warnings []string
-	err      error
-	gotBody  []byte
-	calls    int
+	data    map[string]any
+	err     error
+	gotBody []byte
+	calls   int
 }
 
-func (f *fakeStager) Run(_ context.Context, body []byte, _ []jobspec.Stage) (map[string]any, []string, error) {
+func (f *fakeStager) Run(_ context.Context, body []byte, _ []jobspec.Stage) (map[string]any, error) {
 	f.gotBody = body
 	f.calls++
-	return f.data, f.warnings, f.err
+	return f.data, f.err
 }
 
 type fakeSinker struct {
