@@ -6,13 +6,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pobear/pobear/internal/testutil/goldencli"
+	"github.com/pobear/pobear/internal/testutil/clitest"
 )
 
-func TestGolden(t *testing.T) {
-	binPath := goldencli.Build(t)
+func TestCLI(t *testing.T) {
+	binPath := clitest.Build(t)
 
-	root := "testdata/golden"
+	root := "testdata"
 	var files []string
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -27,7 +27,7 @@ func TestGolden(t *testing.T) {
 		t.Fatalf("walk %s: %v", root, err)
 	}
 	if len(files) == 0 {
-		t.Fatal("no golden fixture files found under " + root)
+		t.Fatal("no fixture files found under " + root)
 	}
 
 	for _, path := range files {
@@ -37,7 +37,7 @@ func TestGolden(t *testing.T) {
 		}
 		name := strings.TrimSuffix(filepath.ToSlash(rel), ".yaml")
 		t.Run(name, func(t *testing.T) {
-			goldencli.Run(t, binPath, path)
+			clitest.Run(t, binPath, path)
 		})
 	}
 }
