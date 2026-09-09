@@ -24,6 +24,7 @@ type Result struct {
 	Failed    int
 	Skipped   int
 	Kinds     []fault.Kind
+	Errors    []string
 }
 
 type Executor struct {
@@ -57,6 +58,9 @@ func (e *Executor) Run(ctx context.Context, spec *jobspec.Spec) (result Result, 
 		result.Failed++
 		if kind != "" {
 			result.Kinds = append(result.Kinds, kind)
+		}
+		if scrapeErr != nil {
+			result.Errors = append(result.Errors, fault.FormatFailure(url, kind, scrapeErr))
 		}
 	}
 	return

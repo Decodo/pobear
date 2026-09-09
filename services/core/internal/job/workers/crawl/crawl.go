@@ -29,6 +29,7 @@ type Result struct {
 	Failed    int
 	Skipped   int
 	Kinds     []fault.Kind
+	Errors    []string
 }
 
 type Crawl struct {
@@ -76,6 +77,9 @@ func (c *Crawl) Run(ctx context.Context, spec *jobspec.Spec) (Result, error) {
 			result.Failed++
 			if kind != "" {
 				result.Kinds = append(result.Kinds, kind)
+			}
+			if err != nil {
+				result.Errors = append(result.Errors, fault.FormatFailure(entry.url, kind, err))
 			}
 			continue
 		}

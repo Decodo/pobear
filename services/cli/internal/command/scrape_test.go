@@ -74,6 +74,28 @@ func TestScrapeRunnerFailureMapsToPartialFailureExitCode(t *testing.T) {
 	}
 }
 
+func TestScrapePrintsPerFailureErrorDetail(t *testing.T) {
+	args := cliArgs("scrape https://example.com")
+
+	runner := &fakeRunner{result: command.RunResult{
+		Failed: 1,
+		Kinds:  []fault.Kind{fault.HTTP},
+		Errors: []string{"https://example.com [http]: tiers: http status 403"},
+	}}
+	cmd := &command.Scrape{Runner: runner, Providers: providerator.New(t.TempDir())}
+
+	var stderr bytes.Buffer
+	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &bytes.Buffer{}, &stderr)
+
+	if got != 5 {
+		t.Fatalf("Run() = %d, want 5 (total failure)", got)
+	}
+	want := "https://example.com [http]: tiers: http status 403\nfetched 0, errors 1, skipped 0\n"
+	if stderr.String() != want {
+		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
+	}
+}
+
 func TestScrapeUnknownProviderOptionErrors(t *testing.T) {
 	args := cliArgs("scrape https://example.com --provider bogus-provider")
 
@@ -90,6 +112,22 @@ func TestScrapeUnknownProviderOptionErrors(t *testing.T) {
 	}
 }
 
+func TestScrapeUnknownOutputFormatErrors(t *testing.T) {
+	args := cliArgs("scrape https://example.com --extract markdown --output-format markdown")
+
+	cmd := &command.Scrape{Runner: &fakeRunner{}, Providers: providerator.New(t.TempDir())}
+
+	var stderr bytes.Buffer
+	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &bytes.Buffer{}, &stderr)
+
+	if got != 3 {
+		t.Fatalf("Run() = %d, want 3 (unknown --output-format value)", got)
+	}
+	if want := "pobear: --output-format must be json or raw, got \"markdown\"\n"; stderr.String() != want {
+		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
+	}
+}
+
 func TestScrapeOutputFormatRawWithoutExtractionErrors(t *testing.T) {
 	args := cliArgs("scrape https://example.com --output-format raw")
 
@@ -99,6 +137,41 @@ func TestScrapeOutputFormatRawWithoutExtractionErrors(t *testing.T) {
 
 	if got != 3 {
 		t.Fatalf("Run() = %d, want 3 (no extraction stage set, ambiguous)", got)
+	}
+}
+
+func TestScrapeProviderTierOmitsProfile(t *testing.T) {
+	args := cliArgs("scrape https://example.com --provider decodo")
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "decodo.yaml"), []byte(`
+name: decodo
+endpoint: https://scraper-api.decodo.com/v2/scrape
+auth: {type: bearer, credential: token}
+request: {body: {url: "{{ .URL }}"}}
+response: {body: "$.html"}
+`), 0o600); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	credPath := filepath.Join(t.TempDir(), "credentials")
+	if err := os.WriteFile(credPath, []byte("POBEAR_PROVIDER_DECODO_TOKEN=secret\n"), 0o600); err != nil {
+		t.Fatalf("write credentials: %v", err)
+	}
+
+	runner := &fakeRunner{result: command.RunResult{Succeeded: 1}}
+	cmd := &command.Scrape{Runner: runner, Providers: providerator.New(dir), CredentialsPath: credPath}
+
+	var stdout, stderr bytes.Buffer
+	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &stdout, &stderr)
+
+	if got != 0 {
+		t.Fatalf("Run() = %d, want 0; stderr=%s", got, stderr.String())
+	}
+	if runner.gotData == nil {
+		t.Fatal("runner was never called")
+	}
+	if strings.Contains(string(runner.gotData), "profile") {
+		t.Fatalf("runner.gotData = %s, want no profile field for the provider tier", runner.gotData)
 	}
 }
 

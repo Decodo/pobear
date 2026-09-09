@@ -1,5 +1,7 @@
 package fault
 
+import "fmt"
+
 type Kind string
 
 const (
@@ -31,4 +33,11 @@ func Valid(k Kind) bool {
 	default:
 		return false
 	}
+}
+
+func FormatFailure(subject string, k Kind, err error) string {
+	if k == "" {
+		return fmt.Sprintf("%s: %v", subject, err)
+	}
+	return fmt.Sprintf("%s [%s]: %v", subject, k, err)
 }

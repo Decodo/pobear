@@ -238,6 +238,13 @@ func extractedFieldNames(extract string, css []string) []string {
 	return names
 }
 
+func validateOutputFormat(outputFormat string) *cliError {
+	if outputFormat != "json" && outputFormat != "raw" {
+		return newCLIError(exitcode.UsageError, "--output-format must be json or raw, got %q", outputFormat)
+	}
+	return nil
+}
+
 func validateOutputFormatRaw(outputFormat string, names []string) *cliError {
 	if outputFormat != "raw" {
 		return nil
@@ -459,6 +466,9 @@ func execAndSummarize(ctx context.Context, runner JobRunner, data []byte, stderr
 			return 0, newCLIError(exitcode.FromValidationFault(kind), "%v", err)
 		}
 		return 0, newCLIError(exitcode.Fatal, "%v", err)
+	}
+	for _, e := range result.Errors {
+		fmt.Fprintln(stderr, e)
 	}
 	fmt.Fprintf(stderr, "fetched %d, errors %d, skipped %d\n", result.Succeeded, result.Failed, result.Skipped)
 	return exitcode.FromRun(result.Succeeded, result.Failed, result.Kinds), nil

@@ -3,6 +3,8 @@ package command_test
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -52,6 +54,22 @@ func TestCrawlWithNoFlagsSucceeds(t *testing.T) {
 	}
 }
 
+func TestCrawlUnknownOutputFormatErrors(t *testing.T) {
+	args := cliArgs("crawl https://example.com --depth 0 --extract markdown --output-format markdown")
+
+	cmd := &command.Crawl{Runner: &fakeRunner{}, Providers: providerator.New(t.TempDir())}
+
+	var stderr bytes.Buffer
+	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &bytes.Buffer{}, &stderr)
+
+	if got != 3 {
+		t.Fatalf("Run() = %d, want 3 (unknown --output-format value)", got)
+	}
+	if want := "pobear: --output-format must be json or raw, got \"markdown\"\n"; stderr.String() != want {
+		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
+	}
+}
+
 func TestCrawlUnknownProviderOptionErrors(t *testing.T) {
 	args := cliArgs("crawl https://example.com --provider bogus-provider")
 
@@ -65,6 +83,41 @@ func TestCrawlUnknownProviderOptionErrors(t *testing.T) {
 	}
 	if want := "pobear: unknown provider \"bogus-provider\"\n"; stderr.String() != want {
 		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
+	}
+}
+
+func TestCrawlProviderTierOmitsProfile(t *testing.T) {
+	args := cliArgs("crawl https://example.com --depth 0 --provider decodo")
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "decodo.yaml"), []byte(`
+name: decodo
+endpoint: https://scraper-api.decodo.com/v2/scrape
+auth: {type: bearer, credential: token}
+request: {body: {url: "{{ .URL }}"}}
+response: {body: "$.html"}
+`), 0o600); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	credPath := filepath.Join(t.TempDir(), "credentials")
+	if err := os.WriteFile(credPath, []byte("POBEAR_PROVIDER_DECODO_TOKEN=secret\n"), 0o600); err != nil {
+		t.Fatalf("write credentials: %v", err)
+	}
+
+	runner := &fakeRunner{result: command.RunResult{Succeeded: 1}}
+	cmd := &command.Crawl{Runner: runner, Providers: providerator.New(dir), CredentialsPath: credPath}
+
+	var stdout, stderr bytes.Buffer
+	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &stdout, &stderr)
+
+	if got != 0 {
+		t.Fatalf("Run() = %d, want 0; stderr=%s", got, stderr.String())
+	}
+	if runner.gotData == nil {
+		t.Fatal("runner was never called")
+	}
+	if strings.Contains(string(runner.gotData), "profile") {
+		t.Fatalf("runner.gotData = %s, want no profile field for the provider tier", runner.gotData)
 	}
 }
 

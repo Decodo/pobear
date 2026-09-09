@@ -1,5 +1,6 @@
 args: scrape http://127.0.0.1:1/unreachable
 stdout: ""
 stderr: |
+    http://127.0.0.1:1/unreachable [network]: Get "http://127.0.0.1:1/unreachable": dial tcp 127.0.0.1:1: connect: connection refused
     fetched 0, errors 1, skipped 0
 exit: 5

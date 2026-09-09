@@ -37,7 +37,7 @@ func TestRunMismatchedExitCodeFails(t *testing.T) {
 
 func TestRunSubstitutesBaseInArgsAndGolden(t *testing.T) {
 	binPath := goldencli.Build(t)
-	path := writeCase(t, testCase{Args: "scrape {{base}}/page.html", Stderr: "fetched 0, errors 1, skipped 0\n", Exit: 5})
+	path := writeCase(t, testCase{Args: "scrape {{base}}/page.html", Stderr: "{{base}}/page.html [http]: tiers: http status 404: 404 page not found\nfetched 0, errors 1, skipped 0\n", Exit: 5})
 
 	goldencli.Run(t, binPath, path)
 }

@@ -18,6 +18,7 @@ type RunResult struct {
 	Failed    int
 	Skipped   int
 	Kinds     []fault.Kind
+	Errors    []string
 }
 
 type JobRunner interface {
@@ -37,6 +38,7 @@ func (r coreRunner) Run(ctx context.Context, data []byte, mode jobspec.Mode) (Ru
 		Failed:    result.Failed,
 		Skipped:   result.Skipped,
 		Kinds:     result.Kinds,
+		Errors:    result.Errors,
 	}, kind, err
 }
 
@@ -84,6 +86,10 @@ func scrapeRun(ctx context.Context, runner JobRunner, providers *providerator.Pr
 		return 0, cerr
 	}
 
+	if cerr := validateOutputFormat(f.outputFormat); cerr != nil {
+		return 0, cerr
+	}
+
 	names := extractedFieldNames(f.extract, f.css)
 	if cerr := validateOutputFormatRaw(f.outputFormat, names); cerr != nil {
 		return 0, cerr
@@ -114,9 +120,14 @@ func scrapeRun(ctx context.Context, runner JobRunner, providers *providerator.Pr
 		sinkUse, sinkPath = "ndjson", f.out
 	}
 
+	profile := f.profile
+	if fetchUse == "provider" {
+		profile = ""
+	}
+
 	resolvedIn := jobgen.Input{
 		URLs: urls, FetchUse: fetchUse, Proxy: f.proxy, Provider: f.provider, Template: f.template,
-		Profile: f.profile, Options: fetchOptions, Timeout: f.timeout, Stages: stages,
+		Profile: profile, Options: fetchOptions, Timeout: f.timeout, Stages: stages,
 		Concurrency: f.concurrency, RPS: f.rps, Retries: f.retries, SinkUse: sinkUse, SinkPath: sinkPath,
 	}
 	defaultsIn := jobgen.Input{

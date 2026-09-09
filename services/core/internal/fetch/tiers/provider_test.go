@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -157,6 +158,30 @@ func TestProviderFetchErrorMapping(t *testing.T) {
 	}
 }
 
+func TestProviderFetchErrorIncludesResponseBodySnippet(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(400)
+		_, _ = w.Write([]byte(`{"error":"invalid target parameter"}`))
+	}))
+	defer srv.Close()
+
+	manifest := testManifest(srv.URL)
+	p := &tiers.Provider{
+		Client:      srv.Client(),
+		Manifests:   fakeManifestLookup{byName: map[string]*provider.Manifest{"acme": manifest}},
+		Credentials: fakeCredentialLoader{secret: "sekret", ok: true},
+	}
+	cfg := jobspec.Fetch{Use: "provider", Name: "acme"}
+	_, _, err := p.Fetch(context.Background(), cfg, "https://target.example/page")
+
+	if err == nil {
+		t.Fatal("expected an error, got nil")
+	}
+	if want := `{"error":"invalid target parameter"}`; !strings.Contains(err.Error(), want) {
+		t.Fatalf("err = %q, want it to contain the response body %q", err, want)
+	}
+}
+
 func TestProviderFetchFallsBackToDefaultClassificationWhenUnmapped(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(403)
@@ -227,5 +252,162 @@ func TestProviderFetchSendsHeaders(t *testing.T) {
 	}
 	if got, _ := gotHeader.Load().(string); got != "custom-value" {
 		t.Errorf("X-Test-Header = %q, want %q", got, "custom-value")
+	}
+}
+
+func templatedManifest(defaultEndpoint string, templates ...provider.Template) *provider.Manifest {
+	return &provider.Manifest{
+		Name:      "acme",
+		Endpoint:  defaultEndpoint,
+		Auth:      provider.Auth{Type: "bearer", Credential: "token"},
+		Templates: templates,
+		Response:  provider.Response{Body: "$.content"},
+	}
+}
+
+func TestProviderFetchUsesSoleTemplateRegardlessOfDefaultFlag(t *testing.T) {
+	var gotBody atomic.Value
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		gotBody.Store(string(body))
+		_, _ = w.Write([]byte(`{"content":"ok"}`))
+	}))
+	defer srv.Close()
+
+	manifest := templatedManifest(srv.URL, provider.Template{
+		Name:    "only",
+		Request: provider.Request{Body: map[string]any{"mode": "only"}},
+	})
+	p := &tiers.Provider{
+		Client:      srv.Client(),
+		Manifests:   fakeManifestLookup{byName: map[string]*provider.Manifest{"acme": manifest}},
+		Credentials: fakeCredentialLoader{secret: "sekret", ok: true},
+	}
+	cfg := jobspec.Fetch{Use: "provider", Name: "acme"}
+	_, _, err := p.Fetch(context.Background(), cfg, "https://target.example/page")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got := gotBody.Load().(string); got != `{"mode":"only"}` {
+		t.Fatalf("request body = %s, want the sole template's own body", got)
+	}
+}
+
+func TestProviderFetchUsesDefaultTemplateWhenOmitted(t *testing.T) {
+	var gotBody atomic.Value
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		gotBody.Store(string(body))
+		_, _ = w.Write([]byte(`{"content":"ok"}`))
+	}))
+	defer srv.Close()
+
+	manifest := templatedManifest(srv.URL,
+		provider.Template{Name: "one", Request: provider.Request{Body: map[string]any{"mode": "one"}}},
+		provider.Template{Name: "two", Default: true, Request: provider.Request{Body: map[string]any{"mode": "two"}}},
+	)
+	p := &tiers.Provider{
+		Client:      srv.Client(),
+		Manifests:   fakeManifestLookup{byName: map[string]*provider.Manifest{"acme": manifest}},
+		Credentials: fakeCredentialLoader{secret: "sekret", ok: true},
+	}
+	cfg := jobspec.Fetch{Use: "provider", Name: "acme"}
+	_, _, err := p.Fetch(context.Background(), cfg, "https://target.example/page")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got := gotBody.Load().(string); got != `{"mode":"two"}` {
+		t.Fatalf("request body = %s, want the default template's own body", got)
+	}
+}
+
+func TestProviderFetchRequiresTemplateWhenNoneDefault(t *testing.T) {
+	manifest := templatedManifest("https://unused.example",
+		provider.Template{Name: "one", Request: provider.Request{Body: map[string]any{"mode": "one"}}},
+		provider.Template{Name: "two", Request: provider.Request{Body: map[string]any{"mode": "two"}}},
+	)
+	p := &tiers.Provider{
+		Manifests:   fakeManifestLookup{byName: map[string]*provider.Manifest{"acme": manifest}},
+		Credentials: fakeCredentialLoader{secret: "sekret", ok: true},
+	}
+	cfg := jobspec.Fetch{Use: "provider", Name: "acme"}
+	_, _, err := p.Fetch(context.Background(), cfg, "https://target.example/page")
+
+	if err == nil {
+		t.Fatal("expected an error (template required, none marked default), got nil")
+	}
+}
+
+func TestProviderFetchUsesNamedTemplate(t *testing.T) {
+	var gotBody atomic.Value
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		gotBody.Store(string(body))
+		_, _ = w.Write([]byte(`{"content":"ok"}`))
+	}))
+	defer srv.Close()
+
+	manifest := templatedManifest(srv.URL,
+		provider.Template{Name: "one", Default: true, Request: provider.Request{Body: map[string]any{"mode": "one"}}},
+		provider.Template{Name: "two", Request: provider.Request{Body: map[string]any{"mode": "two"}}},
+	)
+	p := &tiers.Provider{
+		Client:      srv.Client(),
+		Manifests:   fakeManifestLookup{byName: map[string]*provider.Manifest{"acme": manifest}},
+		Credentials: fakeCredentialLoader{secret: "sekret", ok: true},
+	}
+	cfg := jobspec.Fetch{Use: "provider", Name: "acme", Template: "two"}
+	_, _, err := p.Fetch(context.Background(), cfg, "https://target.example/page")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got := gotBody.Load().(string); got != `{"mode":"two"}` {
+		t.Fatalf("request body = %s, want the explicitly-named template's own body", got)
+	}
+}
+
+func TestProviderFetchUnknownTemplateNameErrors(t *testing.T) {
+	manifest := templatedManifest("https://unused.example",
+		provider.Template{Name: "one", Default: true, Request: provider.Request{Body: map[string]any{}}},
+	)
+	p := &tiers.Provider{
+		Manifests:   fakeManifestLookup{byName: map[string]*provider.Manifest{"acme": manifest}},
+		Credentials: fakeCredentialLoader{secret: "sekret", ok: true},
+	}
+	cfg := jobspec.Fetch{Use: "provider", Name: "acme", Template: "bogus"}
+	_, _, err := p.Fetch(context.Background(), cfg, "https://target.example/page")
+
+	if err == nil {
+		t.Fatal("expected an error (unknown template name), got nil")
+	}
+}
+
+func TestProviderFetchTemplateOverridesEndpoint(t *testing.T) {
+	var hitTemplateEndpoint atomic.Bool
+	tmplSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hitTemplateEndpoint.Store(true)
+		_, _ = w.Write([]byte(`{"content":"ok"}`))
+	}))
+	defer tmplSrv.Close()
+
+	manifest := templatedManifest("https://manifest-default.example/should-not-be-hit",
+		provider.Template{Name: "only", Endpoint: tmplSrv.URL, Request: provider.Request{Body: map[string]any{"mode": "only"}}},
+	)
+	p := &tiers.Provider{
+		Client:      tmplSrv.Client(),
+		Manifests:   fakeManifestLookup{byName: map[string]*provider.Manifest{"acme": manifest}},
+		Credentials: fakeCredentialLoader{secret: "sekret", ok: true},
+	}
+	cfg := jobspec.Fetch{Use: "provider", Name: "acme"}
+	_, _, err := p.Fetch(context.Background(), cfg, "https://target.example/page")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !hitTemplateEndpoint.Load() {
+		t.Fatal("expected the template's own endpoint to be hit, not the manifest's default")
 	}
 }

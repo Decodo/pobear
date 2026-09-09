@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -111,6 +112,24 @@ func TestLocalFetch(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestLocalFetchErrorIncludesResponseBodySnippet(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(403)
+		_, _ = w.Write([]byte("blocked: automated traffic detected"))
+	}))
+	defer srv.Close()
+
+	l := &tiers.Local{Client: srv.Client()}
+	_, _, err := l.Fetch(context.Background(), jobspec.Fetch{}, srv.URL)
+
+	if err == nil {
+		t.Fatal("expected an error, got nil")
+	}
+	if want := "blocked: automated traffic detected"; !strings.Contains(err.Error(), want) {
+		t.Fatalf("err = %q, want it to contain the response body %q", err, want)
 	}
 }
 

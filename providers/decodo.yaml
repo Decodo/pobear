@@ -1,26 +1,65 @@
 # EXAMPLE PROVIDER
 name: decodo
 endpoint: https://scraper-api.decodo.com/v2/scrape
-auth: { type: bearer, credential: token }
+auth: { type: basic, credential: token }
 templates:
   - name: universal
     default: true
     options:
-      - { name: render, type: bool, default: false }
-      - { name: geo, type: string, pattern: '^[a-z]{2}$' }
+      - { name: headless, type: enum, values: [html, png], default: html }
+      - { name: proxy_pool, type: enum, values: [standard, premium], default: premium }
+      - { name: geo, type: string }
+      - { name: locale, type: string }
+      - { name: device_type, type: string }
     request:
       body:
-        source: universal
+        target: universal
         url: "{{ .URL }}"
-        render: "{{ .Options.render }}"
+        headless: "{{ .Options.headless }}"
+        proxy_pool: "{{ .Options.proxy_pool }}"
         geo: "{{ .Options.geo }}"
-  - name: amazon_product
+        locale: "{{ .Options.locale }}"
+        device_type: "{{ .Options.device_type }}"
+  - name: google
     options:
-      - { name: domain, type: enum, values: [com, co.uk, de], default: com }
+      - { name: headless, type: enum, values: [html, png], default: html }
+      - { name: page_count, type: int, default: 1, min: 1, max: 10 }
+      - { name: locale, type: string }
+      - { name: device_type, type: string }
+      - { name: parse, type: bool, default: false }
     request:
       body:
-        source: amazon_product
-        query: "{{ .URL }}"
-        domain: "{{ .Options.domain }}"
+        target: google
+        url: "{{ .URL }}"
+        headless: "{{ .Options.headless }}"
+        page_count: "{{ .Options.page_count }}"
+        locale: "{{ .Options.locale }}"
+        device_type: "{{ .Options.device_type }}"
+        parse: "{{ .Options.parse }}"
+  - name: bing
+    options:
+      - { name: headless, type: enum, values: [html, png], default: html }
+      - { name: geo, type: string }
+      - { name: locale, type: string }
+    request:
+      body:
+        target: bing
+        url: "{{ .URL }}"
+        headless: "{{ .Options.headless }}"
+        geo: "{{ .Options.geo }}"
+        locale: "{{ .Options.locale }}"
+  - name: amazon
+    options:
+      - { name: headless, type: enum, values: [html, png], default: html }
+      - { name: geo, type: string }
+      - { name: parse, type: bool, default: false }
+    request:
+      body:
+        target: amazon
+        url: "{{ .URL }}"
+        headless: "{{ .Options.headless }}"
+        geo: "{{ .Options.geo }}"
+        parse: "{{ .Options.parse }}"
 response:
-  body: "$.results[0].content"
+  status: "$..status_code"
+  body: "$..content"
