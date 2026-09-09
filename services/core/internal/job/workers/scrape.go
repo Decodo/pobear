@@ -22,7 +22,7 @@ type Sinker interface {
 }
 
 type LinkExtractor interface {
-	Extract(body []byte) []string
+	Extract(body []byte, baseURL string) []string
 }
 
 type Scrape struct {
@@ -60,5 +60,5 @@ func (s *Scrape) Run(ctx context.Context, spec *jobspec.Spec, url, parentURL str
 		return nil, "", err
 	}
 
-	return s.links.Extract(result.Body), "", nil
+	return s.links.Extract(result.Body, result.FinalURL), "", nil
 }

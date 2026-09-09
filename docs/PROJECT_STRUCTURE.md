@@ -32,9 +32,12 @@
         executor.go                // job-executor: run loop — walks the source (urls or crawl frontier), enforces limits, dispatches to a worker
         /workers                   // the different things job-executor can dispatch a unit of work to
           scrape.go                 // scrape (Core worker): base per-URL pipeline — fetch -> stage -> sink one item
+          links.go                  // the real workers.LinkExtractor: walks a fetched HTML body's <a href> elements via goquery (already a dependency), resolving each relative href against the page's own FinalURL; non-http(s)/malformed hrefs are silently dropped, never counted anywhere
           /crawl
             crawl.go                 // crawl (Core worker): scrape + frontier logic (depth/maxPages/maxDuration/scope/include/exclude/sitemap/robots)
             dedupe.go                // claims each seed/sitemap-URL/discovered-link the moment it's found (before it's added to the frontier), so the same URL (fragment dropped, query params canonicalized) is never fetched or queued twice this crawl — always on, not a job spec field (JOB_SPEC_REFERENCE.md §3.2)
+            robots.go                // the real crawl.RobotsChecker: fetches + caches <origin>/robots.txt (once per origin per crawl run) via a plain direct HTTP client — robots.txt/sitemap.xml are meant to be openly fetchable by any crawler, so neither routes through the job's configured fetch tier/proxy/provider. Parsing/matching via github.com/temoto/robotstxt, always against the wildcard `User-agent: *` group. A 4xx robots.txt response means no restrictions (matches Google's documented convention); any other failure (network error, other status, unparsable body) fails closed — every URL under that origin is treated as disallowed for the rest of the crawl
+            sitemap.go               // the real crawl.SitemapFetcher: fetches <origin>/sitemap.xml the same way (plain direct client), parses via stdlib encoding/xml, follows one level of <sitemapindex> recursion into child sitemaps; no gzip support
       /fetch
         fetch.go                   // fetcher: dispatches to whichever single tier fetch.use selects; enforces limits.concurrency; on failure, retries that SAME tier (never a different one) up to limits.retries, per backoff.go's backoff timing
         throttle.go                 // enforces limits.rps; crawl's own frontier scheduling paces through this too, so a crawl and the scrape it drives share one rate limit

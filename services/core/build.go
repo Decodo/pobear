@@ -70,8 +70,10 @@ func (e *liveExecutor) Run(ctx context.Context, spec *jobspec.Spec) (job.Result,
 	}
 	sinker := sink.NewSinker(sinkMap, spec.Sink.Use)
 
-	scrapeWorker := workers.NewScrape(fetcher, stager, sinker, noLinks{})
-	crawlWorker := crawlAdapter{crawl: crawl.NewCrawl(scrapeWorker, nil, nil)}
+	scrapeWorker := workers.NewScrape(fetcher, stager, sinker, workers.HTMLLinks{})
+	robotsChecker := crawl.NewHTTPRobotsChecker(http.DefaultClient)
+	sitemapFetcher := crawl.NewHTTPSitemapFetcher(http.DefaultClient)
+	crawlWorker := crawlAdapter{crawl: crawl.NewCrawl(scrapeWorker, robotsChecker, sitemapFetcher)}
 	executor := job.NewExecutor(scrapeWorker, crawlWorker, sinker)
 
 	return executor.Run(ctx, spec)
@@ -93,10 +95,6 @@ type credentialsLoader struct{}
 func (credentialsLoader) Load(path, providerName, credentialName string) (string, bool, error) {
 	return credentials.Load(path, providerName, credentialName)
 }
-
-type noLinks struct{}
-
-func (noLinks) Extract(_ []byte) []string { return nil }
 
 type crawlAdapter struct{ crawl *crawl.Crawl }
 

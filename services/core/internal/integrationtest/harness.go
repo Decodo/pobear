@@ -103,17 +103,15 @@ func buildService(client *http.Client, ndjsonPath string) *core.Service {
 	sinkMap := map[string]sink.Sink{"ndjson": &sinks.NDJSON{Path: ndjsonPath}}
 	sinker := sink.NewSinker(sinkMap, "ndjson")
 
-	scrape := workers.NewScrape(fetcher, stager, sinker, noLinks{})
-	crawlWorker := crawlAdapter{crawl: crawl.NewCrawl(scrape, nil, nil)}
+	scrape := workers.NewScrape(fetcher, stager, sinker, workers.HTMLLinks{})
+	robotsChecker := crawl.NewHTTPRobotsChecker(client)
+	sitemapFetcher := crawl.NewHTTPSitemapFetcher(client)
+	crawlWorker := crawlAdapter{crawl: crawl.NewCrawl(scrape, robotsChecker, sitemapFetcher)}
 	executor := job.NewExecutor(scrape, crawlWorker, sinker)
 	parser := job.NewParser(jobspecParser{})
 
 	return core.NewService(parser, executor)
 }
-
-type noLinks struct{}
-
-func (noLinks) Extract(_ []byte) []string { return nil }
 
 type jobspecParser struct{}
 
