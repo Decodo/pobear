@@ -21,28 +21,6 @@ jobs:
       - run: go build ./...
       - run: go vet ./...
 
-  test-pkg:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-
-      - run: go test ./pkg/...
-
-  test-core:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-
-      - run: go test ./services/core/...
-
   test:
     runs-on: ubuntu-latest
     steps:
@@ -52,8 +30,7 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - run: go test $(go list ./... | grep -v '^github.com/pobear/pobear/pkg/' | grep -v '^github.com/pobear/pobear/services/core')
-        continue-on-error: true
+      - run: go test ./...
 
   lint:
     runs-on: ubuntu-latest
