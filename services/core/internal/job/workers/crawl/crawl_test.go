@@ -418,3 +418,108 @@ func TestCrawlTalliesFailuresAndTheirKinds(t *testing.T) {
 		}
 	}
 }
+
+func TestCrawlDedupeSkipsALinkAlreadyDiscoveredFromAnotherParent(t *testing.T) {
+	scrape := &fakeScrapeWorker{children: map[string][]string{
+		"https://a.test":       {"https://a.test/other", "https://a.test/shared"},
+		"https://a.test/other": {"https://a.test/shared"},
+	}}
+	c := crawl.NewCrawl(scrape, nil, nil)
+
+	spec := &jobspec.Spec{Source: jobspec.Source{Crawl: &jobspec.CrawlSource{
+		Seeds: []string{"https://a.test"}, Depth: 2, MaxPages: 100, Scope: "same-host", Robots: "ignore",
+	}}}
+	got, err := c.Run(context.Background(), spec)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got.Succeeded != 3 {
+		t.Fatalf("got Succeeded=%d, want 3 (seed + /other + /shared, /shared discovered twice but fetched once)", got.Succeeded)
+	}
+	sharedCount := 0
+	for _, v := range scrape.visited {
+		if v == "https://a.test/shared" {
+			sharedCount++
+		}
+	}
+	if sharedCount != 1 {
+		t.Fatalf("https://a.test/shared visited %d times, want exactly 1", sharedCount)
+	}
+}
+
+func TestCrawlDedupeDiscardsADuplicateSeed(t *testing.T) {
+	scrape := &fakeScrapeWorker{}
+	c := crawl.NewCrawl(scrape, nil, nil)
+
+	spec := &jobspec.Spec{Source: jobspec.Source{Crawl: &jobspec.CrawlSource{
+		Seeds: []string{"https://a.test", "https://a.test"}, Depth: 0, MaxPages: 100, Scope: "same-host", Robots: "ignore",
+	}}}
+	got, err := c.Run(context.Background(), spec)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got.Succeeded != 1 {
+		t.Fatalf("got Succeeded=%d, want 1 (the duplicate seed discarded outright, not fetched twice, not counted as skipped)", got.Succeeded)
+	}
+	if got.Skipped != 0 {
+		t.Fatalf("got Skipped=%d, want 0 (a dedupe discard is not a skip)", got.Skipped)
+	}
+	if len(scrape.visited) != 1 {
+		t.Fatalf("visited %v, want exactly one fetch", scrape.visited)
+	}
+}
+
+func TestCrawlDedupeTreatsFragmentOnlyDifferenceAsSameURL(t *testing.T) {
+	scrape := &fakeScrapeWorker{children: map[string][]string{
+		"https://a.test": {"https://a.test/page#section-a", "https://a.test/page#section-b"},
+	}}
+	c := crawl.NewCrawl(scrape, nil, nil)
+
+	spec := &jobspec.Spec{Source: jobspec.Source{Crawl: &jobspec.CrawlSource{
+		Seeds: []string{"https://a.test"}, Depth: 1, MaxPages: 100, Scope: "same-host", Robots: "ignore",
+	}}}
+	got, err := c.Run(context.Background(), spec)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got.Succeeded != 2 {
+		t.Fatalf("got Succeeded=%d, want 2 (seed + one fetch of /page, the second differing only by fragment discarded)", got.Succeeded)
+	}
+	gotA, gotB := false, false
+	for _, v := range scrape.visited {
+		if v == "https://a.test/page#section-a" {
+			gotA = true
+		}
+		if v == "https://a.test/page#section-b" {
+			gotB = true
+		}
+	}
+	if gotA && gotB {
+		t.Fatalf("both fragment variants were fetched, want only one: %v", scrape.visited)
+	}
+	if !gotA && !gotB {
+		t.Fatalf("neither fragment variant was fetched: %v", scrape.visited)
+	}
+}
+
+func TestCrawlDedupeTreatsReorderedQueryParamsAsSameURL(t *testing.T) {
+	scrape := &fakeScrapeWorker{children: map[string][]string{
+		"https://a.test": {"https://a.test/page?a=1&b=2", "https://a.test/page?b=2&a=1"},
+	}}
+	c := crawl.NewCrawl(scrape, nil, nil)
+
+	spec := &jobspec.Spec{Source: jobspec.Source{Crawl: &jobspec.CrawlSource{
+		Seeds: []string{"https://a.test"}, Depth: 1, MaxPages: 100, Scope: "same-host", Robots: "ignore",
+	}}}
+	got, err := c.Run(context.Background(), spec)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got.Succeeded != 2 {
+		t.Fatalf("got Succeeded=%d, want 2 (seed + one fetch of /page, the reordered-query-param duplicate discarded)", got.Succeeded)
+	}
+}

@@ -34,7 +34,7 @@
           scrape.go                 // scrape (Core worker): base per-URL pipeline — fetch -> stage -> sink one item
           /crawl
             crawl.go                 // crawl (Core worker): scrape + frontier logic (depth/maxPages/maxDuration/scope/include/exclude/sitemap/robots)
-            dedupe.go                // tracks URLs already fetched/queued this crawl so a re-discovered link isn't fetched or queued twice — mentioned in the architecture notes above but not yet a job spec field; needs designing
+            dedupe.go                // claims each seed/sitemap-URL/discovered-link the moment it's found (before it's added to the frontier), so the same URL (fragment dropped, query params canonicalized) is never fetched or queued twice this crawl — always on, not a job spec field (JOB_SPEC_REFERENCE.md §3.2)
       /fetch
         fetch.go                   // fetcher: dispatches to whichever single tier fetch.use selects; enforces limits.concurrency; on failure, retries that SAME tier (never a different one) up to limits.retries, per backoff.go's backoff timing
         throttle.go                 // enforces limits.rps; crawl's own frontier scheduling paces through this too, so a crawl and the scrape it drives share one rate limit
@@ -104,9 +104,6 @@ Things the diagram implies but the reference specs don't pin down yet:
   reference doc yet.
 - Whether `/sdk` ships more than one language at launch, or starts as a single
   reference implementation the manifest format is designed to allow others to copy.
-- Dedupe (`core/internal/job/workers/crawl/dedupe.go`) has no job spec field yet
-  describing how it's controlled — needs a `source.crawl` field (or a documented
-  default behavior) before implementation.
 - `cli/internal/wizard`'s full-screen terminal UI (`CLI_REFERENCE.md`'s
   wizard section) is unbuilt and its own design session hasn't happened yet.
   Working assumption for that session: bring in a TUI library (tview or
