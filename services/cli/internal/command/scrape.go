@@ -116,7 +116,7 @@ func scrapeRun(ctx context.Context, runner JobRunner, providers *providerator.Pr
 	}
 
 	sinkUse, sinkPath := "stdout", ""
-	if f.out != "" {
+	if f.out != "" && !isDirOut(f.out) {
 		sinkUse, sinkPath = "ndjson", f.out
 	}
 
@@ -140,5 +140,5 @@ func scrapeRun(ctx context.Context, runner JobRunner, providers *providerator.Pr
 		rawField = names[0]
 	}
 
-	return printSpecOrRun(ctx, runner, resolvedIn, defaultsIn, f.printSpec, f.printSpecVerbose, f.outputFormat, rawField, stdout, stderr)
+	return printSpecOrRun(ctx, runner, resolvedIn, defaultsIn, f.printSpec, f.printSpecVerbose, f.outputFormat, rawField, f.out, stdout, stderr)
 }
