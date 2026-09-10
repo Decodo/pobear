@@ -22,11 +22,12 @@ type SinkCloser interface {
 }
 
 type Result struct {
-	Succeeded int
-	Failed    int
-	Skipped   int
-	Kinds     []fault.Kind
-	Errors    []string
+	Succeeded   int
+	Failed      int
+	Skipped     int
+	Kinds       []fault.Kind
+	Errors      []string
+	SkippedURLs []string
 }
 
 type Executor struct {

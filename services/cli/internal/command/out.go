@@ -106,6 +106,7 @@ type dirIndexEntry struct {
 	URL       string `json:"url"`
 	File      string `json:"file,omitempty"`
 	Succeeded bool   `json:"succeeded"`
+	Skipped   bool   `json:"skipped,omitempty"`
 	Status    int    `json:"status,omitempty"`
 	Error     string `json:"error,omitempty"`
 }
@@ -135,7 +136,7 @@ func runJobToDir(ctx context.Context, runner JobRunner, spec *jobspec.Spec, fiel
 		return 0, cerr
 	}
 
-	entries, err := writeDirOutputs(tmpPath, outDir, outputFormat, fieldName, result.Errors)
+	entries, err := writeDirOutputs(tmpPath, outDir, outputFormat, fieldName, result.Errors, result.SkippedURLs)
 	if err != nil {
 		return 0, newCLIError(exitcode.Fatal, "%v", err)
 	}
@@ -146,7 +147,7 @@ func runJobToDir(ctx context.Context, runner JobRunner, spec *jobspec.Spec, fiel
 	return code, nil
 }
 
-func writeDirOutputs(ndjsonPath, outDir, outputFormat, fieldName string, failureLines []string) ([]dirIndexEntry, error) {
+func writeDirOutputs(ndjsonPath, outDir, outputFormat, fieldName string, failureLines, skippedLines []string) ([]dirIndexEntry, error) {
 	data, err := os.ReadFile(ndjsonPath) //nolint:gosec // ndjsonPath is this command's own os.MkdirTemp file, not user-controlled input
 	if err != nil {
 		return nil, err
@@ -187,6 +188,9 @@ func writeDirOutputs(ndjsonPath, outDir, outputFormat, fieldName string, failure
 
 	for _, line := range failureLines {
 		entries = append(entries, dirIndexEntry{URL: urlFromFailureLine(line), Error: line})
+	}
+	for _, line := range skippedLines {
+		entries = append(entries, dirIndexEntry{URL: urlFromFailureLine(line), Skipped: true, Error: line})
 	}
 
 	return entries, nil

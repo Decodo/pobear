@@ -88,7 +88,7 @@ func TestWriteDirOutputsJSONFormat(t *testing.T) {
 	}
 	outDir := t.TempDir()
 
-	entries, err := writeDirOutputs(tmpPath, outDir, "json", "", nil)
+	entries, err := writeDirOutputs(tmpPath, outDir, "json", "", nil, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -122,7 +122,7 @@ func TestWriteDirOutputsRawFormatPerItemFailureDoesNotAbortOthers(t *testing.T) 
 	}
 	outDir := t.TempDir()
 
-	entries, err := writeDirOutputs(tmpPath, outDir, "raw", "title", nil)
+	entries, err := writeDirOutputs(tmpPath, outDir, "raw", "title", nil, nil)
 	if err != nil {
 		t.Fatalf("expected writeDirOutputs itself to succeed even though one item's extraction failed, got %v", err)
 	}
@@ -167,7 +167,7 @@ func TestWriteDirOutputsIncludesFailureLines(t *testing.T) {
 	outDir := t.TempDir()
 
 	failureLine := `https://b.test [http]: tiers: http status 404`
-	entries, err := writeDirOutputs(tmpPath, outDir, "json", "", []string{failureLine})
+	entries, err := writeDirOutputs(tmpPath, outDir, "json", "", []string{failureLine}, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -175,8 +175,34 @@ func TestWriteDirOutputsIncludesFailureLines(t *testing.T) {
 		t.Fatalf("got %d entries, want 2 (1 succeeded + 1 failed)", len(entries))
 	}
 	failed := entries[1]
-	if failed.Succeeded || failed.URL != "https://b.test" || failed.Error != failureLine {
+	if failed.Succeeded || failed.Skipped || failed.URL != "https://b.test" || failed.Error != failureLine {
 		t.Errorf("failed entry = %+v, want url=https://b.test error=%q", failed, failureLine)
+	}
+}
+
+func TestWriteDirOutputsIncludesSkippedLines(t *testing.T) {
+	tmpPath := filepath.Join(t.TempDir(), "out.ndjson")
+	content := `{"url":"https://a.test","status":200,"data":{"raw":"a"}}
+`
+	if err := os.WriteFile(tmpPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("writing fixture: %v", err)
+	}
+	outDir := t.TempDir()
+
+	skippedLine := `https://b.test: disallowed by robots.txt`
+	entries, err := writeDirOutputs(tmpPath, outDir, "json", "", nil, []string{skippedLine})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("got %d entries, want 2 (1 succeeded + 1 skipped)", len(entries))
+	}
+	skipped := entries[1]
+	if skipped.Succeeded || !skipped.Skipped || skipped.URL != "https://b.test" || skipped.Error != skippedLine {
+		t.Errorf("skipped entry = %+v, want url=https://b.test skipped=true error=%q", skipped, skippedLine)
+	}
+	if skipped.File != "" {
+		t.Errorf("skipped entry File = %q, want empty (nothing written for a skipped URL)", skipped.File)
 	}
 }
 
