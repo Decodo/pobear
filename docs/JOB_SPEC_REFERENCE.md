@@ -82,6 +82,18 @@ rejected at validation time.
 `depth`, `maxPages`, and `maxDuration` are independent stopping conditions — a crawl
 stops the moment any one of them is hit.
 
+**Dedup:** a crawl never fetches or queues the same URL twice — always on, not a
+field. A `seed`, a `sitemap`-discovered URL, and a discovered link are all claimed
+against the same run-scoped set the moment each is found, before it's ever added
+to the frontier; a second sighting of an already-claimed URL is discarded
+outright (not counted as `skipped` — it was never a missed fetch, since its
+canonical form already ran or is already queued to). Two URLs are the same if
+they're identical once the fragment is dropped and the query string is
+canonicalized (both key order and, within a key, its own repeated values,
+sorted) — `page#a` vs `page#b` and `?a=1&b=2` vs `?b=2&a=1` are the same URL.
+No other normalization applies: scheme/host case, default ports, and trailing
+slashes are compared exactly as given.
+
 ---
 
 ## 4. `fetch`

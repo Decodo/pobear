@@ -11,35 +11,6 @@ of resolved debt (git history already has that).
 
 ---
 
-## Crawl has no URL dedupe — a re-discovered link can be fetched/queued twice
-
-**What's wrong:** `PROJECT_STRUCTURE.md`'s file tree names
-`services/core/internal/job/workers/crawl/dedupe.go` — tracking URLs already
-fetched or queued during a crawl so a link discovered from two different parent
-pages isn't fetched or queued twice — but the file doesn't exist, and nothing in
-`crawl.Crawl`'s design currently tracks this. No `source.crawl` job spec field
-says how dedup is controlled (always on? opt-out? exact-string match or a
-normalized URL?), and no test in
-`services/core/internal/job/workers/crawl/crawl_test.go` exercises a URL
-discovered from two different parent pages, so the current red suite doesn't
-even pin whether dedup should happen, let alone how.
-
-**Why not fixed now:** found while surveying `services/core/internal/job/workers/crawl`
-for the real-implementation phase (not yet started) — implementing `Crawl.Run`
-without a spec'd dedup behavior means inventing undocumented behavior no test
-locks down.
-
-**What fixing it requires:** a `JOB_SPEC_REFERENCE.md` §3.2 decision (a new
-`source.crawl` field, or a documented always-on default) for how dedup is
-controlled and what "same URL" means, a test fixture in `crawl_test.go`
-exercising a URL discovered from two different parents, then the real
-`dedupe.go` (or inline logic) implementing it.
-
-**Blocks:** the real implementation of
-`services/core/internal/job/workers/crawl.Crawl.Run`.
-
----
-
 ## Crawl never discovers links, never consults robots.txt, never seeds from a sitemap
 
 **What's wrong:** `services/core.New`'s wiring (this plan) passes a permanent no-op

@@ -52,7 +52,8 @@ type frontierEntry struct {
 func (c *Crawl) Run(ctx context.Context, spec *jobspec.Spec) (Result, error) {
 	cs := spec.Source.Crawl
 	deadline := crawlDeadline(cs)
-	frontier := c.seedFrontier(ctx, cs)
+	dd := newDedupe()
+	frontier := c.seedFrontier(ctx, cs, dd)
 
 	var result Result
 	for len(frontier) > 0 {
@@ -85,7 +86,7 @@ func (c *Crawl) Run(ctx context.Context, spec *jobspec.Spec) (Result, error) {
 		}
 		result.Succeeded++
 
-		frontier = enqueueLinks(frontier, entry, links, cs)
+		frontier = enqueueLinks(frontier, entry, links, cs, dd)
 	}
 
 	return result, nil
@@ -102,15 +103,21 @@ func crawlDeadline(cs *jobspec.CrawlSource) time.Time {
 	return time.Now().Add(d)
 }
 
-func (c *Crawl) seedFrontier(ctx context.Context, cs *jobspec.CrawlSource) []frontierEntry {
+func (c *Crawl) seedFrontier(ctx context.Context, cs *jobspec.CrawlSource, dd *dedupe) []frontierEntry {
 	var frontier []frontierEntry
 	for _, seed := range cs.Seeds {
+		if !dd.claim(seed) {
+			continue
+		}
 		origin := hostOf(seed)
 		frontier = append(frontier, frontierEntry{url: seed, depth: 0, origin: origin})
 		if cs.Sitemap && c.sitemap != nil {
 			urls, err := c.sitemap.URLs(ctx, seed)
 			if err == nil {
 				for _, u := range urls {
+					if !dd.claim(u) {
+						continue
+					}
 					frontier = append(frontier, frontierEntry{url: u, depth: 0, origin: origin})
 				}
 			}
@@ -137,11 +144,14 @@ func (c *Crawl) shouldSkip(ctx context.Context, entry frontierEntry, cs *jobspec
 	return false
 }
 
-func enqueueLinks(frontier []frontierEntry, entry frontierEntry, links []string, cs *jobspec.CrawlSource) []frontierEntry {
+func enqueueLinks(frontier []frontierEntry, entry frontierEntry, links []string, cs *jobspec.CrawlSource, dd *dedupe) []frontierEntry {
 	if entry.depth >= cs.Depth {
 		return frontier
 	}
 	for _, link := range links {
+		if !dd.claim(link) {
+			continue
+		}
 		frontier = append(frontier, frontierEntry{url: link, parentURL: entry.url, depth: entry.depth + 1, origin: entry.origin})
 	}
 	return frontier
