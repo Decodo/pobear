@@ -78,7 +78,8 @@ func (c *Run) run(ctx context.Context, target string, printSpec, printSpecVerbos
 		return exitcode.Success, nil
 	}
 
-	return execAndSummarize(ctx, c.Runner, data, stderr)
+	code, _, cerr := execAndSummarize(ctx, c.Runner, data, stderr)
+	return code, cerr
 }
 
 func runDefaultsSpec(spec *jobspec.Spec) *jobspec.Spec {

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -133,7 +132,7 @@ func buildErrorToCLIError(err error) *cliError {
 	return newCLIError(exitcode.Fatal, "%v", err)
 }
 
-func printSpecOrRun(ctx context.Context, runner JobRunner, resolvedIn, defaultsIn jobgen.Input, printSpec, printSpecVerbose bool, outputFormat string, rawField string, stdout, stderr io.Writer) (int, *cliError) {
+func printSpecOrRun(ctx context.Context, runner JobRunner, resolvedIn, defaultsIn jobgen.Input, printSpec, printSpecVerbose bool, outputFormat, rawField, outPath string, stdout, stderr io.Writer) (int, *cliError) {
 	resolved, err := jobgen.Build(resolvedIn)
 	if err != nil {
 		return 0, buildErrorToCLIError(err)
@@ -155,8 +154,11 @@ func printSpecOrRun(ctx context.Context, runner JobRunner, resolvedIn, defaultsI
 		return exitcode.Success, nil
 	}
 
+	if isDirOut(outPath) {
+		return runJobToDir(ctx, runner, resolved, rawField, outputFormat, outPath, stderr)
+	}
 	if outputFormat == "raw" {
-		return runJobRaw(ctx, runner, resolved, rawField, stdout, stderr)
+		return runJobRaw(ctx, runner, resolved, rawField, outPath, stdout, stderr)
 	}
 	return runJob(ctx, runner, resolved, stderr)
 }
@@ -208,83 +210,21 @@ func runJob(ctx context.Context, runner JobRunner, spec *jobspec.Spec, stderr io
 	if err != nil {
 		return 0, newCLIError(exitcode.Fatal, "%v", err)
 	}
-	return execAndSummarize(ctx, runner, data, stderr)
+	code, _, cerr := execAndSummarize(ctx, runner, data, stderr)
+	return code, cerr
 }
 
-func execAndSummarize(ctx context.Context, runner JobRunner, data []byte, stderr io.Writer) (int, *cliError) {
+func execAndSummarize(ctx context.Context, runner JobRunner, data []byte, stderr io.Writer) (int, RunResult, *cliError) {
 	result, kind, err := runner.Run(ctx, data, jobspec.ModePlain)
 	if err != nil {
 		if kind != "" {
-			return 0, newCLIError(exitcode.FromValidationFault(kind), "%v", err)
+			return 0, RunResult{}, newCLIError(exitcode.FromValidationFault(kind), "%v", err)
 		}
-		return 0, newCLIError(exitcode.Fatal, "%v", err)
+		return 0, RunResult{}, newCLIError(exitcode.Fatal, "%v", err)
 	}
 	for _, e := range result.Errors {
 		fmt.Fprintln(stderr, e)
 	}
 	fmt.Fprintf(stderr, "fetched %d, errors %d, skipped %d\n", result.Succeeded, result.Failed, result.Skipped)
-	return exitcode.FromRun(result.Succeeded, result.Failed, result.Kinds), nil
-}
-
-type rawItem struct {
-	Data map[string]any `json:"data"`
-}
-
-func runJobRaw(ctx context.Context, runner JobRunner, spec *jobspec.Spec, fieldName string, stdout, stderr io.Writer) (int, *cliError) {
-	tmpDir, err := os.MkdirTemp("", "pobear-raw-*")
-	if err != nil {
-		return 0, newCLIError(exitcode.Fatal, "%v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-	tmpPath := filepath.Join(tmpDir, "out.ndjson")
-
-	raw := *spec
-	raw.Sink = jobspec.Sink{Use: "ndjson", Path: tmpPath}
-
-	data, err := yaml.Marshal(&raw)
-	if err != nil {
-		return 0, newCLIError(exitcode.Fatal, "%v", err)
-	}
-
-	code, cerr := execAndSummarize(ctx, runner, data, stderr)
-	if cerr != nil {
-		return 0, cerr
-	}
-	if code != exitcode.Success {
-		return code, nil
-	}
-
-	if err := writeRawValue(tmpPath, fieldName, stdout); err != nil {
-		return 0, newCLIError(exitcode.Fatal, "%v", err)
-	}
-	return code, nil
-}
-
-func writeRawValue(path, fieldName string, stdout io.Writer) error {
-	data, err := os.ReadFile(path) //nolint:gosec // path is this command's own os.MkdirTemp file, not user-controlled input
-	if err != nil {
-		return err
-	}
-	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
-	if len(lines) != 1 || lines[0] == "" {
-		return fmt.Errorf("--output-format raw requires exactly one URL to be targeted, got %d items", len(lines))
-	}
-	var item rawItem
-	if err := json.Unmarshal([]byte(lines[0]), &item); err != nil {
-		return err
-	}
-	v, ok := item.Data[fieldName]
-	if !ok {
-		return fmt.Errorf("--output-format raw: field %q was not produced", fieldName)
-	}
-	switch val := v.(type) {
-	case []any:
-		if len(val) != 1 {
-			return fmt.Errorf("--output-format raw: field %q matched %d values, want exactly 1", fieldName, len(val))
-		}
-		fmt.Fprint(stdout, fmt.Sprint(val[0]))
-	default:
-		fmt.Fprint(stdout, fmt.Sprint(val))
-	}
-	return nil
+	return exitcode.FromRun(result.Succeeded, result.Failed, result.Kinds), result, nil
 }
