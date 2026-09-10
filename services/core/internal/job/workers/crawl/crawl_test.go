@@ -137,6 +137,35 @@ func TestCrawlMaxPagesStopsAtLimit(t *testing.T) {
 	}
 }
 
+func TestCrawlMaxPagesIsExactUnderConcurrency(t *testing.T) {
+	children := map[string][]string{
+		"https://a.test": {
+			"https://a.test/1", "https://a.test/2", "https://a.test/3",
+			"https://a.test/4", "https://a.test/5",
+		},
+	}
+	scrape := &fakeScrapeWorker{children: children, delay: 20 * time.Millisecond}
+	c := crawl.NewCrawl(scrape, nil, nil)
+
+	spec := &jobspec.Spec{
+		Limits: jobspec.Limits{Concurrency: 5},
+		Source: jobspec.Source{Crawl: &jobspec.CrawlSource{
+			Seeds: []string{"https://a.test"}, Depth: 1, MaxPages: 2, Scope: "same-host", Robots: "ignore",
+		}},
+	}
+	got, err := c.Run(context.Background(), spec)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got.Succeeded != 2 {
+		t.Fatalf("got Succeeded=%d, want exactly 2 -- MaxPages must be an exact cap even under concurrency=5, not an approximate one that can overshoot to MaxPages+concurrency-1", got.Succeeded)
+	}
+	if len(scrape.visited) != 2 {
+		t.Fatalf("visited %d URLs, want exactly 2", len(scrape.visited))
+	}
+}
+
 func buildURLChain(length int) map[string][]string {
 	children := make(map[string][]string, length)
 	for i := 0; i < length; i++ {

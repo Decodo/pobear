@@ -61,6 +61,7 @@ func (c *Crawl) Run(ctx context.Context, spec *jobspec.Spec) (Result, error) {
 	p := pool.New(spec.Limits.Concurrency)
 	var mu sync.Mutex
 	var result Result
+	dispatched := 0
 
 	var visit func(entry frontierEntry)
 	visit = func(entry frontierEntry) {
@@ -77,10 +78,12 @@ func (c *Crawl) Run(ctx context.Context, spec *jobspec.Spec) (Result, error) {
 		}
 
 		mu.Lock()
-		overBudget := result.Succeeded+result.Failed >= cs.MaxPages
+		overBudget := dispatched >= cs.MaxPages
 		if overBudget {
 			result.Skipped++
 			result.SkippedURLs = append(result.SkippedURLs, fault.FormatFailure(entry.url, "", errors.New("over --max-pages budget")))
+		} else {
+			dispatched++
 		}
 		mu.Unlock()
 		if overBudget {
