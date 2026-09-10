@@ -43,32 +43,9 @@ func (e *liveExecutor) Run(ctx context.Context, spec *jobspec.Spec) (job.Result,
 		return job.Result{}, err
 	}
 
-	tierMap := map[string]fetch.Tier{
-		"local": &tiers.Local{Client: http.DefaultClient},
-		"proxy": &tiers.Proxy{Client: http.DefaultClient},
-		"provider": &tiers.Provider{
-			Client:          http.DefaultClient,
-			Manifests:       manifestLookup(manifests),
-			Credentials:     credentialsLoader{},
-			CredentialsPath: e.credentialsPath,
-		},
-	}
-	fetcher := fetch.NewFetcher(tierMap, spec.Limits.Concurrency, spec.Limits.Retries, fetch.Backoff)
-
-	extractorMap := map[string]stage.Extractor{
-		"raw":      extractors.Raw{},
-		"markdown": extractors.Markdown{},
-		"css":      extractors.CSS{},
-	}
-	stager := stage.NewStager(extractorMap)
-
-	sinkMap := map[string]sink.Sink{
-		"stdout": &sinks.Stdout{Out: e.stdout},
-		"ndjson": &sinks.NDJSON{Path: spec.Sink.Path},
-		"json":   &sinks.JSON{Path: spec.Sink.Path},
-		"yaml":   &sinks.YAML{Path: spec.Sink.Path},
-	}
-	sinker := sink.NewSinker(sinkMap, spec.Sink.Use)
+	fetcher := e.createFetcher(manifests, spec)
+	stager := e.createStager()
+	sinker := e.createSinker(spec)
 
 	scrapeWorker := workers.NewScrape(fetcher, stager, sinker, workers.HTMLLinks{})
 	robotsChecker := crawl.NewHTTPRobotsChecker(http.DefaultClient)
@@ -107,4 +84,41 @@ func (a crawlAdapter) Run(ctx context.Context, spec *jobspec.Spec) (job.Result, 
 		Kinds:     result.Kinds,
 		Errors:    result.Errors,
 	}, err
+}
+
+func (e *liveExecutor) createSinker(spec *jobspec.Spec) *sink.Sinker {
+	sinkMap := map[string]sink.Sink{
+		"stdout": &sinks.Stdout{Out: e.stdout},
+		"ndjson": &sinks.NDJSON{Path: spec.Sink.Path},
+		"json":   &sinks.JSON{Path: spec.Sink.Path},
+		"yaml":   &sinks.YAML{Path: spec.Sink.Path},
+	}
+	sinker := sink.NewSinker(sinkMap, spec.Sink.Use)
+	return sinker
+}
+
+func (*liveExecutor) createStager() *stage.Stager {
+	extractorMap := map[string]stage.Extractor{
+		"raw":      extractors.Raw{},
+		"markdown": extractors.Markdown{},
+		"css":      extractors.CSS{},
+	}
+	stager := stage.NewStager(extractorMap)
+	return stager
+}
+
+func (e *liveExecutor) createFetcher(manifests []*provider.Manifest, spec *jobspec.Spec) *fetch.Fetcher {
+	tierMap := map[string]fetch.Tier{
+		"local": &tiers.Local{Client: http.DefaultClient},
+		"proxy": &tiers.Proxy{Client: http.DefaultClient},
+		"provider": &tiers.Provider{
+			Client:          http.DefaultClient,
+			Manifests:       manifestLookup(manifests),
+			Credentials:     credentialsLoader{},
+			CredentialsPath: e.credentialsPath,
+		},
+	}
+	throttle := fetch.NewThrottle(spec.Limits.RPS)
+	fetcher := fetch.NewFetcher(tierMap, spec.Limits.Concurrency, spec.Limits.Retries, fetch.Backoff, throttle)
+	return fetcher
 }

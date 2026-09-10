@@ -91,7 +91,7 @@ func Run(t *testing.T, dir string) {
 
 func buildService(client *http.Client, ndjsonPath string) *core.Service {
 	tierMap := map[string]fetch.Tier{"local": &tiers.Local{Client: client}}
-	fetcher := fetch.NewFetcher(tierMap, 8, 3, fetch.Backoff)
+	fetcher := fetch.NewFetcher(tierMap, 8, 3, fetch.Backoff, nil)
 
 	extractorMap := map[string]stage.Extractor{
 		"raw":      extractors.Raw{},
@@ -162,31 +162,41 @@ func assertItems(t *testing.T, got []sinks.Item, want []wantItem) {
 	if len(got) != len(want) {
 		t.Fatalf("got %d items, want %d (got: %+v)", len(got), len(want), got)
 	}
+
+	byURL := make(map[string]sinks.Item, len(got))
+	for _, g := range got {
+		byURL[g.URL] = g
+	}
+
 	for i, w := range want {
-		g := got[i]
-		if w.URL != nil && g.URL != *w.URL {
-			t.Errorf("item %d: URL = %q, want %q", i, g.URL, *w.URL)
+		if w.URL == nil {
+			t.Fatalf("want.yaml item %d has no url -- required to match against got items, since dispatch order isn't guaranteed", i)
+		}
+		g, ok := byURL[*w.URL]
+		if !ok {
+			t.Errorf("no got item with url %q (got: %+v)", *w.URL, got)
+			continue
 		}
 		if w.FinalURL != nil && g.FinalURL != *w.FinalURL {
-			t.Errorf("item %d: FinalURL = %q, want %q", i, g.FinalURL, *w.FinalURL)
+			t.Errorf("item %q: FinalURL = %q, want %q", *w.URL, g.FinalURL, *w.FinalURL)
 		}
 		if w.ParentURL != nil && g.ParentURL != *w.ParentURL {
-			t.Errorf("item %d: ParentURL = %q, want %q", i, g.ParentURL, *w.ParentURL)
+			t.Errorf("item %q: ParentURL = %q, want %q", *w.URL, g.ParentURL, *w.ParentURL)
 		}
 		if w.Status != nil && g.Status != *w.Status {
-			t.Errorf("item %d: Status = %d, want %d", i, g.Status, *w.Status)
+			t.Errorf("item %q: Status = %d, want %d", *w.URL, g.Status, *w.Status)
 		}
 		if w.Depth != nil && g.Depth != *w.Depth {
-			t.Errorf("item %d: Depth = %d, want %d", i, g.Depth, *w.Depth)
+			t.Errorf("item %q: Depth = %d, want %d", *w.URL, g.Depth, *w.Depth)
 		}
 		for key, wantVal := range w.Data {
 			gotVal, ok := g.Data[key]
 			if !ok {
-				t.Errorf("item %d: data[%q] missing, want %+v", i, key, wantVal)
+				t.Errorf("item %q: data[%q] missing, want %+v", *w.URL, key, wantVal)
 				continue
 			}
 			if !reflect.DeepEqual(gotVal, wantVal) {
-				t.Errorf("item %d: data[%q] = %+v, want %+v", i, key, gotVal, wantVal)
+				t.Errorf("item %q: data[%q] = %+v, want %+v", *w.URL, key, gotVal, wantVal)
 			}
 		}
 	}

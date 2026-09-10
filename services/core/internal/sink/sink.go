@@ -3,6 +3,7 @@ package sink
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"github.com/pobear/pobear/services/core/internal/sink/sinks"
 )
@@ -17,6 +18,7 @@ var ErrUnknownSink = errors.New("sink: unknown sink")
 type Sinker struct {
 	sinks map[string]Sink
 	use   string
+	mu    sync.Mutex
 }
 
 func NewSinker(sinks map[string]Sink, use string) *Sinker {
@@ -28,6 +30,8 @@ func (s *Sinker) Write(ctx context.Context, item sinks.Item) error {
 	if !ok {
 		return ErrUnknownSink
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return sk.Write(ctx, item)
 }
 

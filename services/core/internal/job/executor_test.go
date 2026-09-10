@@ -3,10 +3,12 @@ package job_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/pobear/pobear/pkg/fault"
 	"github.com/pobear/pobear/pkg/jobspec"
@@ -14,7 +16,8 @@ import (
 )
 
 type fakeScrapeWorker struct {
-	results []fakeScrapeResult
+	mu      sync.Mutex
+	results map[string]fakeScrapeResult
 	calls   int
 	gotURLs []string
 }
@@ -25,12 +28,11 @@ type fakeScrapeResult struct {
 }
 
 func (f *fakeScrapeWorker) Run(_ context.Context, _ *jobspec.Spec, url, _ string, _ int) ([]string, fault.Kind, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.gotURLs = append(f.gotURLs, url)
-	if f.calls >= len(f.results) {
-		panic(fmt.Sprintf("fakeScrapeWorker.Run called more times (%d) than results were configured (%d) — likely a dispatch bug", f.calls+1, len(f.results)))
-	}
-	r := f.results[f.calls]
 	f.calls++
+	r := f.results[url]
 	return nil, r.kind, r.err
 }
 
@@ -56,7 +58,7 @@ func (f *fakeSinkCloser) Close() error {
 }
 
 func TestExecutorURLListDispatchesEachURLAndTalliesSuccesses(t *testing.T) {
-	scrape := &fakeScrapeWorker{results: []fakeScrapeResult{{}, {}, {}}}
+	scrape := &fakeScrapeWorker{}
 	sink := &fakeSinkCloser{}
 	e := job.NewExecutor(scrape, &fakeCrawlWorker{}, sink)
 
@@ -70,21 +72,18 @@ func TestExecutorURLListDispatchesEachURLAndTalliesSuccesses(t *testing.T) {
 		t.Fatalf("got %+v, want Succeeded=3 Failed=0 Skipped=0", got)
 	}
 	want := []string{"https://a.test", "https://b.test", "https://c.test"}
-	if len(scrape.gotURLs) != len(want) {
-		t.Fatalf("dispatched %d URLs, want %d", len(scrape.gotURLs), len(want))
-	}
-	for i, u := range want {
-		if scrape.gotURLs[i] != u {
-			t.Errorf("URL %d = %q, want %q", i, scrape.gotURLs[i], u)
-		}
+	gotURLs := slices.Clone(scrape.gotURLs)
+	slices.Sort(gotURLs)
+	wantURLs := slices.Clone(want)
+	slices.Sort(wantURLs)
+	if !slices.Equal(gotURLs, wantURLs) {
+		t.Fatalf("dispatched URLs (any order) = %v, want %v", scrape.gotURLs, want)
 	}
 }
 
 func TestExecutorURLListContinuesPastPerItemFailure(t *testing.T) {
-	scrape := &fakeScrapeWorker{results: []fakeScrapeResult{
-		{},
-		{kind: fault.Network, err: errors.New("connection refused")},
-		{},
+	scrape := &fakeScrapeWorker{results: map[string]fakeScrapeResult{
+		"https://b.test": {kind: fault.Network, err: errors.New("connection refused")},
 	}}
 	e := job.NewExecutor(scrape, &fakeCrawlWorker{}, &fakeSinkCloser{})
 
@@ -108,8 +107,62 @@ func TestExecutorURLListContinuesPastPerItemFailure(t *testing.T) {
 	}
 }
 
+type slowScrapeWorker struct {
+	sleep   time.Duration
+	current int32
+	peak    int32
+}
+
+func (f *slowScrapeWorker) Run(_ context.Context, _ *jobspec.Spec, _, _ string, _ int) ([]string, fault.Kind, error) {
+	n := atomic.AddInt32(&f.current, 1)
+	for {
+		old := atomic.LoadInt32(&f.peak)
+		if n <= old || atomic.CompareAndSwapInt32(&f.peak, old, n) {
+			break
+		}
+	}
+	time.Sleep(f.sleep)
+	atomic.AddInt32(&f.current, -1)
+	return nil, "", nil
+}
+
+func TestExecutorURLListRunsFetchesConcurrentlyUpToTheConfiguredLimit(t *testing.T) {
+	const limit = 3
+	scrape := &slowScrapeWorker{sleep: 20 * time.Millisecond}
+	e := job.NewExecutor(scrape, &fakeCrawlWorker{}, &fakeSinkCloser{})
+
+	urls := make([]string, 12)
+	for i := range urls {
+		urls[i] = "https://a.test/" + string(rune('a'+i))
+	}
+	spec := &jobspec.Spec{
+		Source: jobspec.Source{URLs: urls},
+		Limits: jobspec.Limits{Concurrency: limit},
+	}
+
+	start := time.Now()
+	got, err := e.Run(context.Background(), spec)
+	elapsed := time.Since(start)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got.Succeeded != len(urls) {
+		t.Fatalf("got Succeeded=%d, want %d", got.Succeeded, len(urls))
+	}
+	if peak := atomic.LoadInt32(&scrape.peak); peak > limit {
+		t.Fatalf("peak concurrent fetches = %d, want <= %d", peak, limit)
+	}
+	if peak := atomic.LoadInt32(&scrape.peak); peak < 2 {
+		t.Fatalf("peak concurrent fetches = %d, want > 1 -- dispatch doesn't look concurrent at all", peak)
+	}
+	if elapsed > 200*time.Millisecond {
+		t.Fatalf("Run took %v, expected roughly ~80-100ms if truly concurrent (bounded by %d in flight)", elapsed, limit)
+	}
+}
+
 func TestExecutorURLListEmptyKindFailureIsTalliedButNotAddedToKinds(t *testing.T) {
-	scrape := &fakeScrapeWorker{results: []fakeScrapeResult{{err: errors.New("stage failed")}}}
+	scrape := &fakeScrapeWorker{results: map[string]fakeScrapeResult{"https://a.test": {err: errors.New("stage failed")}}}
 	e := job.NewExecutor(scrape, &fakeCrawlWorker{}, &fakeSinkCloser{})
 
 	spec := &jobspec.Spec{Source: jobspec.Source{URLs: []string{"https://a.test"}}}
@@ -150,7 +203,7 @@ func TestExecutorCrawlSourceDelegatesToCrawlWorkerOnce(t *testing.T) {
 }
 
 func TestExecutorClosesSinkExactlyOnceForURLList(t *testing.T) {
-	scrape := &fakeScrapeWorker{results: []fakeScrapeResult{{}, {}}}
+	scrape := &fakeScrapeWorker{}
 	sink := &fakeSinkCloser{}
 	e := job.NewExecutor(scrape, &fakeCrawlWorker{}, sink)
 
@@ -177,7 +230,7 @@ func TestExecutorClosesSinkExactlyOnceForCrawl(t *testing.T) {
 }
 
 func TestExecutorClosesSinkEvenWhenItemsFail(t *testing.T) {
-	scrape := &fakeScrapeWorker{results: []fakeScrapeResult{{kind: fault.Timeout, err: errors.New("boom")}}}
+	scrape := &fakeScrapeWorker{results: map[string]fakeScrapeResult{"https://a.test": {kind: fault.Timeout, err: errors.New("boom")}}}
 	sink := &fakeSinkCloser{}
 	e := job.NewExecutor(scrape, &fakeCrawlWorker{}, sink)
 
