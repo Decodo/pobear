@@ -1,3 +1,5 @@
+// Package pool runs units of work with bounded concurrency, where a unit
+// of work may itself submit more work while it runs.
 package pool
 
 import "sync"
