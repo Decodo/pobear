@@ -12,6 +12,7 @@ require (
 	github.com/andybalholm/cascadia v1.3.4
 	github.com/ohler55/ojg v1.28.5
 	github.com/spf13/cobra v1.10.2
+	github.com/temoto/robotstxt v1.1.2
 )
 
 require (

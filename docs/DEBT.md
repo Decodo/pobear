@@ -11,34 +11,6 @@ of resolved debt (git history already has that).
 
 ---
 
-## Crawl never discovers links, never consults robots.txt, never seeds from a sitemap
-
-**What's wrong:** `services/core.New`'s wiring (this plan) passes a permanent no-op
-`workers.LinkExtractor` (`Extract` always returns `nil`) and `nil, nil` for
-`crawl.RobotsChecker`/`crawl.SitemapFetcher` to `crawl.NewCrawl`, because no real
-implementation of any of the three exists anywhere in the repo yet. This means a
-real `pobear crawl` — once `Crawl.Run`/`Fetcher.Fetch`/etc. are actually
-implemented — will only ever fetch its seed URLs, regardless of `--depth`,
-`--sitemap`, or the default `robots: respect` behavior JOB_SPEC_REFERENCE.md §3.2
-documents.
-
-**Why not fixed now:** this plan's job is wiring + CLI test coverage, not new
-`services/core` feature work; none of the three has a spec'd real implementation
-to wire in yet.
-
-**What fixing it requires:** real implementations of `workers.LinkExtractor`
-(HTML `<a href>` walking + relative-URL resolution — needs a base-URL parameter
-added to `Extract`, per `PROJECT_STRUCTURE.md`'s existing open item),
-`crawl.RobotsChecker` (fetch + parse `robots.txt`), and `crawl.SitemapFetcher`
-(fetch + parse `/sitemap.xml`) — then rewiring `core.New`'s `liveExecutor` to use
-the real ones instead of the no-op/nil stand-ins.
-
-**Blocks:** any CLI test case that exercises actual link-following,
-robots.txt enforcement, or sitemap seeding — this plan's crawl coverage is
-scoped to `depth: 0` (seed-only) cases only, for exactly this reason.
-
----
-
 ## `limits.rps` has no wiring seam — the real binary will silently ignore it
 
 **What's wrong:** `PROJECT_STRUCTURE.md` says `services/core/internal/fetch/throttle.go`

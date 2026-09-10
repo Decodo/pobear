@@ -50,13 +50,15 @@ func (f *fakeSinker) Write(_ context.Context, item sinks.Item) error {
 }
 
 type fakeLinkExtractor struct {
-	links   []string
-	gotBody []byte
-	calls   int
+	links      []string
+	gotBody    []byte
+	gotBaseURL string
+	calls      int
 }
 
-func (f *fakeLinkExtractor) Extract(body []byte) []string {
+func (f *fakeLinkExtractor) Extract(body []byte, baseURL string) []string {
 	f.gotBody = body
+	f.gotBaseURL = baseURL
 	f.calls++
 	return f.links
 }
@@ -137,7 +139,7 @@ func TestScrapePassesFetchedBodyToStager(t *testing.T) {
 }
 
 func TestScrapeSuccessReturnsExtractedLinks(t *testing.T) {
-	fetcher := &fakeFetcher{result: &tiers.Result{Status: 200, Body: []byte("<a href=b>b</a>")}}
+	fetcher := &fakeFetcher{result: &tiers.Result{Status: 200, Body: []byte("<a href=b>b</a>"), FinalURL: "https://a.test/final"}}
 	stager := &fakeStager{data: map[string]any{}}
 	sinker := &fakeSinker{}
 	links := &fakeLinkExtractor{links: []string{"https://a.test/b"}}
@@ -153,6 +155,9 @@ func TestScrapeSuccessReturnsExtractedLinks(t *testing.T) {
 	}
 	if string(links.gotBody) != "<a href=b>b</a>" {
 		t.Fatalf("LinkExtractor received body %q, want the fetched body", links.gotBody)
+	}
+	if links.gotBaseURL != "https://a.test/final" {
+		t.Fatalf("LinkExtractor received baseURL %q, want the fetch's FinalURL %q (relative hrefs must resolve against where the page actually ended up, not the requested URL)", links.gotBaseURL, "https://a.test/final")
 	}
 }
 

@@ -94,6 +94,26 @@ sorted) — `page#a` vs `page#b` and `?a=1&b=2` vs `?b=2&a=1` are the same URL.
 No other normalization applies: scheme/host case, default ports, and trailing
 slashes are compared exactly as given.
 
+**Link discovery:** every `<a href>` in a fetched HTML body is a candidate link,
+resolved to an absolute URL against the page's own final URL (after redirects) —
+an in-page `<base href>` override is not honored. Anything that isn't a
+`http`/`https` URL once resolved (`mailto:`, `tel:`, `javascript:`, an unparsable
+`href`) is silently dropped; it was never a crawlable candidate.
+
+**`robots`/`sitemap` fetching:** both `<origin>/robots.txt` and
+`<origin>/sitemap.xml` are always fetched via a plain, direct HTTP request,
+regardless of `fetch.use` — these files are meant to be openly fetchable by any
+crawler, so there's no benefit to routing them through a configured
+proxy/provider, and doing so is often incoherent anyway (a provider's `template`
+is bound to a specific request shape, not a generic file fetch). Robots rules
+are always matched against the wildcard `User-agent: *` group. A `robots.txt`
+that 404s (or any 4xx) means no restrictions apply; any other failure (network
+error, another status, or a body that fails to parse) fails closed — every URL
+under that origin is treated as disallowed for the rest of the crawl, not
+allowed through. `sitemap.xml` follows one level of `<sitemapindex>` recursion
+(an index pointing to per-section sitemaps); gzip-compressed sitemaps aren't
+supported.
+
 ---
 
 ## 4. `fetch`
