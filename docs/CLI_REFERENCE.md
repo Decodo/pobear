@@ -168,17 +168,26 @@ does not require exactly one target — and a single item's extraction failing
 (its field missing, or a `--css` match producing 0 or 2+ elements) only fails
 that one entry, not the whole run.
 
-Every target — succeeded or failed — also gets an entry in `index.json`:
+Every target — succeeded, failed, or skipped — also gets an entry in
+`index.json`. In `crawl`, a discovered link can be skipped instead of fetched
+(out of scope, excluded by `--include`/`--exclude`, disallowed by
+`robots.txt`, or the `--max-pages` budget was already spent); a link that's
+merely a duplicate of one already seen is silently dropped and never becomes
+an entry at all.
 
 ```json
 [
   { "url": "https://example.com/a", "file": "0001.json", "succeeded": true, "status": 200 },
-  { "url": "https://example.com/b", "succeeded": false, "error": "https://example.com/b [blocked]: tiers: http status 403: automated traffic detected" }
+  { "url": "https://example.com/b", "succeeded": false, "error": "https://example.com/b [blocked]: tiers: http status 403: automated traffic detected" },
+  { "url": "https://example.com/c", "succeeded": false, "skipped": true, "error": "https://example.com/c: disallowed by robots.txt" }
 ]
 ```
 
 `error` holds the exact same message the stderr failure line would show for
-that URL. A failed entry has no `file` field, since nothing was written for it.
+that URL (skipped entries get an analogous one-line reason). Neither a
+failed nor a skipped entry has a `file` field, since nothing was written for
+it; `skipped` distinguishes "the fetch itself failed" from "this URL was
+never attempted by design."
 
 ```
 $ pobear crawl https://example.com --depth 1 --extract markdown --out ./pages/
