@@ -276,6 +276,62 @@ func TestCrawlScopeSameHostExcludesOtherHosts(t *testing.T) {
 	}
 }
 
+func TestCrawlScopeSameHostTreatsWWWAsTheSameHost(t *testing.T) {
+	scrape := &fakeScrapeWorker{children: map[string][]string{
+		"https://a.test": {"https://www.a.test/child", "https://sub.a.test/page"},
+	}}
+	c := crawl.NewCrawl(scrape, nil, nil)
+
+	spec := &jobspec.Spec{Source: jobspec.Source{Crawl: &jobspec.CrawlSource{
+		Seeds: []string{"https://a.test"}, Depth: 1, MaxPages: 100, Scope: "same-host", Robots: "ignore",
+	}}}
+	got, err := c.Run(context.Background(), spec)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got.Succeeded != 2 {
+		t.Fatalf("got Succeeded=%d, want 2 (seed + www.a.test child, www. is the same host)", got.Succeeded)
+	}
+	if got.Skipped != 1 {
+		t.Fatalf("got Skipped=%d, want 1 (sub.a.test filtered by scope=same-host)", got.Skipped)
+	}
+	found := false
+	for _, v := range scrape.visited {
+		if v == "https://www.a.test/child" {
+			found = true
+		}
+		if v == "https://sub.a.test/page" {
+			t.Fatal("sub.a.test was fetched despite scope=same-host")
+		}
+	}
+	if !found {
+		t.Fatalf("expected https://www.a.test/child visited, got %v", scrape.visited)
+	}
+}
+
+func TestCrawlScopeSameHostSeedWithWWWMatchesBareHost(t *testing.T) {
+	scrape := &fakeScrapeWorker{children: map[string][]string{
+		"https://www.a.test": {"https://a.test/child"},
+	}}
+	c := crawl.NewCrawl(scrape, nil, nil)
+
+	spec := &jobspec.Spec{Source: jobspec.Source{Crawl: &jobspec.CrawlSource{
+		Seeds: []string{"https://www.a.test"}, Depth: 1, MaxPages: 100, Scope: "same-host", Robots: "ignore",
+	}}}
+	got, err := c.Run(context.Background(), spec)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got.Succeeded != 2 {
+		t.Fatalf("got Succeeded=%d, want 2 (seed www.a.test + bare a.test child, same host)", got.Succeeded)
+	}
+	if got.Skipped != 0 {
+		t.Fatalf("got Skipped=%d, want 0", got.Skipped)
+	}
+}
+
 func TestCrawlScopeSameDomainAllowsSubdomains(t *testing.T) {
 	scrape := &fakeScrapeWorker{children: map[string][]string{
 		"https://a.test": {"https://sub.a.test/page", "https://other.test/page"},

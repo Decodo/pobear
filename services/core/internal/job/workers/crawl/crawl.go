@@ -180,7 +180,7 @@ func hostOf(rawURL string) string {
 	if err != nil {
 		return ""
 	}
-	return u.Hostname()
+	return strings.TrimPrefix(u.Hostname(), "www.")
 }
 
 func inScope(candidateURL, origin, scope string) bool {

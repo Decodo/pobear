@@ -94,6 +94,12 @@ sorted) — `page#a` vs `page#b` and `?a=1&b=2` vs `?b=2&a=1` are the same URL.
 No other normalization applies: scheme/host case, default ports, and trailing
 slashes are compared exactly as given.
 
+**`scope: same-host` and `www.`:** a leading `www.` is stripped from the host
+before comparison, so `example.com` and `www.example.com` are treated as the
+same host regardless of which one is the seed — this is the one normalization
+`same-host` applies; any other subdomain (`blog.example.com`) is still a
+different host under `same-host` (use `same-domain` for that).
+
 **Link discovery:** every `<a href>` in a fetched HTML body is a candidate link,
 resolved to an absolute URL against the page's own final URL (after redirects) —
 an in-page `<base href>` override is not honored. Anything that isn't a
