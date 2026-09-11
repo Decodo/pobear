@@ -17,6 +17,8 @@ import (
 	"github.com/pobear/pobear/services/core"
 )
 
+var version = "dev"
+
 func main() {
 	os.Exit(run())
 }
@@ -34,7 +36,7 @@ func run() int {
 	}
 
 	coreService := core.New(providersDir, credentialsPath, os.Stdout)
-	cliService := cli.New(providersDir, coreService, credentialsPath, termPrompt)
+	cliService := cli.New(providersDir, coreService, credentialsPath, version, termPrompt)
 
 	return cliService.Run(context.Background(), os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
 }

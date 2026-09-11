@@ -8,9 +8,15 @@ import (
 	"github.com/pobear/pobear/pkg/exitcode"
 )
 
-type Version struct{}
+type Version struct {
+	Version string
+}
 
 func (v *Version) Run(_ context.Context, _ []string, _ io.Reader, stdout, _ io.Writer) int {
-	fmt.Fprintln(stdout, "pobear 0.0.1")
+	ver := v.Version
+	if ver == "" {
+		ver = "dev"
+	}
+	fmt.Fprintf(stdout, "pobear %s\n", ver)
 	return exitcode.Success
 }
