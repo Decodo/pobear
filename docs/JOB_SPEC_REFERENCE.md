@@ -129,7 +129,7 @@ supported.
 | `use` | enum: `local` \| `proxy` \| `provider` | all | — (required) | selects the tier |
 | `name` | string | `provider` only | — | must name an installed, loaded provider manifest |
 | `template` | string | `provider` only | the manifest's `default: true` template, if any | selects one of `name`'s declared templates; required if the manifest declares 2+ templates with none marked `default` |
-| `proxy` | string (URL) | `proxy` only | — | any `http`/`https`/`socks5` proxy URL |
+| `proxy` | string (URL) | `proxy` only | — | any `http`/`https`/`socks5`/`socks5h` proxy URL |
 | `profile` | enum: `chrome` \| `firefox` \| `safari` | `local`, `proxy` | `chrome` | TLS fingerprint preset |
 | `options` | `map[string]any` | `provider` only | `{}` | validated against the selected template's declared options (or the manifest's top-level ones, if it has no templates) |
 | `timeout` | duration string | all | `30s` | per-request timeout |
@@ -140,6 +140,18 @@ supported.
 naming the field and the tier — never a silent no-op. This includes `options`: it
 requires `use: provider`, and every key in it must be declared by `name`'s manifest
 with a compatible type and value.
+
+**`profile` only spoofs the TLS ClientHello, nothing else:** it doesn't touch
+`User-Agent` or any other header — a browser-shaped TLS fingerprint paired
+with no `User-Agent` (or a mismatched one) is itself a detectable,
+inconsistent signal, so set `headers.User-Agent` yourself (§ `headers` above)
+if you want one to match. Each profile currently pins one specific browser
+version at the TLS layer — Chrome 133, Firefox 120, Safari 16.0 — matching
+whatever version `github.com/refraction-networking/utls`'s
+`HelloChrome_Auto`/`HelloFirefox_Auto`/`HelloSafari_Auto` presets build a
+ClientHello for at the time this was implemented
+(`services/core/internal/fetch/tiers/fingerprint.go`); a future `utls` upgrade
+moving `_Auto` to a newer version isn't automatically reflected anywhere else.
 
 ---
 

@@ -41,6 +41,15 @@ func forwardingProxy(t *testing.T, hit *atomic.Bool) *httptest.Server {
 	}))
 }
 
+func newProxyTier(t *testing.T, proxyURL string) *tiers.Proxy {
+	t.Helper()
+	client, err := tiers.NewFingerprintedClient("chrome", proxyURL)
+	if err != nil {
+		t.Fatalf("NewFingerprintedClient: %v", err)
+	}
+	return &tiers.Proxy{Client: client}
+}
+
 func TestProxyFetchRoutesThroughConfiguredProxy(t *testing.T) {
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("via-proxy"))
@@ -51,9 +60,8 @@ func TestProxyFetchRoutesThroughConfiguredProxy(t *testing.T) {
 	proxy := forwardingProxy(t, &hit)
 	defer proxy.Close()
 
-	p := &tiers.Proxy{Client: &http.Client{}}
-	cfg := jobspec.Fetch{Proxy: proxy.URL}
-	result, gotFault, err := p.Fetch(context.Background(), cfg, target.URL)
+	p := newProxyTier(t, proxy.URL)
+	result, gotFault, err := p.Fetch(context.Background(), jobspec.Fetch{}, target.URL)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -91,9 +99,8 @@ func TestProxyFetchClassifiesFaultsLikeLocal(t *testing.T) {
 			proxy := forwardingProxy(t, &hit)
 			defer proxy.Close()
 
-			p := &tiers.Proxy{Client: &http.Client{}}
-			cfg := jobspec.Fetch{Proxy: proxy.URL}
-			_, gotFault, err := p.Fetch(context.Background(), cfg, target.URL)
+			p := newProxyTier(t, proxy.URL)
+			_, gotFault, err := p.Fetch(context.Background(), jobspec.Fetch{}, target.URL)
 
 			if err == nil {
 				t.Fatal("expected an error, got nil")
@@ -114,9 +121,8 @@ func TestProxyFetchProxyUnreachable(t *testing.T) {
 	}))
 	defer target.Close()
 
-	p := &tiers.Proxy{Client: &http.Client{}}
-	cfg := jobspec.Fetch{Proxy: "http://127.0.0.1:1"} // nothing listens on port 1
-	_, gotFault, err := p.Fetch(context.Background(), cfg, target.URL)
+	p := newProxyTier(t, "http://127.0.0.1:1") // nothing listens on port 1
+	_, gotFault, err := p.Fetch(context.Background(), jobspec.Fetch{}, target.URL)
 
 	if err == nil {
 		t.Fatal("expected an error, got nil")
@@ -136,9 +142,8 @@ func TestProxyFetchTimeout(t *testing.T) {
 	proxy := forwardingProxy(t, &hit)
 	defer proxy.Close()
 
-	p := &tiers.Proxy{Client: &http.Client{}}
-	cfg := jobspec.Fetch{Proxy: proxy.URL, Timeout: "50ms"}
-	_, gotFault, err := p.Fetch(context.Background(), cfg, target.URL)
+	p := newProxyTier(t, proxy.URL)
+	_, gotFault, err := p.Fetch(context.Background(), jobspec.Fetch{Timeout: "50ms"}, target.URL)
 
 	if err == nil {
 		t.Fatal("expected an error, got nil")
@@ -160,14 +165,16 @@ func TestProxyFetchSendsHeaders(t *testing.T) {
 	proxy := forwardingProxy(t, &hit)
 	defer proxy.Close()
 
-	p := &tiers.Proxy{Client: &http.Client{}}
-	cfg := jobspec.Fetch{Proxy: proxy.URL, Headers: map[string]string{"X-Test-Header": "custom-value"}}
-	_, _, err := p.Fetch(context.Background(), cfg, target.URL)
+	p := newProxyTier(t, proxy.URL)
+	_, _, err := p.Fetch(context.Background(), jobspec.Fetch{Headers: map[string]string{"X-Test-Header": "custom-value"}}, target.URL)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	if got, _ := gotHeader.Load().(string); got != "custom-value" {
 		t.Errorf("X-Test-Header = %q, want %q", got, "custom-value")
+	}
+	if !hit.Load() {
+		t.Error("expected the configured proxy to receive the request, it never did")
 	}
 }
