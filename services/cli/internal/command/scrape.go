@@ -14,11 +14,12 @@ import (
 )
 
 type RunResult struct {
-	Succeeded int
-	Failed    int
-	Skipped   int
-	Kinds     []fault.Kind
-	Errors    []string
+	Succeeded   int
+	Failed      int
+	Skipped     int
+	Kinds       []fault.Kind
+	Errors      []string
+	SkippedURLs []string
 }
 
 type JobRunner interface {
@@ -34,11 +35,12 @@ func NewJobRunner(svc *core.Service) JobRunner {
 func (r coreRunner) Run(ctx context.Context, data []byte, mode jobspec.Mode) (RunResult, fault.Kind, error) {
 	result, kind, err := r.svc.Run(ctx, data, mode)
 	return RunResult{
-		Succeeded: result.Succeeded,
-		Failed:    result.Failed,
-		Skipped:   result.Skipped,
-		Kinds:     result.Kinds,
-		Errors:    result.Errors,
+		Succeeded:   result.Succeeded,
+		Failed:      result.Failed,
+		Skipped:     result.Skipped,
+		Kinds:       result.Kinds,
+		Errors:      result.Errors,
+		SkippedURLs: result.SkippedURLs,
 	}, kind, err
 }
 
@@ -116,7 +118,7 @@ func scrapeRun(ctx context.Context, runner JobRunner, providers *providerator.Pr
 	}
 
 	sinkUse, sinkPath := "stdout", ""
-	if f.out != "" {
+	if f.out != "" && !isDirOut(f.out) {
 		sinkUse, sinkPath = "ndjson", f.out
 	}
 
@@ -140,5 +142,5 @@ func scrapeRun(ctx context.Context, runner JobRunner, providers *providerator.Pr
 		rawField = names[0]
 	}
 
-	return printSpecOrRun(ctx, runner, resolvedIn, defaultsIn, f.printSpec, f.printSpecVerbose, f.outputFormat, rawField, stdout, stderr)
+	return printSpecOrRun(ctx, runner, resolvedIn, defaultsIn, f.printSpec, f.printSpecVerbose, f.outputFormat, rawField, f.out, stdout, stderr)
 }

@@ -2,6 +2,7 @@ package crawl
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"strings"
 	"sync"
@@ -27,11 +28,12 @@ type SitemapFetcher interface {
 }
 
 type Result struct {
-	Succeeded int
-	Failed    int
-	Skipped   int
-	Kinds     []fault.Kind
-	Errors    []string
+	Succeeded   int
+	Failed      int
+	Skipped     int
+	Kinds       []fault.Kind
+	Errors      []string
+	SkippedURLs []string
 }
 
 type Crawl struct {
@@ -66,9 +68,10 @@ func (c *Crawl) Run(ctx context.Context, spec *jobspec.Spec) (Result, error) {
 			return
 		}
 
-		if c.shouldSkip(ctx, entry, cs) {
+		if reason, skip := c.shouldSkip(ctx, entry, cs); skip {
 			mu.Lock()
 			result.Skipped++
+			result.SkippedURLs = append(result.SkippedURLs, fault.FormatFailure(entry.url, "", errors.New(reason)))
 			mu.Unlock()
 			return
 		}
@@ -77,6 +80,7 @@ func (c *Crawl) Run(ctx context.Context, spec *jobspec.Spec) (Result, error) {
 		overBudget := result.Succeeded+result.Failed >= cs.MaxPages
 		if overBudget {
 			result.Skipped++
+			result.SkippedURLs = append(result.SkippedURLs, fault.FormatFailure(entry.url, "", errors.New("over --max-pages budget")))
 		}
 		mu.Unlock()
 		if overBudget {
@@ -153,22 +157,22 @@ func (c *Crawl) seedFrontier(ctx context.Context, cs *jobspec.CrawlSource, dd *d
 	}
 }
 
-func (c *Crawl) shouldSkip(ctx context.Context, entry frontierEntry, cs *jobspec.CrawlSource) bool {
+func (c *Crawl) shouldSkip(ctx context.Context, entry frontierEntry, cs *jobspec.CrawlSource) (reason string, skip bool) {
 	if entry.parentURL == "" {
-		return false
+		return "", false
 	}
 	if !inScope(entry.url, entry.origin, cs.Scope) {
-		return true
+		return "out of scope", true
 	}
 	if !matchesIncludeExclude(entry.url, cs.Include, cs.Exclude) {
-		return true
+		return "excluded by --include/--exclude", true
 	}
 	if cs.Robots == "respect" && c.robots != nil {
 		if allowed, err := c.robots.Allowed(ctx, entry.url); err == nil && !allowed {
-			return true
+			return "disallowed by robots.txt", true
 		}
 	}
-	return false
+	return "", false
 }
 
 func hostOf(rawURL string) string {

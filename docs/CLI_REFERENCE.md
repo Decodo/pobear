@@ -51,7 +51,7 @@ $ pobear scrape urls.txt --print-spec
 | `--timeout <duration>` | `30s` | per-request timeout |
 | `--extract raw\|markdown` | — | add an extraction stage |
 | `--css name=selector[@attr]` | — | repeatable |
-| `--out <path>` | stdout | write NDJSON to a file instead |
+| `--out <path>` | stdout | write NDJSON to a file, or one file per target plus an `index.json` if `<path>` is a directory — see below |
 | `--output-format raw\|json` | `json` | `raw` prints just the extracted value, no envelope — see below |
 | `--print-spec` | off | print the spec, don't run it — fields still at their default are omitted, see below |
 | `--print-spec-verbose` | off | like `--print-spec`, but every field is shown fully resolved, defaults included |
@@ -148,6 +148,52 @@ $ pobear scrape https://example.com --css 'title=h1' --css 'link=a@href' --outpu
 pobear: --output-format raw requires exactly one extracted value, but 2 fields are set (title, link)
 $ echo $?
 3
+```
+
+### `--out <path>` — directory mode: one file per target, plus an index
+
+`<path>` is treated as a directory if it already exists as one, or if it ends
+in a trailing `/` (or the OS path separator) and hasn't been created yet —
+that trailing slash is how you tell the CLI "make this a directory" before it
+exists. Anything else — an existing file, or a bare path with no trailing
+slash — is file mode: a single NDJSON file, as above.
+
+In directory mode, every target gets its own file, named by a sequential,
+zero-padded index in fetch order (`0001`, `0002`, …), not by URL — URLs can
+collide or contain characters that are awkward as filenames. With the default
+`--output-format json`, each file is that target's full NDJSON line
+(`0001.json`); with `--output-format raw`, each file holds just the extracted
+value (`0001.html`). Unlike file mode, `--output-format raw` in directory mode
+does not require exactly one target — and a single item's extraction failing
+(its field missing, or a `--css` match producing 0 or 2+ elements) only fails
+that one entry, not the whole run.
+
+Every target — succeeded, failed, or skipped — also gets an entry in
+`index.json`. In `crawl`, a discovered link can be skipped instead of fetched
+(out of scope, excluded by `--include`/`--exclude`, disallowed by
+`robots.txt`, or the `--max-pages` budget was already spent); a link that's
+merely a duplicate of one already seen is silently dropped and never becomes
+an entry at all.
+
+```json
+[
+  { "url": "https://example.com/a", "file": "0001.json", "succeeded": true, "status": 200 },
+  { "url": "https://example.com/b", "succeeded": false, "error": "https://example.com/b [blocked]: tiers: http status 403: automated traffic detected" },
+  { "url": "https://example.com/c", "succeeded": false, "skipped": true, "error": "https://example.com/c: disallowed by robots.txt" }
+]
+```
+
+`error` holds the exact same message the stderr failure line would show for
+that URL (skipped entries get an analogous one-line reason). Neither a
+failed nor a skipped entry has a `file` field, since nothing was written for
+it; `skipped` distinguishes "the fetch itself failed" from "this URL was
+never attempted by design."
+
+```
+$ pobear crawl https://example.com --depth 1 --extract markdown --out ./pages/
+fetched 2, errors 1, skipped 0
+$ ls ./pages
+0001.json  0002.json  index.json
 ```
 
 ### `--opt name=value` — provider-declared fields
