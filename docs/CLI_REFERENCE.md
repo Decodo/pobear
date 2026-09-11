@@ -449,11 +449,16 @@ $ echo $?
 
 ## `pobear auth <provider>`
 
-No flags. Prompts for a secret on stderr (not echoed).
+No flags. Prompts for a secret on stderr. When stdin is a real terminal, the
+keystrokes aren't echoed at all as you type (the same as a `sudo` password
+prompt — no asterisks either, just nothing shown until you hit Enter). When
+stdin isn't a terminal (piped input, e.g. `echo "$TOKEN" | pobear auth decodo`,
+or a script/CI feeding it directly), there's nothing to suppress, so it reads
+the piped line as-is.
 
 ```
 $ pobear auth decodo
-decodo token: ****************
+decodo token:
 saved POBEAR_PROVIDER_DECODO_TOKEN to /Users/you/.pobear/credentials
 ```
 

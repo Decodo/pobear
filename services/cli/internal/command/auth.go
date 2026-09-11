@@ -23,7 +23,7 @@ func (a *Auth) Run(_ context.Context, args []string, stdin io.Reader, stdout, st
 	cmd := &cobra.Command{
 		Use:   "pobear auth <provider>",
 		Short: "Save a credential for a provider",
-		Long:  "Prompts for a secret on stderr (not echoed), and saves it for every subsequent run.",
+		Long:  "Prompts for a secret and saves it for every subsequent run.",
 		Args:  a.requireProviderName(),
 		RunE: func(_ *cobra.Command, cmdArgs []string) error {
 			if cerr := a.run(cmdArgs[0], stdout); cerr != nil {

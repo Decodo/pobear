@@ -13,6 +13,8 @@ import (
 	"os"
 	"strings"
 
+	"golang.org/x/term"
+
 	"github.com/pobear/pobear/services/cli"
 	"github.com/pobear/pobear/services/core"
 )
@@ -43,6 +45,17 @@ func run() int {
 
 func termPrompt(label string) (string, error) {
 	fmt.Fprintf(os.Stderr, "%s: ", label)
+
+	fd := int(os.Stdin.Fd())
+	if term.IsTerminal(fd) {
+		secret, err := term.ReadPassword(fd)
+		fmt.Fprintln(os.Stderr)
+		if err != nil {
+			return "", err
+		}
+		return string(secret), nil
+	}
+
 	line, err := bufio.NewReader(os.Stdin).ReadString('\n')
 	if err != nil && !errors.Is(err, io.EOF) {
 		return "", err
