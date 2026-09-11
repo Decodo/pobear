@@ -33,7 +33,7 @@ func TestFetchConcurrencyLimit(t *testing.T) {
 		launched = 5
 	)
 	b := &barrierTier{started: make(chan struct{}, launched), release: make(chan struct{})}
-	f := fetch.NewFetcher(map[string]fetch.Tier{"local": b}, limit, 1, noBackoff)
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": b}, limit, 1, noBackoff, nil)
 
 	done := make(chan struct{}, launched)
 	for i := 0; i < launched; i++ {
@@ -71,7 +71,7 @@ func TestFetchConcurrencyLimit(t *testing.T) {
 func TestFetchConcurrencyUnlimited(t *testing.T) {
 	const launched = 64
 	b := &barrierTier{started: make(chan struct{}), release: make(chan struct{})}
-	f := fetch.NewFetcher(map[string]fetch.Tier{"local": b}, 0, 1, noBackoff)
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": b}, 0, 1, noBackoff, nil)
 
 	done := make(chan struct{}, launched)
 	for i := 0; i < launched; i++ {
@@ -105,7 +105,7 @@ func TestFetchConcurrencySlotReleasedOnError(t *testing.T) {
 		{err: errors.New("boom")},
 		{err: errors.New("boom")},
 	}}
-	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier}, limit, 1, noBackoff)
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier}, limit, 1, noBackoff, nil)
 
 	for i := 0; i < 2; i++ {
 		done := make(chan struct{})
@@ -132,7 +132,7 @@ func TestFetchConcurrencyHeldAcrossRetries(t *testing.T) {
 		{err: wantErr},
 		{result: &tiers.Result{Status: 200}, err: nil},
 	}}
-	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier}, limit, 3, noBackoff)
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier}, limit, 3, noBackoff, nil)
 
 	done := make(chan struct{})
 	go func() {

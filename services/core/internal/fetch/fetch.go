@@ -14,17 +14,22 @@ type Tier interface {
 	Fetch(ctx context.Context, cfg jobspec.Fetch, url string) (*tiers.Result, fault.Kind, error)
 }
 
+type Throttler interface {
+	Wait(ctx context.Context) error
+}
+
 var ErrUnknownTier = errors.New("fetch: unknown tier")
 
 type Fetcher struct {
-	tiers   map[string]Tier
-	retries int
-	backoff func(attempt int) time.Duration
-	sem     chan struct{}
+	tiers    map[string]Tier
+	retries  int
+	backoff  func(attempt int) time.Duration
+	throttle Throttler
+	sem      chan struct{}
 }
 
-func NewFetcher(ts map[string]Tier, concurrency, retries int, backoff func(attempt int) time.Duration) *Fetcher {
-	f := &Fetcher{tiers: ts, retries: retries, backoff: backoff}
+func NewFetcher(ts map[string]Tier, concurrency, retries int, backoff func(attempt int) time.Duration, throttle Throttler) *Fetcher {
+	f := &Fetcher{tiers: ts, retries: retries, backoff: backoff, throttle: throttle}
 	if concurrency > 0 {
 		f.sem = make(chan struct{}, concurrency)
 	}
@@ -49,6 +54,12 @@ func (f *Fetcher) Fetch(ctx context.Context, cfg jobspec.Fetch, url string) (*ti
 	var kind fault.Kind
 
 	for attempt := 1; attempt <= retries; attempt++ {
+		if f.throttle != nil {
+			if err := f.throttle.Wait(ctx); err != nil {
+				return nil, "", err
+			}
+		}
+
 		result, kind, err = tier.Fetch(ctx, cfg, url)
 
 		if err == nil && kind == "" {

@@ -4,12 +4,14 @@ import (
 	"context"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
 
 	"github.com/pobear/pobear/pkg/fault"
 	"github.com/pobear/pobear/pkg/jobspec"
+	"github.com/pobear/pobear/services/core/internal/job/pool"
 )
 
 type ScrapeWorker interface {
@@ -53,28 +55,37 @@ func (c *Crawl) Run(ctx context.Context, spec *jobspec.Spec) (Result, error) {
 	cs := spec.Source.Crawl
 	deadline := crawlDeadline(cs)
 	dd := newDedupe()
-	frontier := c.seedFrontier(ctx, cs, dd)
 
+	p := pool.New(spec.Limits.Concurrency)
+	var mu sync.Mutex
 	var result Result
-	for len(frontier) > 0 {
-		if !deadline.IsZero() && time.Now().After(deadline) {
-			break
-		}
 
-		entry := frontier[0]
-		frontier = frontier[1:]
+	var visit func(entry frontierEntry)
+	visit = func(entry frontierEntry) {
+		if !deadline.IsZero() && time.Now().After(deadline) {
+			return
+		}
 
 		if c.shouldSkip(ctx, entry, cs) {
+			mu.Lock()
 			result.Skipped++
-			continue
+			mu.Unlock()
+			return
 		}
-		if result.Succeeded+result.Failed >= cs.MaxPages {
+
+		mu.Lock()
+		overBudget := result.Succeeded+result.Failed >= cs.MaxPages
+		if overBudget {
 			result.Skipped++
-			break
+		}
+		mu.Unlock()
+		if overBudget {
+			return
 		}
 
 		links, kind, err := c.scrape.Run(ctx, spec, entry.url, entry.parentURL, entry.depth)
 		if err != nil || kind != "" {
+			mu.Lock()
 			result.Failed++
 			if kind != "" {
 				result.Kinds = append(result.Kinds, kind)
@@ -82,12 +93,30 @@ func (c *Crawl) Run(ctx context.Context, spec *jobspec.Spec) (Result, error) {
 			if err != nil {
 				result.Errors = append(result.Errors, fault.FormatFailure(entry.url, kind, err))
 			}
-			continue
+			mu.Unlock()
+			return
 		}
-		result.Succeeded++
 
-		frontier = enqueueLinks(frontier, entry, links, cs, dd)
+		mu.Lock()
+		result.Succeeded++
+		mu.Unlock()
+
+		if entry.depth >= cs.Depth {
+			return
+		}
+		for _, link := range links {
+			if !dd.claim(link) {
+				continue
+			}
+			child := frontierEntry{url: link, parentURL: entry.url, depth: entry.depth + 1, origin: entry.origin}
+			p.Submit(func() { visit(child) })
+		}
 	}
+
+	c.seedFrontier(ctx, cs, dd, func(entry frontierEntry) {
+		p.Submit(func() { visit(entry) })
+	})
+	p.Wait()
 
 	return result, nil
 }
@@ -103,14 +132,13 @@ func crawlDeadline(cs *jobspec.CrawlSource) time.Time {
 	return time.Now().Add(d)
 }
 
-func (c *Crawl) seedFrontier(ctx context.Context, cs *jobspec.CrawlSource, dd *dedupe) []frontierEntry {
-	var frontier []frontierEntry
+func (c *Crawl) seedFrontier(ctx context.Context, cs *jobspec.CrawlSource, dd *dedupe, dispatch func(frontierEntry)) {
 	for _, seed := range cs.Seeds {
 		if !dd.claim(seed) {
 			continue
 		}
 		origin := hostOf(seed)
-		frontier = append(frontier, frontierEntry{url: seed, depth: 0, origin: origin})
+		dispatch(frontierEntry{url: seed, depth: 0, origin: origin})
 		if cs.Sitemap && c.sitemap != nil {
 			urls, err := c.sitemap.URLs(ctx, seed)
 			if err == nil {
@@ -118,12 +146,11 @@ func (c *Crawl) seedFrontier(ctx context.Context, cs *jobspec.CrawlSource, dd *d
 					if !dd.claim(u) {
 						continue
 					}
-					frontier = append(frontier, frontierEntry{url: u, depth: 0, origin: origin})
+					dispatch(frontierEntry{url: u, depth: 0, origin: origin})
 				}
 			}
 		}
 	}
-	return frontier
 }
 
 func (c *Crawl) shouldSkip(ctx context.Context, entry frontierEntry, cs *jobspec.CrawlSource) bool {
@@ -142,19 +169,6 @@ func (c *Crawl) shouldSkip(ctx context.Context, entry frontierEntry, cs *jobspec
 		}
 	}
 	return false
-}
-
-func enqueueLinks(frontier []frontierEntry, entry frontierEntry, links []string, cs *jobspec.CrawlSource, dd *dedupe) []frontierEntry {
-	if entry.depth >= cs.Depth {
-		return frontier
-	}
-	for _, link := range links {
-		if !dd.claim(link) {
-			continue
-		}
-		frontier = append(frontier, frontierEntry{url: link, parentURL: entry.url, depth: entry.depth + 1, origin: entry.origin})
-	}
-	return frontier
 }
 
 func hostOf(rawURL string) string {

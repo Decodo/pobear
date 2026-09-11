@@ -41,7 +41,7 @@ func TestFetchDispatchesToConfiguredTier(t *testing.T) {
 	local := &fakeTier{results: []fakeTierResult{{result: want, fault: fault.HTTP, err: nil}}}
 	proxy := &fakeTier{results: []fakeTierResult{{err: errors.New("proxy should not be called")}}}
 
-	f := fetch.NewFetcher(map[string]fetch.Tier{"local": local, "proxy": proxy}, 0, 1, noBackoff)
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": local, "proxy": proxy}, 0, 1, noBackoff, nil)
 	got, gotFault, err := f.Fetch(context.Background(), jobspec.Fetch{Use: "local"}, "https://a.test")
 
 	if err != nil {
@@ -59,7 +59,7 @@ func TestFetchDispatchesToConfiguredTier(t *testing.T) {
 }
 
 func TestFetchUnknownTier(t *testing.T) {
-	f := fetch.NewFetcher(map[string]fetch.Tier{}, 0, 1, noBackoff)
+	f := fetch.NewFetcher(map[string]fetch.Tier{}, 0, 1, noBackoff, nil)
 	_, _, err := f.Fetch(context.Background(), jobspec.Fetch{Use: "missing"}, "https://a.test")
 
 	if !errors.Is(err, fetch.ErrUnknownTier) {
@@ -77,7 +77,7 @@ func TestFetchRetriesSameTierOnFailure(t *testing.T) {
 	proxy := &fakeTier{results: []fakeTierResult{{err: errors.New("proxy should never be called")}}}
 	provider := &fakeTier{results: []fakeTierResult{{err: errors.New("provider should never be called")}}}
 
-	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier, "proxy": proxy, "provider": provider}, 0, 3, noBackoff)
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier, "proxy": proxy, "provider": provider}, 0, 3, noBackoff, nil)
 	got, _, err := f.Fetch(context.Background(), jobspec.Fetch{Use: "local"}, "https://a.test")
 
 	if err != nil {
@@ -102,7 +102,7 @@ func TestFetchGivesUpAfterRetriesExhausted(t *testing.T) {
 	proxy := &fakeTier{results: []fakeTierResult{{err: errors.New("proxy should never be called")}}}
 	provider := &fakeTier{results: []fakeTierResult{{err: errors.New("provider should never be called")}}}
 
-	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier, "proxy": proxy, "provider": provider}, 0, 3, noBackoff)
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier, "proxy": proxy, "provider": provider}, 0, 3, noBackoff, nil)
 	_, _, err := f.Fetch(context.Background(), jobspec.Fetch{Use: "local"}, "https://a.test")
 
 	if !errors.Is(err, err3) {
@@ -122,7 +122,7 @@ func TestFetchSucceedsImmediatelyStopsRetrying(t *testing.T) {
 		{err: errors.New("should never be reached")},
 	}}
 
-	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier}, 0, 3, noBackoff)
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier}, 0, 3, noBackoff, nil)
 	_, _, err := f.Fetch(context.Background(), jobspec.Fetch{Use: "local"}, "https://a.test")
 
 	if err != nil {
@@ -148,7 +148,7 @@ func TestFetchWaitsBackoffBetweenAttempts(t *testing.T) {
 		return durations[attempt]
 	}
 
-	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier}, 0, 3, backoff)
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier}, 0, 3, backoff, nil)
 	start := time.Now()
 	_, _, err := f.Fetch(context.Background(), jobspec.Fetch{Use: "local"}, "https://a.test")
 	elapsed := time.Since(start)
@@ -180,7 +180,7 @@ func TestFetchRetriesOnFaultWithNilError(t *testing.T) {
 		{result: &tiers.Result{Status: 200}, err: nil},
 	}}
 
-	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier}, 0, 3, noBackoff)
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier}, 0, 3, noBackoff, nil)
 	got, gotFault, err := f.Fetch(context.Background(), jobspec.Fetch{Use: "local"}, "https://a.test")
 
 	if err != nil {
@@ -202,7 +202,7 @@ func TestFetchGivesUpAfterRetriesExhaustedOnFault(t *testing.T) {
 		{result: &tiers.Result{Status: 429}, fault: fault.RateLimit, err: nil},
 	}}
 
-	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier}, 0, 3, noBackoff)
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier}, 0, 3, noBackoff, nil)
 	got, gotFault, err := f.Fetch(context.Background(), jobspec.Fetch{Use: "local"}, "https://a.test")
 
 	if err != nil {
@@ -224,7 +224,7 @@ func TestFetchRespectsContextCancellation(t *testing.T) {
 	tier := &fakeTier{results: []fakeTierResult{{err: wantErr}}}
 	slowBackoff := func(_ int) time.Duration { return time.Hour }
 
-	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier}, 0, 5, slowBackoff)
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier}, 0, 5, slowBackoff, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	done := make(chan error, 1)
@@ -241,5 +241,62 @@ func TestFetchRespectsContextCancellation(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("Fetch ignored context cancellation, likely blocked in backoff wait")
+	}
+}
+
+type fakeThrottle struct {
+	calls int
+	err   error
+}
+
+func (f *fakeThrottle) Wait(_ context.Context) error {
+	f.calls++
+	return f.err
+}
+
+func TestFetchWaitsOnThrottleBeforeEveryAttempt(t *testing.T) {
+	wantErr := errors.New("boom")
+	tier := &fakeTier{results: []fakeTierResult{
+		{err: wantErr},
+		{err: wantErr},
+		{result: &tiers.Result{Status: 200}, err: nil},
+	}}
+	throttle := &fakeThrottle{}
+
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier}, 0, 3, noBackoff, throttle)
+	_, _, err := f.Fetch(context.Background(), jobspec.Fetch{Use: "local"}, "https://a.test")
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if throttle.calls != 3 {
+		t.Fatalf("throttle.Wait called %d times, want 3 (once per attempt, retries included)", throttle.calls)
+	}
+}
+
+func TestFetchPropagatesThrottleErrorWithoutCallingTier(t *testing.T) {
+	wantErr := errors.New("throttle context canceled")
+	tier := &fakeTier{results: []fakeTierResult{{err: errors.New("tier should never be called")}}}
+	throttle := &fakeThrottle{err: wantErr}
+
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier}, 0, 3, noBackoff, throttle)
+	_, _, err := f.Fetch(context.Background(), jobspec.Fetch{Use: "local"}, "https://a.test")
+
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("expected the throttle's error, got %v", err)
+	}
+	if tier.calls != 0 {
+		t.Fatalf("expected the tier never called once the throttle errors, got %d calls", tier.calls)
+	}
+}
+
+func TestFetchWithNilThrottleNeverWaits(t *testing.T) {
+	tier := &fakeTier{results: []fakeTierResult{{result: &tiers.Result{Status: 200}, err: nil}}}
+
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": tier}, 0, 1, noBackoff, nil)
+	_, _, err := f.Fetch(context.Background(), jobspec.Fetch{Use: "local"}, "https://a.test")
+
+	if err != nil {
+		t.Fatalf("expected no error with a nil throttle, got %v", err)
 	}
 }

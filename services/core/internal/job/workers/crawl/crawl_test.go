@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -22,14 +24,30 @@ type fakeScrapeWorker struct {
 	children map[string][]string
 	fails    map[string]fakeScrapeFailure
 	delay    time.Duration
-	visited  []string
+
+	mu      sync.Mutex
+	visited []string
+
+	current int32
+	peak    int32
 }
 
 func (f *fakeScrapeWorker) Run(_ context.Context, _ *jobspec.Spec, url, _ string, _ int) ([]string, fault.Kind, error) {
+	f.mu.Lock()
 	f.visited = append(f.visited, url)
+	f.mu.Unlock()
+
+	n := atomic.AddInt32(&f.current, 1)
+	for {
+		old := atomic.LoadInt32(&f.peak)
+		if n <= old || atomic.CompareAndSwapInt32(&f.peak, old, n) {
+			break
+		}
+	}
 	if f.delay > 0 {
 		time.Sleep(f.delay)
 	}
+	atomic.AddInt32(&f.current, -1)
 	if failure, ok := f.fails[url]; ok {
 		return nil, failure.kind, failure.err
 	}
@@ -114,8 +132,8 @@ func TestCrawlMaxPagesStopsAtLimit(t *testing.T) {
 	if len(scrape.visited) != 2 {
 		t.Fatalf("visited %d URLs, want exactly 2", len(scrape.visited))
 	}
-	if got.Skipped != 1 {
-		t.Fatalf("got Skipped=%d, want 1 (the 3rd discovered child never attempted once MaxPages=2 was hit)", got.Skipped)
+	if got.Skipped != 2 {
+		t.Fatalf("got Skipped=%d, want 2 (both the 2nd and 3rd discovered children counted as skipped once MaxPages=2 was hit -- unlike the old sequential break, every unit that individually finds itself over budget is counted, not just the first one encountered)", got.Skipped)
 	}
 }
 
@@ -150,6 +168,46 @@ func TestCrawlMaxDurationStopsTheWalk(t *testing.T) {
 	}
 	if len(scrape.visited) >= 10 {
 		t.Fatalf("visited %d URLs, want well under the 51-URL chain length, proving MaxDuration (not chain exhaustion) stopped the walk", len(scrape.visited))
+	}
+}
+
+func TestCrawlRunsFetchesConcurrentlyUpToTheConfiguredLimit(t *testing.T) {
+	const limit = 3
+	var fanOut []string
+	for i := 0; i < 12; i++ {
+		fanOut = append(fanOut, fmt.Sprintf("https://a.test/%d", i))
+	}
+	scrape := &fakeScrapeWorker{
+		children: map[string][]string{"https://a.test": fanOut},
+		delay:    20 * time.Millisecond,
+	}
+	c := crawl.NewCrawl(scrape, nil, nil)
+
+	spec := &jobspec.Spec{
+		Source: jobspec.Source{Crawl: &jobspec.CrawlSource{
+			Seeds: []string{"https://a.test"}, Depth: 1, MaxPages: 100, Scope: "same-host", Robots: "ignore",
+		}},
+		Limits: jobspec.Limits{Concurrency: limit},
+	}
+
+	start := time.Now()
+	got, err := c.Run(context.Background(), spec)
+	elapsed := time.Since(start)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got.Succeeded != 13 {
+		t.Fatalf("got Succeeded=%d, want 13 (seed + 12 fan-out children)", got.Succeeded)
+	}
+	if peak := atomic.LoadInt32(&scrape.peak); peak > limit {
+		t.Fatalf("peak concurrent fetches = %d, want <= %d", peak, limit)
+	}
+	if peak := atomic.LoadInt32(&scrape.peak); peak < 2 {
+		t.Fatalf("peak concurrent fetches = %d, want > 1 -- the frontier doesn't look concurrent at all", peak)
+	}
+	if elapsed > 300*time.Millisecond {
+		t.Fatalf("Run took %v, expected roughly ~80-120ms if the 12 children ran concurrently in batches of %d", elapsed, limit)
 	}
 }
 

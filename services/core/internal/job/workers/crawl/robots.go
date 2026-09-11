@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sync"
 
 	"github.com/temoto/robotstxt"
 )
@@ -13,6 +14,7 @@ const robotsUserAgent = "*"
 
 type HTTPRobotsChecker struct {
 	Client *http.Client
+	mu     sync.Mutex
 	cache  map[string]*robotstxt.RobotsData
 }
 
@@ -27,10 +29,15 @@ func (c *HTTPRobotsChecker) Allowed(ctx context.Context, rawURL string) (bool, e
 	}
 
 	origin := u.Scheme + "://" + u.Host
+	c.mu.Lock()
 	data, ok := c.cache[origin]
+	c.mu.Unlock()
+
 	if !ok {
 		data = c.fetch(ctx, origin+"/robots.txt")
+		c.mu.Lock()
 		c.cache[origin] = data
+		c.mu.Unlock()
 	}
 
 	path := u.RequestURI()

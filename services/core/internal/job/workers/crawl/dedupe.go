@@ -3,9 +3,11 @@ package crawl
 import (
 	"net/url"
 	"sort"
+	"sync"
 )
 
 type dedupe struct {
+	mu   sync.Mutex
 	seen map[string]struct{}
 }
 
@@ -15,6 +17,9 @@ func newDedupe() *dedupe {
 
 func (d *dedupe) claim(rawURL string) bool {
 	key := dedupeKey(rawURL)
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	if _, ok := d.seen[key]; ok {
 		return false
 	}

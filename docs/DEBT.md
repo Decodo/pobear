@@ -11,32 +11,6 @@ of resolved debt (git history already has that).
 
 ---
 
-## `limits.rps` has no wiring seam — the real binary will silently ignore it
-
-**What's wrong:** `PROJECT_STRUCTURE.md` says `services/core/internal/fetch/throttle.go`
-"enforces `limits.rps`; crawl's own frontier scheduling paces through this too," and
-`fetch.NewThrottle` exists (with its own `throttle_test.go`), but nothing constructs
-one anywhere in the repo. `services/core/build.go`'s `liveExecutor.Run` builds a
-`Fetcher` from `tiers`/`concurrency`/`retries`/`backoff` only — `fetch.Fetcher` has
-no throttle field at all (`services/core/internal/fetch/fetch.go`) — so there is no
-seam through which a real `Fetcher.Fetch` implementation could apply rate limiting
-even once written.
-
-**Why not fixed now:** found while wiring `core.New` for the `cli-goldencli-tests`
-plan; adding a throttle seam to `Fetcher` is a `services/core` design change outside
-that plan's wiring-only scope, and `Fetcher.Fetch` itself isn't implemented yet either.
-
-**What fixing it requires:** add a throttle field/parameter to `fetch.Fetcher`
-(or thread one through its constructor), have `liveExecutor.Run` construct a
-`fetch.NewThrottle(spec.Limits.RPS)` per job alongside the rest of the per-job
-graph, and have `Fetcher.Fetch`'s real implementation consult it before each request.
-
-**Blocks:** no test currently asserts `--rps` actually throttles — `limits.rps`'s
-test coverage (e.g. `crawl/print-spec-verbose`'s `"rps": 2`) only checks that the
-value round-trips into the printed spec, not that it's enforced.
-
----
-
 ## `pobear auth`'s terminal prompt echoes the secret it promises not to
 
 **What's wrong:** `CLI_REFERENCE.md`'s `pobear auth <provider>` section says the
@@ -60,45 +34,6 @@ which always feeds a piped `stdin` fixture file).
 
 **Blocks:** nothing test-visible — `clitest`'s piped stdin never exercises real
 terminal echo either way — but affects every real interactive `pobear auth` run.
-
----
-
-## `limits.concurrency` never gets real parallel load
-
-**What's wrong:** `services/core/internal/fetch.Fetcher` builds a real
-semaphore sized to `limits.concurrency` and its own tests
-(`fetch_test.go`) confirm it caps concurrent `Fetch` calls correctly, but
-nothing ever calls it concurrently in practice: `job.Executor`'s URL-list
-loop and `job/workers/crawl.Crawl`'s frontier loop both dispatch
-`workers.Scrape.Run` synchronously, one URL at a time, inside a plain
-`for` loop. `limits.concurrency` round-trips correctly into the parsed
-spec and the semaphore is exercised in isolation, but a real multi-URL or
-multi-page job never has more than one fetch in flight regardless of its
-value.
-
-**Why not fixed now:** found during the post-implementation code review of
-`services/core`. Making either loop genuinely concurrent is real
-synchronization work — a worker pool or bounded goroutine fan-out, plus
-deciding how per-URL/per-page errors and sink writes serialize — and would
-very likely break existing tests that assert exact dispatch order/count
-against non-mutex-protected fakes (e.g.
-`TestExecutorURLListDispatchesEachURLAndTalliesSuccesses`'s exact
-`scrape.gotURLs` order, and the crawl package's frontier fakes). That's a
-larger, riskier change than the code-review fix pass this was found in was
-scoped for.
-
-**What fixing it requires:** redesign `job.Executor`'s URL loop and
-`crawl.Crawl`'s frontier loop to dispatch `workers.Scrape.Run` across a
-bounded pool of goroutines sized by `limits.concurrency`, decide how
-results/errors are collected back (a results channel, or a mutex-guarded
-accumulator), make the existing order-sensitive fakes/tests either
-tolerant of reordering or explicitly synchronized, and make `sinks.Sinker`
-writes concurrency-safe if they aren't already (`services/core/internal/sink/sinks`'s
-buffered sinks currently assume single-writer use).
-
-**Blocks:** nothing currently — small jobs work correctly, just serially.
-Blocks realistic throughput on any job with `limits.concurrency` > 1 and
-more than one URL/page.
 
 ---
 
