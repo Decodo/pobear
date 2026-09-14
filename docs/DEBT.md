@@ -11,32 +11,6 @@ of resolved debt (git history already has that).
 
 ---
 
-## `pobear auth`'s terminal prompt echoes the secret it promises not to
-
-**What's wrong:** `CLI_REFERENCE.md`'s `pobear auth <provider>` section says the
-secret prompt is "not echoed," but `cmd/core/main.go`'s `termPrompt` reads with a
-plain `bufio.Reader` over `os.Stdin` — nothing disables terminal echo, so a real
-interactive `pobear auth decodo` prints the token in the clear as it's typed.
-`providerator.Auth` now really calls this `prompt` function (`services/cli`'s real
-implementation), so a real interactive `pobear auth` run hits this bug today, not
-just once `providerator.Auth` gets implemented.
-
-**Why not fixed now:** found during the `cli-goldencli-tests` plan's final review;
-`termPrompt` is real, already-shipped code, but suppressing terminal echo portably
-needs a new dependency (`golang.org/x/term`'s `ReadPassword`, which also handles
-Windows), and adding a new module dependency is a decision beyond that plan's
-test-fixture scope.
-
-**What fixing it requires:** add `golang.org/x/term` to `go.mod`, replace
-`termPrompt`'s read with `term.ReadPassword(int(os.Stdin.Fd()))`, and confirm it
-degrades sanely when stdin isn't a real terminal (as it never is under `clitest`,
-which always feeds a piped `stdin` fixture file).
-
-**Blocks:** nothing test-visible — `clitest`'s piped stdin never exercises real
-terminal echo either way — but affects every real interactive `pobear auth` run.
-
----
-
 ## `fetch.profile` (TLS fingerprint preset) is parsed but never consulted
 
 **What's wrong:** `fetch.profile` (`chrome`/`firefox`/`safari`) is parsed
