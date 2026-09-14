@@ -19,14 +19,14 @@ type testCase struct {
 
 func TestRunMatchingExpectationPasses(t *testing.T) {
 	binPath := clitest.Build(t)
-	path := writeCase(t, testCase{Args: "version", Stdout: "pobear 0.0.1\n", Exit: 0})
+	path := writeCase(t, testCase{Args: "version", Stdout: "pobear dev\n", Exit: 0})
 
 	clitest.Run(t, binPath, path)
 }
 
 func TestRunMismatchedExitCodeFails(t *testing.T) {
 	binPath := clitest.Build(t)
-	path := writeCase(t, testCase{Args: "version", Stdout: "pobear 0.0.1\n", Exit: 1})
+	path := writeCase(t, testCase{Args: "version", Stdout: "pobear dev\n", Exit: 1})
 
 	inner := &testing.T{}
 	clitest.Run(inner, binPath, path)

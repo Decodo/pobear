@@ -1,5 +1,5 @@
 args: version
 stdout: |
-    pobear 0.0.1
+    pobear dev
 stderr: ""
 exit: 0

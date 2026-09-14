@@ -9,6 +9,7 @@
 - `docs/PROVIDER_REFERENCE.md` — the provider manifest format (how a third-party scraping API plugs in)
 - `docs/PROJECT_STRUCTURE.md` — the architecture and file/package layout, and how it maps to the design diagram
 - `docs/DEBT.md` — known gaps deliberately left unfixed, why, and what fixing each one requires
+- `docs/RELEASING.md` — how a release is cut and published, and where the `pobear version` string comes from
 
 Rules:
 
