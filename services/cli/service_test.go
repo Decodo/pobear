@@ -76,7 +76,25 @@ func TestServiceUnknownCommand(t *testing.T) {
 	}
 }
 
-func TestServiceNoArgsPrintsInteractiveModeUnavailable(t *testing.T) {
+func TestServiceNoArgsDispatchesToWizard(t *testing.T) {
+	fake := &fakeCommand{exitCode: 0}
+	svc := cli.NewService(map[string]command.Command{"wizard": fake})
+
+	var stdout bytes.Buffer
+	got := svc.Run(context.Background(), nil, bytes.NewReader(nil), &stdout, &bytes.Buffer{})
+
+	if got != 0 {
+		t.Fatalf("Run() = %d, want 0", got)
+	}
+	if len(fake.gotArgs) != 0 {
+		t.Fatalf("wizard command got args %v, want none", fake.gotArgs)
+	}
+	if stdout.String() != "ran\n" {
+		t.Fatalf("stdout = %q, want the wizard command to have run", stdout.String())
+	}
+}
+
+func TestServiceNoArgsWithoutWizardRegisteredErrors(t *testing.T) {
 	svc := cli.NewService(map[string]command.Command{"scrape": &fakeCommand{}})
 
 	var stderr bytes.Buffer
@@ -85,7 +103,7 @@ func TestServiceNoArgsPrintsInteractiveModeUnavailable(t *testing.T) {
 	if got != 3 {
 		t.Fatalf("Run() = %d, want 3", got)
 	}
-	if want := "pobear: interactive mode is not yet available; run 'pobear --help' for usage\n"; stderr.String() != want {
+	if want := "pobear: unknown command \"wizard\"\n"; stderr.String() != want {
 		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
 	}
 }

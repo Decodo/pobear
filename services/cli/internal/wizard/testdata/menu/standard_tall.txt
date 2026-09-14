@@ -1,0 +1,30 @@
+width=80 height=28 cursor=0
+---
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                  __         __                                 
+                                 (  \_______/  )                                
+                                 /   •     •   \                                
+                                |      (ᴥ)      |                               
+                                 \   <°)))><   /                                
+                                 (___/     \___)                                
+                                                                                
+              ┌─ pobear ─────────────────────────────────────────┐              
+              │                                                  │              
+              │   › Scrape a page                                │              
+              │     Crawl a site                                 │              
+              │     Manage providers                             │              
+              │     Manage credentials                           │              
+              │     Quit                                         │              
+              │                                                  │              
+              └──────────────────────────────────────────────────┘              
+              ↑/↓ move   enter select   q quit                                  
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                                                                                

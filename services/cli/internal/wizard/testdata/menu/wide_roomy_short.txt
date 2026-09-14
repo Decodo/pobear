@@ -1,0 +1,16 @@
+width=140 height=14 cursor=0
+---
+                                                                                                                                            
+                                                                                                                                            
+                                 ┌─ pobear ─────────────────────────────────────────┐                                                       
+                                 │                                                  │                                                       
+                                 │   › Scrape a page                                │       __         __                                   
+                                 │     Crawl a site                                 │      (  \_______/  )                                  
+                                 │     Manage providers                             │      /   •     •   \                                  
+                                 │     Manage credentials                           │     |      (ᴥ)      |                                 
+                                 │     Quit                                         │      \   <°)))><   /                                  
+                                 │                                                  │      (___/     \___)                                  
+                                 └──────────────────────────────────────────────────┘                                                       
+                                 ↑/↓ move   enter select   q quit                                                                           
+                                                                                                                                            
+                                                                                                                                            
