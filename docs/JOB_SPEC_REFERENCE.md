@@ -156,12 +156,11 @@ with a compatible type and value.
 
 `concurrency` genuinely bounds how many fetches run at once, for both a plain
 URL list and a crawl's frontier. For a crawl specifically, `source.crawl.maxPages`
-becomes an *approximate* cap once `concurrency > 1`: several in-flight fetches
-can each pass the "are we still under budget" check before any of them
-finishes and updates the shared count, so the real total fetched can briefly
-exceed `maxPages` by up to `concurrency - 1`. An exact cap would require
-serializing that check, which would defeat the concurrency entirely — this is
-the normal, expected trade-off for a concurrent frontier, not a bug.
+is an exact cap on the number of fetches dispatched, regardless of
+`concurrency`: a page is admitted against the budget atomically, before its
+fetch starts, so the total dispatched can never exceed `maxPages` — only the
+tiny admission check is serialized, not the fetch itself, so this costs
+nothing in concurrency.
 
 `__rpc` mode, and everything gated behind it (`pluginConcurrency`, `pluginTimeout`,
 the `plugin` extraction method below), is deferred — not part of the v1 release. `pkg/plugin`
