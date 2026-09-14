@@ -88,12 +88,8 @@ func scrapeRun(ctx context.Context, runner JobRunner, providers *providerator.Pr
 		return 0, cerr
 	}
 
-	if cerr := validateOutputFormat(f.outputFormat); cerr != nil {
-		return 0, cerr
-	}
-
 	names := extractedFieldNames(f.extract, f.css)
-	if cerr := validateOutputFormatRaw(f.outputFormat, names); cerr != nil {
+	if cerr := validateBare(f.bare, names); cerr != nil {
 		return 0, cerr
 	}
 
@@ -142,5 +138,5 @@ func scrapeRun(ctx context.Context, runner JobRunner, providers *providerator.Pr
 		rawField = names[0]
 	}
 
-	return printSpecOrRun(ctx, runner, resolvedIn, defaultsIn, f.printSpec, f.printSpecVerbose, f.outputFormat, rawField, f.out, stdout, stderr)
+	return printSpecOrRun(ctx, runner, resolvedIn, defaultsIn, f.printSpec, f.printSpecVerbose, f.bare, rawField, f.out, stdout, stderr)
 }

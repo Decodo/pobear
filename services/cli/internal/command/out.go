@@ -29,6 +29,7 @@ func isDirOut(outPath string) bool {
 type rawItem struct {
 	URL    string         `json:"url"`
 	Status int            `json:"status"`
+	Body   string         `json:"body"`
 	Data   map[string]any `json:"data"`
 }
 
@@ -77,11 +78,14 @@ func readRawValue(path, fieldName string) (string, error) {
 	}
 	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
 	if len(lines) != 1 || lines[0] == "" {
-		return "", fmt.Errorf("--output-format raw requires exactly one URL to be targeted, got %d items", len(lines))
+		return "", fmt.Errorf("--bare requires exactly one URL to be targeted, got %d items", len(lines))
 	}
 	var item rawItem
 	if err := json.Unmarshal([]byte(lines[0]), &item); err != nil {
 		return "", err
+	}
+	if fieldName == "" {
+		return item.Body, nil
 	}
 	return extractRawValue(item.Data, fieldName)
 }
@@ -89,12 +93,12 @@ func readRawValue(path, fieldName string) (string, error) {
 func extractRawValue(data map[string]any, fieldName string) (string, error) {
 	v, ok := data[fieldName]
 	if !ok {
-		return "", fmt.Errorf("--output-format raw: field %q was not produced", fieldName)
+		return "", fmt.Errorf("--bare: field %q was not produced", fieldName)
 	}
 	switch val := v.(type) {
 	case []any:
 		if len(val) != 1 {
-			return "", fmt.Errorf("--output-format raw: field %q matched %d values, want exactly 1", fieldName, len(val))
+			return "", fmt.Errorf("--bare: field %q matched %d values, want exactly 1", fieldName, len(val))
 		}
 		return fmt.Sprint(val[0]), nil
 	default:
@@ -111,7 +115,7 @@ type dirIndexEntry struct {
 	Error     string `json:"error,omitempty"`
 }
 
-func runJobToDir(ctx context.Context, runner JobRunner, spec *jobspec.Spec, fieldName, outputFormat, outDir string, stderr io.Writer) (int, *cliError) {
+func runJobToDir(ctx context.Context, runner JobRunner, spec *jobspec.Spec, bare bool, fieldName, outDir string, stderr io.Writer) (int, *cliError) {
 	if err := os.MkdirAll(outDir, 0o750); err != nil {
 		return 0, newCLIError(exitcode.Fatal, "%v", err)
 	}
@@ -136,7 +140,7 @@ func runJobToDir(ctx context.Context, runner JobRunner, spec *jobspec.Spec, fiel
 		return 0, cerr
 	}
 
-	entries, err := writeDirOutputs(tmpPath, outDir, outputFormat, fieldName, result.Errors, result.SkippedURLs)
+	entries, err := writeDirOutputs(tmpPath, outDir, bare, fieldName, result.Errors, result.SkippedURLs)
 	if err != nil {
 		return 0, newCLIError(exitcode.Fatal, "%v", err)
 	}
@@ -147,7 +151,7 @@ func runJobToDir(ctx context.Context, runner JobRunner, spec *jobspec.Spec, fiel
 	return code, nil
 }
 
-func writeDirOutputs(ndjsonPath, outDir, outputFormat, fieldName string, failureLines, skippedLines []string) ([]dirIndexEntry, error) {
+func writeDirOutputs(ndjsonPath, outDir string, bare bool, fieldName string, failureLines, skippedLines []string) ([]dirIndexEntry, error) {
 	data, err := os.ReadFile(ndjsonPath) //nolint:gosec // ndjsonPath is this command's own os.MkdirTemp file, not user-controlled input
 	if err != nil {
 		return nil, err
@@ -165,7 +169,7 @@ func writeDirOutputs(ndjsonPath, outDir, outputFormat, fieldName string, failure
 		}
 		n++
 
-		if outputFormat != "raw" {
+		if !bare {
 			fileName := fmt.Sprintf("%04d.json", n)
 			if err := os.WriteFile(filepath.Join(outDir, fileName), []byte(line), 0o600); err != nil {
 				return nil, err
@@ -174,10 +178,15 @@ func writeDirOutputs(ndjsonPath, outDir, outputFormat, fieldName string, failure
 			continue
 		}
 
-		value, err := extractRawValue(item.Data, fieldName)
-		if err != nil {
-			entries = append(entries, dirIndexEntry{URL: item.URL, Status: item.Status, Error: fmt.Sprintf("%s: %v", item.URL, err)})
-			continue
+		var value string
+		if fieldName == "" {
+			value = item.Body
+		} else {
+			value, err = extractRawValue(item.Data, fieldName)
+			if err != nil {
+				entries = append(entries, dirIndexEntry{URL: item.URL, Status: item.Status, Error: fmt.Sprintf("%s: %v", item.URL, err)})
+				continue
+			}
 		}
 		fileName := fmt.Sprintf("%04d.html", n)
 		if err := os.WriteFile(filepath.Join(outDir, fileName), []byte(value), 0o600); err != nil {

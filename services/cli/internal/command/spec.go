@@ -80,24 +80,11 @@ func extractedFieldNames(extract string, css []string) []string {
 	return names
 }
 
-func validateOutputFormat(outputFormat string) *cliError {
-	if outputFormat != "json" && outputFormat != "raw" {
-		return newCLIError(exitcode.UsageError, "--output-format must be json or raw, got %q", outputFormat)
-	}
-	return nil
-}
-
-func validateOutputFormatRaw(outputFormat string, names []string) *cliError {
-	if outputFormat != "raw" {
+func validateBare(bare bool, names []string) *cliError {
+	if !bare || len(names) <= 1 {
 		return nil
 	}
-	if len(names) == 1 {
-		return nil
-	}
-	if len(names) == 0 {
-		return newCLIError(exitcode.UsageError, "--output-format raw requires exactly one extracted value, but 0 fields are set")
-	}
-	return newCLIError(exitcode.UsageError, "--output-format raw requires exactly one extracted value, but %d fields are set (%s)", len(names), strings.Join(names, ", "))
+	return newCLIError(exitcode.UsageError, "--bare requires at most one extracted value, but %d fields are set (%s)", len(names), strings.Join(names, ", "))
 }
 
 func resolveScrapeURLs(arg string) ([]string, *cliError) {
@@ -132,7 +119,7 @@ func buildErrorToCLIError(err error) *cliError {
 	return newCLIError(exitcode.Fatal, "%v", err)
 }
 
-func printSpecOrRun(ctx context.Context, runner JobRunner, resolvedIn, defaultsIn jobgen.Input, printSpec, printSpecVerbose bool, outputFormat, rawField, outPath string, stdout, stderr io.Writer) (int, *cliError) {
+func printSpecOrRun(ctx context.Context, runner JobRunner, resolvedIn, defaultsIn jobgen.Input, printSpec, printSpecVerbose, bare bool, rawField, outPath string, stdout, stderr io.Writer) (int, *cliError) {
 	resolved, err := jobgen.Build(resolvedIn)
 	if err != nil {
 		return 0, buildErrorToCLIError(err)
@@ -155,9 +142,9 @@ func printSpecOrRun(ctx context.Context, runner JobRunner, resolvedIn, defaultsI
 	}
 
 	if isDirOut(outPath) {
-		return runJobToDir(ctx, runner, resolved, rawField, outputFormat, outPath, stderr)
+		return runJobToDir(ctx, runner, resolved, bare, rawField, outPath, stderr)
 	}
-	if outputFormat == "raw" {
+	if bare {
 		return runJobRaw(ctx, runner, resolved, rawField, outPath, stdout, stderr)
 	}
 	return runJob(ctx, runner, resolved, stderr)
