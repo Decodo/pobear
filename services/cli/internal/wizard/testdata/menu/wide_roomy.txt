@@ -22,7 +22,7 @@ width=140 height=40 cursor=3
                                  │     Manage providers                             │      /   •     •   \                                  
                                  │   › Manage credentials                           │     |      (ᴥ)      |                                 
                                  │     Quit                                         │      \   <°)))><   /                                  
-                                 │                                                  │      (___/     \___)                                  
+                                 │                                                  │       \____/_\____/                                   
                                  └──────────────────────────────────────────────────┘                                                       
                                  ↑/↓ move   enter select   q quit                                                                           
                                                                                                                                             

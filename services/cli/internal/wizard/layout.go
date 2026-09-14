@@ -101,7 +101,7 @@ func bearArt(blinking bool) string {
 		`  /   ` + eye + `     ` + eye + `   \`,
 		` |      (ᴥ)      |`,
 		`  \   <°)))><   /`,
-		`  (___/     \___)`,
+		`   \____/_\____/`,
 	}
 	width := 0
 	for _, l := range lines {
