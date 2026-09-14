@@ -11,36 +11,6 @@ of resolved debt (git history already has that).
 
 ---
 
-## `fetch.profile` (TLS fingerprint preset) is parsed but never consulted
-
-**What's wrong:** `fetch.profile` (`chrome`/`firefox`/`safari`) is parsed
-and validated by `pkg/jobspec/fetch.go` for `local`/`proxy` tiers — including
-defaulting to `chrome` when unset — but nothing in
-`services/core/internal/fetch/tiers` (the `local`/`proxy` tier
-implementations, both built on `doHTTPFetch` in `tiers/http.go`) ever reads
-`Fetch.Profile` or configures a TLS ClientHello/JA3 fingerprint to match the
-named browser. A real fetch always goes out with Go's default `net/http`
-TLS fingerprint, regardless of which profile the job spec names.
-
-**Why not fixed now:** found during the post-implementation code review of
-`services/core`. TLS fingerprinting needs a real ClientHello-spoofing
-library (e.g. `utls`), which isn't a current dependency, and picking one
-plus wiring per-profile fingerprint tables is a scoped piece of design work
-on its own, well beyond a review fix pass.
-
-**What fixing it requires:** add a TLS fingerprinting dependency (most
-likely `github.com/refraction-networking/utls`), build or source a
-ClientHello spec per supported profile (`chrome`/`firefox`/`safari`), thread
-`Fetch.Profile` from the parsed spec into `tiers.Local`/`tiers.Proxy`'s
-construction, and have `doHTTPFetch` dial through a `utls`-wrapped
-connection using the selected spec instead of the stdlib default transport.
-
-**Blocks:** any real anti-bot-evasion use case that depends on
-`fetch.profile` actually changing the TLS fingerprint — currently the field
-is inert past validation.
-
----
-
 ## `pobear wizard` (bare `pobear`) is entirely unimplemented
 
 **What's wrong:** `CLI_REFERENCE.md`'s wizard section describes a full-screen

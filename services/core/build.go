@@ -43,7 +43,10 @@ func (e *liveExecutor) Run(ctx context.Context, spec *jobspec.Spec) (job.Result,
 		return job.Result{}, err
 	}
 
-	fetcher := e.createFetcher(manifests, spec)
+	fetcher, err := e.createFetcher(manifests, spec)
+	if err != nil {
+		return job.Result{}, err
+	}
 	stager := e.createStager()
 	sinker := e.createSinker(spec)
 
@@ -108,10 +111,28 @@ func (*liveExecutor) createStager() *stage.Stager {
 	return stager
 }
 
-func (e *liveExecutor) createFetcher(manifests []*provider.Manifest, spec *jobspec.Spec) *fetch.Fetcher {
+func (e *liveExecutor) createFetcher(manifests []*provider.Manifest, spec *jobspec.Spec) (*fetch.Fetcher, error) {
+	localClient := http.DefaultClient
+	proxyClient := http.DefaultClient
+
+	switch spec.Fetch.Use {
+	case "local":
+		client, err := tiers.NewFingerprintedClient(spec.Fetch.Profile, "")
+		if err != nil {
+			return nil, err
+		}
+		localClient = client
+	case "proxy":
+		client, err := tiers.NewFingerprintedClient(spec.Fetch.Profile, spec.Fetch.Proxy)
+		if err != nil {
+			return nil, err
+		}
+		proxyClient = client
+	}
+
 	tierMap := map[string]fetch.Tier{
-		"local": &tiers.Local{Client: http.DefaultClient},
-		"proxy": &tiers.Proxy{Client: http.DefaultClient},
+		"local": &tiers.Local{Client: localClient},
+		"proxy": &tiers.Proxy{Client: proxyClient},
 		"provider": &tiers.Provider{
 			Client:          http.DefaultClient,
 			Manifests:       manifestLookup(manifests),
@@ -121,5 +142,5 @@ func (e *liveExecutor) createFetcher(manifests []*provider.Manifest, spec *jobsp
 	}
 	throttle := fetch.NewThrottle(spec.Limits.RPS)
 	fetcher := fetch.NewFetcher(tierMap, spec.Limits.Concurrency, spec.Limits.Retries, fetch.Backoff, throttle)
-	return fetcher
+	return fetcher, nil
 }
