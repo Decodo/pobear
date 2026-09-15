@@ -12,6 +12,7 @@ import (
 
 	"github.com/pobear/pobear/pkg/fault"
 	"github.com/pobear/pobear/pkg/jobspec"
+	"github.com/pobear/pobear/services/core/internal/job/workers"
 	"github.com/pobear/pobear/services/core/internal/job/workers/crawl"
 )
 
@@ -32,7 +33,7 @@ type fakeScrapeWorker struct {
 	peak    int32
 }
 
-func (f *fakeScrapeWorker) Run(_ context.Context, _ *jobspec.Spec, url, _ string, _ int) ([]string, fault.Kind, error) {
+func (f *fakeScrapeWorker) Run(_ context.Context, _ *jobspec.Spec, url, _ string, _ int, _ workers.EmitGate) ([]string, string, fault.Kind, error) {
 	f.mu.Lock()
 	f.visited = append(f.visited, url)
 	f.mu.Unlock()
@@ -49,9 +50,9 @@ func (f *fakeScrapeWorker) Run(_ context.Context, _ *jobspec.Spec, url, _ string
 	}
 	atomic.AddInt32(&f.current, -1)
 	if failure, ok := f.fails[url]; ok {
-		return nil, failure.kind, failure.err
+		return nil, "", failure.kind, failure.err
 	}
-	return f.children[url], "", nil
+	return f.children[url], "", "", nil
 }
 
 func TestCrawlDepthZeroVisitsOnlySeeds(t *testing.T) {
@@ -664,5 +665,100 @@ func TestCrawlDedupeTreatsReorderedQueryParamsAsSameURL(t *testing.T) {
 	}
 	if got.Succeeded != 2 {
 		t.Fatalf("got Succeeded=%d, want 2 (seed + one fetch of /page, the reordered-query-param duplicate discarded)", got.Succeeded)
+	}
+}
+
+func TestCrawlSitemapURLsAreFilteredByRobots(t *testing.T) {
+	scrape := &fakeScrapeWorker{}
+	sitemap := &fakeSitemapFetcher{urls: map[string][]string{
+		"https://a.test": {"https://a.test/ok", "https://a.test/private/hidden"},
+	}}
+	robots := &fakeRobotsChecker{disallowed: map[string]bool{"https://a.test/private/hidden": true}}
+	c := crawl.NewCrawl(scrape, robots, sitemap)
+
+	spec := &jobspec.Spec{Source: jobspec.Source{Crawl: &jobspec.CrawlSource{
+		Seeds: []string{"https://a.test"}, Depth: 0, MaxPages: 100, Scope: "same-host", Robots: "respect", Sitemap: true,
+	}}}
+	got, err := c.Run(context.Background(), spec)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got.Succeeded != 2 {
+		t.Fatalf("got Succeeded=%d, want 2 (seed + the allowed sitemap URL)", got.Succeeded)
+	}
+	for _, v := range scrape.visited {
+		if v == "https://a.test/private/hidden" {
+			t.Fatal("a robots-disallowed sitemap URL was fetched")
+		}
+	}
+}
+
+func TestCrawlSitemapURLsAreFilteredByScope(t *testing.T) {
+	scrape := &fakeScrapeWorker{}
+	sitemap := &fakeSitemapFetcher{urls: map[string][]string{
+		"https://a.test": {"https://a.test/ok", "https://other.test/page"},
+	}}
+	c := crawl.NewCrawl(scrape, nil, sitemap)
+
+	spec := &jobspec.Spec{Source: jobspec.Source{Crawl: &jobspec.CrawlSource{
+		Seeds: []string{"https://a.test"}, Depth: 0, MaxPages: 100, Scope: "same-host", Robots: "ignore", Sitemap: true,
+	}}}
+	got, err := c.Run(context.Background(), spec)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got.Succeeded != 2 {
+		t.Fatalf("got Succeeded=%d, want 2 (seed + the same-host sitemap URL)", got.Succeeded)
+	}
+	for _, v := range scrape.visited {
+		if v == "https://other.test/page" {
+			t.Fatal("an off-host sitemap URL was fetched despite scope=same-host")
+		}
+	}
+}
+
+func TestCrawlSitemapURLsAreFilteredByExclude(t *testing.T) {
+	scrape := &fakeScrapeWorker{}
+	sitemap := &fakeSitemapFetcher{urls: map[string][]string{
+		"https://a.test": {"https://a.test/ok", "https://a.test/doc.pdf"},
+	}}
+	c := crawl.NewCrawl(scrape, nil, sitemap)
+
+	spec := &jobspec.Spec{Source: jobspec.Source{Crawl: &jobspec.CrawlSource{
+		Seeds: []string{"https://a.test"}, Depth: 0, MaxPages: 100, Scope: "same-host", Robots: "ignore", Sitemap: true,
+		Exclude: []string{"**/*.pdf"},
+	}}}
+	got, err := c.Run(context.Background(), spec)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got.Succeeded != 2 {
+		t.Fatalf("got Succeeded=%d, want 2 (seed + the non-excluded sitemap URL)", got.Succeeded)
+	}
+	for _, v := range scrape.visited {
+		if v == "https://a.test/doc.pdf" {
+			t.Fatal("an excluded sitemap URL was fetched")
+		}
+	}
+}
+
+func TestCrawlSeedItselfIsExemptFromRobots(t *testing.T) {
+	scrape := &fakeScrapeWorker{}
+	robots := &fakeRobotsChecker{disallowed: map[string]bool{"https://a.test/private/hidden": true}}
+	c := crawl.NewCrawl(scrape, robots, nil)
+
+	spec := &jobspec.Spec{Source: jobspec.Source{Crawl: &jobspec.CrawlSource{
+		Seeds: []string{"https://a.test/private/hidden"}, Depth: 0, MaxPages: 100, Scope: "same-host", Robots: "respect",
+	}}}
+	got, err := c.Run(context.Background(), spec)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got.Succeeded != 1 {
+		t.Fatalf("got Succeeded=%d, want 1 (an explicit seed stays exempt)", got.Succeeded)
 	}
 }

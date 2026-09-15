@@ -39,8 +39,8 @@ func TestBuildCrawlWithDepth(t *testing.T) {
 	in := jobgen.Input{
 		URLs:     []string{"https://example.com"},
 		FetchUse: "local",
-		Crawl:    &jobgen.CrawlInput{Depth: 2, MaxPages: 100, Scope: "same-host", Robots: "respect"},
-		RPS:      2,
+		Crawl:    &jobgen.CrawlInput{Depth: 2, MaxPages: new(100), Scope: "same-host", Robots: "respect"},
+		RPS:      new(2),
 	}
 
 	got, err := jobgen.Build(in)
@@ -97,7 +97,7 @@ func TestBuildInvalidSpecReturnsError(t *testing.T) {
 func TestMinimalJSONScrapeNoFlags(t *testing.T) {
 	resolved, err := jobgen.Build(jobgen.Input{
 		URLs: []string{"https://ip.decodo.com"}, FetchUse: "local",
-		Profile: "chrome", Timeout: "30s", Concurrency: 8, Retries: 3,
+		Profile: "chrome", Timeout: "30s", Concurrency: new(8), Retries: new(3),
 		SinkUse: "stdout",
 	})
 	if err != nil {
@@ -105,7 +105,7 @@ func TestMinimalJSONScrapeNoFlags(t *testing.T) {
 	}
 	defaults, err := jobgen.Build(jobgen.Input{
 		URLs: []string{"https://ip.decodo.com"}, FetchUse: "local",
-		Profile: "chrome", Timeout: "30s", Concurrency: 8, Retries: 3,
+		Profile: "chrome", Timeout: "30s", Concurrency: new(8), Retries: new(3),
 		SinkUse: "stdout",
 	})
 	if err != nil {
@@ -136,8 +136,8 @@ func TestMinimalJSONScrapeNoFlags(t *testing.T) {
 func TestMinimalJSONCrawlWithDepth(t *testing.T) {
 	resolved, err := jobgen.Build(jobgen.Input{
 		URLs: []string{"https://example.com"}, FetchUse: "local",
-		Crawl:   &jobgen.CrawlInput{Depth: 2, MaxPages: 100, Scope: "same-host", Robots: "respect"},
-		Profile: "chrome", Timeout: "30s", Concurrency: 8, Retries: 3, RPS: 2,
+		Crawl:   &jobgen.CrawlInput{Depth: 2, MaxPages: new(100), Scope: "same-host", Robots: "respect"},
+		Profile: "chrome", Timeout: "30s", Concurrency: new(8), Retries: new(3), RPS: new(2),
 		SinkUse: "stdout",
 	})
 	if err != nil {
@@ -145,8 +145,8 @@ func TestMinimalJSONCrawlWithDepth(t *testing.T) {
 	}
 	defaults, err := jobgen.Build(jobgen.Input{
 		URLs: []string{"https://example.com"}, FetchUse: "local",
-		Crawl:   &jobgen.CrawlInput{Depth: 1, MaxPages: 100, Scope: "same-host", Robots: "respect"},
-		Profile: "chrome", Timeout: "30s", Concurrency: 8, Retries: 3, RPS: 2,
+		Crawl:   &jobgen.CrawlInput{Depth: 1, MaxPages: new(100), Scope: "same-host", Robots: "respect"},
+		Profile: "chrome", Timeout: "30s", Concurrency: new(8), Retries: new(3), RPS: new(2),
 		SinkUse: "stdout",
 	})
 	if err != nil {

@@ -41,17 +41,18 @@ func (p *Provider) Fetch(ctx context.Context, cfg jobspec.Fetch, targetURL strin
 		return nil, fault.Auth, err
 	}
 
-	tmplReq, endpoint, method, err := resolveProviderTemplate(manifest, cfg.Template)
+	rt, err := resolveProviderTemplate(manifest, cfg.Template)
 	if err != nil {
 		return nil, fault.Provider, err
 	}
 
-	body, query, err := provider.Render(tmplReq, targetURL, cfg.Options)
+	options := provider.ApplyOptionDefaults(rt.Options, cfg.Options)
+	body, query, err := provider.Render(rt.Request, targetURL, options)
 	if err != nil {
 		return nil, fault.Provider, err
 	}
 
-	req, kind, err := buildHTTPRequest(ctx, manifest, endpoint, method, cfg, body, query, secret)
+	req, kind, err := buildHTTPRequest(ctx, manifest, rt.Endpoint, rt.Method, cfg, body, query, secret)
 	if err != nil {
 		return nil, kind, err
 	}
@@ -70,21 +71,27 @@ func (p *Provider) Fetch(ctx context.Context, cfg jobspec.Fetch, targetURL strin
 		return nil, fault.Network, err
 	}
 
-	status, extractedBody, finalURL, err := provider.Extract(manifest.Response, resp.StatusCode, respBody, targetURL)
+	status, extractedBody, finalURL, bodyMatched, err := provider.Extract(manifest.Response, resp.StatusCode, respBody, targetURL)
 	if err != nil {
 		return nil, fault.Provider, err
 	}
 
 	result := &Result{Status: status, Body: extractedBody, FinalURL: finalURL}
 
-	respKind := classifyProviderStatus(status, manifest.Errors)
-	if respKind == "" {
-		return result, "", nil
+	if respKind := classifyProviderStatus(status, manifest.Errors); respKind != "" {
+		if snippet := bodySnippet(respBody); snippet != "" {
+			return result, respKind, fmt.Errorf("tiers: provider status %d: %s", status, snippet)
+		}
+		return result, respKind, fmt.Errorf("tiers: provider status %d", status)
 	}
-	if snippet := bodySnippet(respBody); snippet != "" {
-		return result, respKind, fmt.Errorf("tiers: provider status %d: %s", status, snippet)
+
+	if !bodyMatched {
+		if snippet := bodySnippet(respBody); snippet != "" {
+			return result, fault.Provider, fmt.Errorf("tiers: provider response.body %q matched nothing: %s", manifest.Response.Body, snippet)
+		}
+		return result, fault.Provider, fmt.Errorf("tiers: provider response.body %q matched nothing", manifest.Response.Body)
 	}
-	return result, respKind, fmt.Errorf("tiers: provider status %d", status)
+	return result, "", nil
 }
 
 func (p *Provider) lookupManifest(name string) (*provider.Manifest, error) {
@@ -174,12 +181,12 @@ func applyAuth(req *http.Request, auth provider.Auth, secret string) error {
 	return nil
 }
 
-func resolveProviderTemplate(m *provider.Manifest, templateName string) (req provider.Request, endpoint, method string, err error) {
-	rt, err := provider.ResolveTemplate(m, templateName)
+func resolveProviderTemplate(m *provider.Manifest, templateName string) (rt *provider.ResolvedTemplate, err error) {
+	rt, err = provider.ResolveTemplate(m, templateName)
 	if err != nil {
-		return provider.Request{}, "", "", wrapTemplateSelectionError(err)
+		return nil, wrapTemplateSelectionError(err)
 	}
-	return rt.Request, rt.Endpoint, rt.Method, nil
+	return rt, nil
 }
 
 func wrapTemplateSelectionError(err error) error {

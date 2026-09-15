@@ -22,3 +22,6 @@ pobear
 
 # local scratch dir a dev may use for manual --out testing
 /temp-test/
+
+# agent worktrees
+/.claude/worktrees/

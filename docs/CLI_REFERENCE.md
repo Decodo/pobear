@@ -46,17 +46,18 @@ $ pobear scrape urls.txt --print-spec
 | `--proxy <url>` | — | tier 1 |
 | `--provider <name>` | — | tier 2 |
 | `--template <name>` | the provider's `default` template, if any | selects one of the provider's declared templates — see below |
-| `--profile chrome\|firefox\|safari` | `chrome` | local/proxy TLS fingerprint |
+| `--profile chrome\|firefox\|safari` | `chrome` | local/proxy TLS fingerprint; rejected with `--provider` |
 | `--render` | off | sugar for `--opt render=true` |
 | `--geo <code>` | — | sugar for `--opt geo=<code>` |
 | `--opt name=value` | — | repeatable; set any option the chosen provider declares — see below |
 | `-t, --timeout <duration>` | `30s` | per-request timeout |
 | `-e, --extract raw\|markdown` | — | add an extraction stage |
-| `--css name=selector[@attr]` | — | repeatable |
+| `--css name=selector[@attr]` | — | repeatable; each field name must be non-empty and set at most once |
 | `-o, --out <path>` | stdout | write NDJSON to a file, or one file per target plus an `index.json` if `<path>` is a directory — see below |
 | `-b, --bare` | off | print just the extracted value, no envelope — see below |
 | `--print-spec` | off | print the spec, don't run it — fields still at their default are omitted, see below |
 | `--print-spec-verbose` | off | like `--print-spec`, but every field is shown fully resolved, defaults included |
+| `--fail-on-empty` | off | exit `5` when every fetched item extracted nothing — see below |
 | `-c, --concurrency <n>` | 8 | |
 | `-r, --retries <n>` | 3 | |
 | `--rps <n>` | 0 (unlimited) | requests/sec across every host combined |
@@ -118,6 +119,41 @@ fetched 1, errors 0, skipped 0          # ← this line is on stderr
 $ pobear scrape https://example.com --css 'title=h1' --css 'link=a@href'
 {"url":"https://example.com", …, "data":{"title":["Example Domain"],"link":["https://www.iana.org/domains/example"]}}
 ```
+
+### `empty` in the summary — extraction came back with nothing
+
+When a job declares stages, the summary counts items whose stages produced no
+value at all, and appends `empty N` when that count is non-zero:
+
+```
+$ pobear crawl https://example.com --depth 2 --css 'price=.price'
+fetched 200, errors 0, skipped 0, empty 200
+```
+
+A css field that matched nothing writes an empty list, and `raw`/`markdown` write
+an empty string; either counts as empty. An item is only empty when **every**
+field came back empty — one field matching is enough to count it as extracted.
+
+This is the closest pobear gets to reporting a soft block. A site that serves an
+interstitial challenge page answers with a normal `200` and real HTML, so the
+fetch cannot be classified as `[blocked]` the way a `403` can. What pobear can
+say is that the selectors you asked for found nothing, which is the same signal a
+challenge page, a layout change, or a wrong selector all produce. `empty 200` out
+of 200 is unmistakable; a handful is worth a look.
+
+`--fail-on-empty` turns the total case into a non-zero exit, for pipelines that
+must not silently record a run of blank items:
+
+```
+$ pobear crawl https://example.com --css 'price=.price' --fail-on-empty
+fetched 200, errors 0, skipped 0, empty 200
+pobear: every fetched item extracted nothing (200 items)
+$ echo $?
+5
+```
+
+It fires only when every fetched item was empty. A run where some items extracted
+data is a normal partial result, not a failure.
 
 A per-URL failure prints one detail line per failure before the summary,
 naming the URL, its fault kind in brackets, and the underlying error —
@@ -352,9 +388,16 @@ $ pobear crawl https://example.com --depth 2 --print-spec
 {
   "version": 1,
   "source": { "crawl": { "seeds": ["https://example.com"], "depth": 2 } },
-  "fetch": { "use": "local" }
+  "fetch": { "use": "local" },
+  "limits": { "rps": 2 }
 }
 ```
+
+`limits.rps` is printed even though `2` is `crawl`'s own default, because a bare
+spec defaults `rps` to `0`. "Omitted" means "`pobear run` would apply this same
+value anyway", so any field where `crawl`'s CLI default differs from the spec
+default is written out — otherwise piping the spec into `run` would silently
+produce a different job.
 
 `--print-spec-verbose` shows the same job with every default filled in, including
 the ones `crawl` sets differently than `scrape` (`limits.rps: 2` here, not `0`):
@@ -486,6 +529,17 @@ saved POBEAR_PROVIDER_DECODO_TOKEN to /Users/you/.pobear/credentials
 ```
 $ pobear auth bogus-provider
 pobear: unknown provider "bogus-provider"
+$ echo $?
+3
+```
+
+An empty secret is rejected and nothing is written, so hitting Enter at the
+prompt can't overwrite a working credential with nothing:
+
+```
+$ pobear auth decodo
+decodo token:
+pobear: no secret entered; POBEAR_PROVIDER_DECODO_TOKEN left unchanged
 $ echo $?
 3
 ```

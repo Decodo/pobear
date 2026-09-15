@@ -12,11 +12,13 @@ import (
 
 	"github.com/pobear/pobear/pkg/fault"
 	"github.com/pobear/pobear/pkg/jobspec"
+	"github.com/pobear/pobear/services/core/internal/fetch/tiers"
 	"github.com/pobear/pobear/services/core/internal/job/pool"
+	"github.com/pobear/pobear/services/core/internal/job/workers"
 )
 
 type ScrapeWorker interface {
-	Run(ctx context.Context, spec *jobspec.Spec, url, parentURL string, depth int) (links []string, kind fault.Kind, err error)
+	Run(ctx context.Context, spec *jobspec.Spec, url, parentURL string, depth int, gate workers.EmitGate) (links []string, blockedReason string, kind fault.Kind, err error)
 }
 
 type RobotsChecker interface {
@@ -51,6 +53,7 @@ type frontierEntry struct {
 	parentURL string
 	depth     int
 	origin    string
+	isSeed    bool
 }
 
 func (c *Crawl) Run(ctx context.Context, spec *jobspec.Spec) (Result, error) {
@@ -90,7 +93,22 @@ func (c *Crawl) Run(ctx context.Context, spec *jobspec.Spec) (Result, error) {
 			return
 		}
 
-		links, kind, err := c.scrape.Run(ctx, spec, entry.url, entry.parentURL, entry.depth)
+		var gate workers.EmitGate
+		if !entry.isSeed {
+			gate = func(finalURL string) (string, bool) {
+				return c.shouldSkip(ctx, frontierEntry{url: finalURL, origin: entry.origin, depth: entry.depth}, cs)
+			}
+		}
+
+		fetchCtx := ctx
+		if gate != nil {
+			fetchCtx = tiers.WithRedirectPolicy(ctx, func(target string) bool {
+				_, skip := c.shouldSkip(ctx, frontierEntry{url: target, origin: entry.origin, depth: entry.depth}, cs)
+				return !skip
+			})
+		}
+
+		links, blockedReason, kind, err := c.scrape.Run(fetchCtx, spec, entry.url, entry.parentURL, entry.depth, gate)
 		if err != nil || kind != "" {
 			mu.Lock()
 			result.Failed++
@@ -100,6 +118,14 @@ func (c *Crawl) Run(ctx context.Context, spec *jobspec.Spec) (Result, error) {
 			if err != nil {
 				result.Errors = append(result.Errors, fault.FormatFailure(entry.url, kind, err))
 			}
+			mu.Unlock()
+			return
+		}
+
+		if blockedReason != "" {
+			mu.Lock()
+			result.Skipped++
+			result.SkippedURLs = append(result.SkippedURLs, fault.FormatFailure(entry.url, "", errors.New(blockedReason)))
 			mu.Unlock()
 			return
 		}
@@ -145,7 +171,7 @@ func (c *Crawl) seedFrontier(ctx context.Context, cs *jobspec.CrawlSource, dd *d
 			continue
 		}
 		origin := hostOf(seed)
-		dispatch(frontierEntry{url: seed, depth: 0, origin: origin})
+		dispatch(frontierEntry{url: seed, depth: 0, origin: origin, isSeed: true})
 		if cs.Sitemap && c.sitemap != nil {
 			urls, err := c.sitemap.URLs(ctx, seed)
 			if err == nil {
@@ -161,7 +187,7 @@ func (c *Crawl) seedFrontier(ctx context.Context, cs *jobspec.CrawlSource, dd *d
 }
 
 func (c *Crawl) shouldSkip(ctx context.Context, entry frontierEntry, cs *jobspec.CrawlSource) (reason string, skip bool) {
-	if entry.parentURL == "" {
+	if entry.isSeed {
 		return "", false
 	}
 	if !inScope(entry.url, entry.origin, cs.Scope) {

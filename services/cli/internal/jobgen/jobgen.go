@@ -11,7 +11,7 @@ import (
 
 type CrawlInput struct {
 	Depth       int
-	MaxPages    int
+	MaxPages    *int
 	MaxDuration string
 	Scope       string
 	Include     []string
@@ -32,9 +32,9 @@ type Input struct {
 	Timeout     string
 	NoRedirects bool
 	Stages      []jobspec.Stage
-	Concurrency int
-	RPS         int
-	Retries     int
+	Concurrency *int
+	RPS         *int
+	Retries     *int
 	SinkUse     string
 	SinkPath    string
 }
@@ -69,8 +69,8 @@ func buildSourceDoc(in Input) map[string]any {
 
 	c := in.Crawl
 	crawl := map[string]any{"seeds": in.URLs, "depth": c.Depth}
-	if c.MaxPages != 0 {
-		crawl["maxPages"] = c.MaxPages
+	if c.MaxPages != nil {
+		crawl["maxPages"] = *c.MaxPages
 	}
 	if c.MaxDuration != "" {
 		crawl["maxDuration"] = c.MaxDuration
@@ -121,14 +121,14 @@ func buildFetchDoc(in Input) map[string]any {
 
 func buildLimitsDoc(in Input) map[string]any {
 	limits := map[string]any{}
-	if in.Concurrency != 0 {
-		limits["concurrency"] = in.Concurrency
+	if in.Concurrency != nil {
+		limits["concurrency"] = *in.Concurrency
 	}
-	if in.RPS != 0 {
-		limits["rps"] = in.RPS
+	if in.RPS != nil {
+		limits["rps"] = *in.RPS
 	}
-	if in.Retries != 0 {
-		limits["retries"] = in.Retries
+	if in.Retries != nil {
+		limits["retries"] = *in.Retries
 	}
 	if len(limits) == 0 {
 		return nil
@@ -253,12 +253,16 @@ func minimalCrawlFrom(r, d *jobspec.CrawlSource) *minimalCrawlSource {
 }
 
 func minimalFetchFrom(r, d jobspec.Fetch) minimalFetch {
+	profile := diffString(r.Profile, d.Profile)
+	if r.Use == "provider" {
+		profile = nil
+	}
 	return minimalFetch{
 		Use:         r.Use,
 		Name:        diffString(r.Name, d.Name),
 		Template:    diffString(r.Template, d.Template),
 		Proxy:       diffString(r.Proxy, d.Proxy),
-		Profile:     diffString(r.Profile, d.Profile),
+		Profile:     profile,
 		Options:     diffMap(r.Options, d.Options),
 		Timeout:     diffString(r.Timeout, d.Timeout),
 		NoRedirects: diffBool(r.NoRedirects, d.NoRedirects),

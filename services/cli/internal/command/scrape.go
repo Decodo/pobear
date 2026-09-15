@@ -17,6 +17,7 @@ type RunResult struct {
 	Succeeded   int
 	Failed      int
 	Skipped     int
+	Empty       int
 	Kinds       []fault.Kind
 	Errors      []string
 	SkippedURLs []string
@@ -38,6 +39,7 @@ func (r coreRunner) Run(ctx context.Context, data []byte, mode jobspec.Mode) (Ru
 		Succeeded:   result.Succeeded,
 		Failed:      result.Failed,
 		Skipped:     result.Skipped,
+		Empty:       result.Empty,
 		Kinds:       result.Kinds,
 		Errors:      result.Errors,
 		SkippedURLs: result.SkippedURLs,
@@ -105,7 +107,7 @@ func scrapeRun(ctx context.Context, runner JobRunner, providers *providerator.Pr
 	var fetchOptions map[string]any
 	if f.provider != "" {
 		var perr *cliError
-		fetchOptions, perr = resolveProviderOptions(providers, credentialsPath, f.provider, f.template, opts)
+		fetchOptions, perr = resolveProviderOptions(providers, credentialsPath, f.provider, f.template, opts, !f.printSpec && !f.printSpecVerbose)
 		if perr != nil {
 			return 0, perr
 		}
@@ -118,25 +120,22 @@ func scrapeRun(ctx context.Context, runner JobRunner, providers *providerator.Pr
 		sinkUse, sinkPath = "ndjson", f.out
 	}
 
-	profile := f.profile
-	if fetchUse == "provider" {
-		profile = ""
+	profile, cerr := resolveProfile(f, fetchUse)
+	if cerr != nil {
+		return 0, cerr
 	}
 
 	resolvedIn := jobgen.Input{
 		URLs: urls, FetchUse: fetchUse, Proxy: f.proxy, Provider: f.provider, Template: f.template,
 		Profile: profile, Options: fetchOptions, Timeout: f.timeout, Stages: stages,
-		Concurrency: f.concurrency, RPS: f.rps, Retries: f.retries, SinkUse: sinkUse, SinkPath: sinkPath,
+		Concurrency: &f.concurrency, RPS: &f.rps, Retries: &f.retries, SinkUse: sinkUse, SinkPath: sinkPath,
 	}
-	defaultsIn := jobgen.Input{
-		URLs: urls, FetchUse: "local", Profile: "chrome", Timeout: "30s",
-		Concurrency: 8, Retries: 3, RPS: 0, SinkUse: "stdout",
-	}
+	defaultsIn := jobgen.Input{URLs: urls, FetchUse: "local"}
 
 	rawField := ""
 	if len(names) == 1 {
 		rawField = names[0]
 	}
 
-	return printSpecOrRun(ctx, runner, resolvedIn, defaultsIn, f.printSpec, f.printSpecVerbose, f.bare, rawField, f.out, stdout, stderr)
+	return printSpecOrRun(ctx, runner, resolvedIn, defaultsIn, f.printSpec, f.printSpecVerbose, f.bare, f.failOnEmpty, rawField, f.out, stdout, stderr)
 }
