@@ -7,10 +7,11 @@ import (
 	"github.com/pobear/pobear/pkg/fault"
 	"github.com/pobear/pobear/pkg/jobspec"
 	"github.com/pobear/pobear/services/core/internal/job/pool"
+	"github.com/pobear/pobear/services/core/internal/job/workers"
 )
 
 type ScrapeWorker interface {
-	Run(ctx context.Context, spec *jobspec.Spec, url, parentURL string, depth int) (links []string, kind fault.Kind, err error)
+	Run(ctx context.Context, spec *jobspec.Spec, url, parentURL string, depth int, gate workers.EmitGate) (links []string, blockedReason string, kind fault.Kind, err error)
 }
 
 type CrawlWorker interface {
@@ -25,6 +26,7 @@ type Result struct {
 	Succeeded   int
 	Failed      int
 	Skipped     int
+	Empty       int
 	Kinds       []fault.Kind
 	Errors      []string
 	SkippedURLs []string
@@ -57,7 +59,7 @@ func (e *Executor) Run(ctx context.Context, spec *jobspec.Spec) (result Result, 
 
 	for _, url := range spec.Source.URLs {
 		p.Submit(func() {
-			_, kind, scrapeErr := e.scrape.Run(ctx, spec, url, "", 0)
+			_, _, kind, scrapeErr := e.scrape.Run(ctx, spec, url, "", 0, nil)
 
 			mu.Lock()
 			defer mu.Unlock()

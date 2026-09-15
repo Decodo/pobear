@@ -201,6 +201,14 @@ device: "{{ .Options.device }}"
 
 JSONPath syntax is validated at load time, before any request is ever sent.
 
+Because `body` is required, a response whose declared `body` path matches
+**nothing** is a broken provider contract, not an empty page: the fetch fails
+with fault kind `provider` and the error carries a snippet of the actual
+response. A path that matches an *empty value* is a legitimately empty page and
+succeeds. The status (§10) is classified first, so an error response that
+carries none of the declared fields — commonly HTML or plain text — is still
+reported by its status rather than as a missing body.
+
 This resolved status — the extracted logical status, or the transport-level HTTP
 status if `status` is unset — is the value `errors[].status` (§10) matches against.
 It exists for providers that don't use HTTP status codes to report outcome at all

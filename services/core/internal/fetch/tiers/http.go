@@ -1,19 +1,25 @@
 package tiers
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"strings"
 	"time"
+
+	"golang.org/x/net/html/charset"
 
 	"github.com/pobear/pobear/pkg/fault"
 	"github.com/pobear/pobear/pkg/jobspec"
 )
 
 const bodySnippetLimit = 500
+
+const maxRedirects = 10
 
 func bodySnippet(b []byte) string {
 	s := strings.TrimSpace(string(b))
@@ -38,10 +44,23 @@ func doHTTPFetch(ctx context.Context, client *http.Client, cfg jobspec.Fetch, ur
 	}
 	applyHeaders(req, cfg.Headers)
 
-	if cfg.NoRedirects {
+	switch allow := redirectPolicyFrom(ctx); {
+	case cfg.NoRedirects:
 		c := *client
 		c.CheckRedirect = func(*http.Request, []*http.Request) error {
 			return http.ErrUseLastResponse
+		}
+		client = &c
+	case allow != nil:
+		c := *client
+		c.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			if !allow(req.URL.String()) {
+				return ErrRedirectBlocked
+			}
+			if len(via) >= maxRedirects {
+				return fmt.Errorf("stopped after %d redirects", maxRedirects)
+			}
+			return nil
 		}
 		client = &c
 	}
@@ -55,7 +74,7 @@ func doHTTPFetch(ctx context.Context, client *http.Client, cfg jobspec.Fetch, ur
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readBodyAsUTF8(resp)
 	if err != nil {
 		return nil, fault.Network, err
 	}
@@ -89,6 +108,8 @@ func classifyDefaultStatus(status int) fault.Kind {
 	switch {
 	case status >= 200 && status < 300:
 		return ""
+	case status == 401 || status == 407:
+		return fault.Auth
 	case status == 403:
 		return fault.Blocked
 	case status == 429:
@@ -97,3 +118,52 @@ func classifyDefaultStatus(status int) fault.Kind {
 		return fault.HTTP
 	}
 }
+
+func readBodyAsUTF8(resp *http.Response) ([]byte, error) {
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	contentType := resp.Header.Get("Content-Type")
+	if !isTextualContentType(contentType) {
+		return raw, nil
+	}
+	r, err := charset.NewReader(bytes.NewReader(raw), contentType)
+	if err != nil {
+		return raw, nil
+	}
+	decoded, err := io.ReadAll(r)
+	if err != nil {
+		return raw, nil
+	}
+	return decoded, nil
+}
+
+func isTextualContentType(contentType string) bool {
+	if contentType == "" {
+		return true
+	}
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return false
+	}
+	return strings.HasPrefix(mediaType, "text/") ||
+		mediaType == "application/xhtml+xml" ||
+		mediaType == "application/xml"
+}
+
+type redirectPolicyKey struct{}
+
+func WithRedirectPolicy(ctx context.Context, allow func(target string) bool) context.Context {
+	if allow == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, redirectPolicyKey{}, allow)
+}
+
+func redirectPolicyFrom(ctx context.Context) func(string) bool {
+	allow, _ := ctx.Value(redirectPolicyKey{}).(func(string) bool)
+	return allow
+}
+
+var ErrRedirectBlocked = errors.New("redirect target is not allowed")

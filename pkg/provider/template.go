@@ -4,12 +4,30 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"regexp"
+	"strings"
 	"sync"
 	"text/template"
 
 	"github.com/ohler55/ojg/jp"
 )
+
+func ApplyOptionDefaults(declared []Option, supplied map[string]any) map[string]any {
+	out := make(map[string]any, len(supplied)+len(declared))
+	maps.Copy(out, supplied)
+	for i := range declared {
+		opt := &declared[i]
+		if opt.Default == nil {
+			continue
+		}
+		if _, set := out[opt.Name]; set {
+			continue
+		}
+		out[opt.Name] = opt.Default
+	}
+	return out
+}
 
 func Render(req Request, url string, options map[string]any) (body map[string]any, query map[string]string, err error) {
 	data := struct {
@@ -106,7 +124,7 @@ func renderTemplateString(s string, data any) (string, error) {
 		return "", err
 	}
 	rendered := buf.String()
-	if rendered == noValuePlaceholder {
+	if strings.Contains(rendered, noValuePlaceholder) {
 		return "", nil
 	}
 	return rendered, nil
@@ -179,19 +197,17 @@ func ResolveTemplate(m *Manifest, templateName string) (*ResolvedTemplate, error
 	return &ResolvedTemplate{Name: t.Name, Options: t.Options, Request: t.Request, Endpoint: endpoint, Method: method}, nil
 }
 
-func Extract(resp Response, httpStatus int, httpBody []byte, requestURL string) (status int, body []byte, finalURL string, err error) {
+func Extract(resp Response, httpStatus int, httpBody []byte, requestURL string) (status int, body []byte, finalURL string, bodyMatched bool, err error) {
 	var parsed any
 	if len(httpBody) > 0 {
-		if err := json.Unmarshal(httpBody, &parsed); err != nil {
-			return 0, nil, "", err
-		}
+		_ = json.Unmarshal(httpBody, &parsed)
 	}
 
 	status = httpStatus
 	if resp.Status != "" {
 		v, matched, err := extractJSONPath(resp.Status, parsed)
 		if err != nil {
-			return 0, nil, "", err
+			return 0, nil, "", false, err
 		}
 		if matched {
 			status = toInt(v)
@@ -200,23 +216,24 @@ func Extract(resp Response, httpStatus int, httpBody []byte, requestURL string) 
 
 	body = []byte{}
 	if bodyVal, matched, err := extractJSONPath(resp.Body, parsed); err != nil {
-		return 0, nil, "", err
+		return 0, nil, "", false, err
 	} else if matched {
 		body = fmt.Appendf(nil, "%v", bodyVal)
+		bodyMatched = true
 	}
 
 	finalURL = requestURL
 	if resp.FinalURL != "" {
 		v, matched, err := extractJSONPath(resp.FinalURL, parsed)
 		if err != nil {
-			return 0, nil, "", err
+			return 0, nil, "", false, err
 		}
 		if matched {
 			finalURL = fmt.Sprint(v)
 		}
 	}
 
-	return status, body, finalURL, nil
+	return status, body, finalURL, bodyMatched, nil
 }
 
 func extractJSONPath(pathStr string, data any) (value any, matched bool, err error) {

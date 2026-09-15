@@ -74,13 +74,16 @@ type commonFlags struct {
 	outputFormat     string
 	printSpec        bool
 	printSpecVerbose bool
+	failOnEmpty      bool
 	concurrency      int
 	retries          int
 	rps              int
+	wasSet           func(name string) bool
 }
 
 func registerCommonFlags(cmd *cobra.Command, f *commonFlags, defaultRPS int) {
 	flags := cmd.Flags()
+	f.wasSet = flags.Changed
 	flags.StringVar(&f.proxy, "proxy", "", "fetch through this proxy URL (tier 2)")
 	flags.StringVar(&f.provider, "provider", "", "fetch through this provider's manifest (tier 2)")
 	flags.StringVar(&f.template, "template", "", "the provider template to use (default: the provider's own default template, if any)")
@@ -95,7 +98,18 @@ func registerCommonFlags(cmd *cobra.Command, f *commonFlags, defaultRPS int) {
 	flags.StringVar(&f.outputFormat, "output-format", "json", "raw prints just the extracted value, no envelope")
 	flags.BoolVar(&f.printSpec, "print-spec", false, "print the job spec, don't run it")
 	flags.BoolVar(&f.printSpecVerbose, "print-spec-verbose", false, "like --print-spec, but every field is shown fully resolved")
+	flags.BoolVar(&f.failOnEmpty, "fail-on-empty", false, "exit non-zero when every fetched item extracted nothing")
 	flags.IntVar(&f.concurrency, "concurrency", 8, "maximum concurrent fetches")
 	flags.IntVar(&f.retries, "retries", 3, "retries per fetch before giving up")
 	flags.IntVar(&f.rps, "rps", defaultRPS, "requests/sec across every host combined (0 = unlimited)")
+}
+
+func resolveProfile(f *commonFlags, fetchUse string) (string, *cliError) {
+	if fetchUse != "provider" {
+		return f.profile, nil
+	}
+	if f.wasSet != nil && f.wasSet("profile") {
+		return "", newCLIError(exitcode.UsageError, "--profile requires --proxy or the local tier, not --provider")
+	}
+	return "", nil
 }

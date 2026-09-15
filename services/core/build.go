@@ -48,7 +48,7 @@ func (e *liveExecutor) Run(ctx context.Context, spec *jobspec.Spec) (job.Result,
 		return job.Result{}, err
 	}
 	stager := e.createStager()
-	sinker := e.createSinker(spec)
+	sinker := sink.NewEmptyCounter(e.createSinker(spec), len(spec.Stages) > 0)
 
 	scrapeWorker := workers.NewScrape(fetcher, stager, sinker, workers.HTMLLinks{})
 	robotsChecker := crawl.NewHTTPRobotsChecker(http.DefaultClient)
@@ -56,7 +56,9 @@ func (e *liveExecutor) Run(ctx context.Context, spec *jobspec.Spec) (job.Result,
 	crawlWorker := crawlAdapter{crawl: crawl.NewCrawl(scrapeWorker, robotsChecker, sitemapFetcher)}
 	executor := job.NewExecutor(scrapeWorker, crawlWorker, sinker)
 
-	return executor.Run(ctx, spec)
+	result, runErr := executor.Run(ctx, spec)
+	result.Empty = sinker.Empty()
+	return result, runErr
 }
 
 type manifestLookup []*provider.Manifest

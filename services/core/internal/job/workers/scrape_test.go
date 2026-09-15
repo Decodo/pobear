@@ -71,7 +71,7 @@ func TestScrapeSuccessWritesMergedItem(t *testing.T) {
 
 	s := workers.NewScrape(fetcher, stager, sinker, links)
 	spec := &jobspec.Spec{Fetch: jobspec.Fetch{Use: "local"}, Stages: []jobspec.Stage{{Use: "raw"}}}
-	_, kind, err := s.Run(context.Background(), spec, "https://a.test", "", 0)
+	_, _, kind, err := s.Run(context.Background(), spec, "https://a.test", "", 0, nil)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -108,7 +108,7 @@ func TestScrapeSuccessSetsParentURLAndDepthForCrawlDiscoveredItem(t *testing.T) 
 
 	s := workers.NewScrape(fetcher, stager, sinker, links)
 	spec := &jobspec.Spec{Fetch: jobspec.Fetch{Use: "local"}}
-	_, _, err := s.Run(context.Background(), spec, "https://a.test/child", "https://a.test", 2)
+	_, _, _, err := s.Run(context.Background(), spec, "https://a.test/child", "https://a.test", 2, nil)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -128,7 +128,7 @@ func TestScrapePassesFetchedBodyToStager(t *testing.T) {
 	links := &fakeLinkExtractor{}
 
 	s := workers.NewScrape(fetcher, stager, sinker, links)
-	_, _, err := s.Run(context.Background(), &jobspec.Spec{}, "https://a.test", "", 0)
+	_, _, _, err := s.Run(context.Background(), &jobspec.Spec{}, "https://a.test", "", 0, nil)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -145,7 +145,7 @@ func TestScrapeSuccessReturnsExtractedLinks(t *testing.T) {
 	links := &fakeLinkExtractor{links: []string{"https://a.test/b"}}
 
 	s := workers.NewScrape(fetcher, stager, sinker, links)
-	got, _, err := s.Run(context.Background(), &jobspec.Spec{}, "https://a.test", "", 0)
+	got, _, _, err := s.Run(context.Background(), &jobspec.Spec{}, "https://a.test", "", 0, nil)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -169,7 +169,7 @@ func TestScrapeFetchErrorNeverCallsStagerSinkerOrLinkExtractor(t *testing.T) {
 	links := &fakeLinkExtractor{}
 
 	s := workers.NewScrape(fetcher, stager, sinker, links)
-	gotLinks, kind, err := s.Run(context.Background(), &jobspec.Spec{}, "https://a.test", "", 0)
+	gotLinks, _, kind, err := s.Run(context.Background(), &jobspec.Spec{}, "https://a.test", "", 0, nil)
 
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("expected the fetch error, got %v", err)
@@ -199,7 +199,7 @@ func TestScrapeStageErrorNeverCallsSinker(t *testing.T) {
 	links := &fakeLinkExtractor{}
 
 	s := workers.NewScrape(fetcher, stager, sinker, links)
-	_, kind, err := s.Run(context.Background(), &jobspec.Spec{}, "https://a.test", "", 0)
+	_, _, kind, err := s.Run(context.Background(), &jobspec.Spec{}, "https://a.test", "", 0, nil)
 
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("expected the stage error, got %v", err)
@@ -220,12 +220,67 @@ func TestScrapeSinkErrorIsReturned(t *testing.T) {
 	links := &fakeLinkExtractor{}
 
 	s := workers.NewScrape(fetcher, stager, sinker, links)
-	_, kind, err := s.Run(context.Background(), &jobspec.Spec{}, "https://a.test", "", 0)
+	_, _, kind, err := s.Run(context.Background(), &jobspec.Spec{}, "https://a.test", "", 0, nil)
 
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("expected the sink error, got %v", err)
 	}
 	if kind != "" {
 		t.Fatalf("expected an empty fault.Kind for a sink error (unclassified), got %q", kind)
+	}
+}
+
+func TestScrapeGateBlocksARedirectedResultBeforeItIsEmitted(t *testing.T) {
+	fetcher := &fakeFetcher{result: &tiers.Result{
+		Status: 200, Body: []byte("<html><h1>secret</h1></html>"),
+		FinalURL: "https://a.test/private/hidden",
+	}}
+	stager := &fakeStager{}
+	sinker := &fakeSinker{}
+	links := &fakeLinkExtractor{links: []string{"https://a.test/more"}}
+	s := workers.NewScrape(fetcher, stager, sinker, links)
+
+	gate := func(finalURL string) (string, bool) {
+		return "disallowed by robots.txt", finalURL == "https://a.test/private/hidden"
+	}
+	gotLinks, blockedReason, kind, err := s.Run(context.Background(), &jobspec.Spec{}, "https://a.test/toprivate", "", 0, gate)
+
+	if err != nil || kind != "" {
+		t.Fatalf("expected no error, got kind=%q err=%v", kind, err)
+	}
+	if blockedReason != "disallowed by robots.txt" {
+		t.Fatalf("blockedReason = %q, want the gate's reason", blockedReason)
+	}
+	if sinker.calls != 0 {
+		t.Error("a blocked result was written to the sink")
+	}
+	if len(gotLinks) != 0 {
+		t.Errorf("a blocked result returned %d links to follow, want 0", len(gotLinks))
+	}
+}
+
+func TestScrapeGateIsNotConsultedWhenThereWasNoRedirect(t *testing.T) {
+	fetcher := &fakeFetcher{result: &tiers.Result{
+		Status: 200, Body: []byte("<html><h1>ok</h1></html>"),
+		FinalURL: "https://a.test/page",
+	}}
+	sinker := &fakeSinker{}
+	s := workers.NewScrape(fetcher, &fakeStager{}, sinker, &fakeLinkExtractor{})
+
+	called := false
+	gate := func(string) (string, bool) { called = true; return "", true }
+	_, blockedReason, _, err := s.Run(context.Background(), &jobspec.Spec{}, "https://a.test/page", "", 0, gate)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if called {
+		t.Error("the gate was consulted for a URL that was never redirected")
+	}
+	if blockedReason != "" {
+		t.Errorf("blockedReason = %q, want empty", blockedReason)
+	}
+	if sinker.calls != 1 {
+		t.Errorf("sink writes = %d, want 1", sinker.calls)
 	}
 }

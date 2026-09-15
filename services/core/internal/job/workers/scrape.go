@@ -2,6 +2,7 @@ package workers
 
 import (
 	"context"
+	"errors"
 
 	"github.com/pobear/pobear/pkg/fault"
 	"github.com/pobear/pobear/pkg/jobspec"
@@ -25,6 +26,8 @@ type LinkExtractor interface {
 	Extract(body []byte, baseURL string) []string
 }
 
+type EmitGate func(finalURL string) (reason string, blocked bool)
+
 type Scrape struct {
 	fetcher Fetcher
 	stager  Stager
@@ -36,15 +39,24 @@ func NewScrape(f Fetcher, st Stager, sk Sinker, le LinkExtractor) *Scrape {
 	return &Scrape{fetcher: f, stager: st, sinker: sk, links: le}
 }
 
-func (s *Scrape) Run(ctx context.Context, spec *jobspec.Spec, url, parentURL string, depth int) (links []string, kind fault.Kind, err error) {
+func (s *Scrape) Run(ctx context.Context, spec *jobspec.Spec, url, parentURL string, depth int, gate EmitGate) (links []string, blockedReason string, kind fault.Kind, err error) {
 	result, fetchKind, fetchErr := s.fetcher.Fetch(ctx, spec.Fetch, url)
+	if errors.Is(fetchErr, tiers.ErrRedirectBlocked) {
+		return nil, tiers.ErrRedirectBlocked.Error(), "", nil
+	}
 	if fetchErr != nil || fetchKind != "" {
-		return nil, fetchKind, fetchErr
+		return nil, "", fetchKind, fetchErr
+	}
+
+	if gate != nil && result.FinalURL != url {
+		if reason, blocked := gate(result.FinalURL); blocked {
+			return nil, reason, "", nil
+		}
 	}
 
 	data, stageErr := s.stager.Run(ctx, result.Body, spec.Stages)
 	if stageErr != nil {
-		return nil, "", stageErr
+		return nil, "", "", stageErr
 	}
 
 	item := sinks.Item{
@@ -57,8 +69,8 @@ func (s *Scrape) Run(ctx context.Context, spec *jobspec.Spec, url, parentURL str
 		Data:      data,
 	}
 	if err := s.sinker.Write(ctx, item); err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
-	return s.links.Extract(result.Body, result.FinalURL), "", nil
+	return s.links.Extract(result.Body, result.FinalURL), "", "", nil
 }

@@ -60,6 +60,9 @@ templates:
         headless: "{{ .Options.headless }}"
         geo: "{{ .Options.geo }}"
         parse: "{{ .Options.parse }}"
+errors:
+  - { status: 401, kind: auth }
+  - { status: 429, kind: rateLimit }
 response:
   status: "$..status_code"
   body: "$..content"

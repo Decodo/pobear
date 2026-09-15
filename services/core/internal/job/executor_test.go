@@ -13,6 +13,7 @@ import (
 	"github.com/pobear/pobear/pkg/fault"
 	"github.com/pobear/pobear/pkg/jobspec"
 	"github.com/pobear/pobear/services/core/internal/job"
+	"github.com/pobear/pobear/services/core/internal/job/workers"
 )
 
 type fakeScrapeWorker struct {
@@ -27,13 +28,13 @@ type fakeScrapeResult struct {
 	err  error
 }
 
-func (f *fakeScrapeWorker) Run(_ context.Context, _ *jobspec.Spec, url, _ string, _ int) ([]string, fault.Kind, error) {
+func (f *fakeScrapeWorker) Run(_ context.Context, _ *jobspec.Spec, url, _ string, _ int, _ workers.EmitGate) ([]string, string, fault.Kind, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.gotURLs = append(f.gotURLs, url)
 	f.calls++
 	r := f.results[url]
-	return nil, r.kind, r.err
+	return nil, "", r.kind, r.err
 }
 
 type fakeCrawlWorker struct {
@@ -113,7 +114,7 @@ type slowScrapeWorker struct {
 	peak    int32
 }
 
-func (f *slowScrapeWorker) Run(_ context.Context, _ *jobspec.Spec, _, _ string, _ int) ([]string, fault.Kind, error) {
+func (f *slowScrapeWorker) Run(_ context.Context, _ *jobspec.Spec, _, _ string, _ int, _ workers.EmitGate) ([]string, string, fault.Kind, error) {
 	n := atomic.AddInt32(&f.current, 1)
 	for {
 		old := atomic.LoadInt32(&f.peak)
@@ -123,7 +124,7 @@ func (f *slowScrapeWorker) Run(_ context.Context, _ *jobspec.Spec, _, _ string, 
 	}
 	time.Sleep(f.sleep)
 	atomic.AddInt32(&f.current, -1)
-	return nil, "", nil
+	return nil, "", "", nil
 }
 
 func TestExecutorURLListRunsFetchesConcurrentlyUpToTheConfiguredLimit(t *testing.T) {

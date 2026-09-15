@@ -24,6 +24,9 @@ func Auth(m *provider.Manifest, path string, prompt func(label string) (string, 
 	if err != nil {
 		return err
 	}
+	if secret == "" {
+		return fmt.Errorf("no secret entered; %s left unchanged", credentials.EnvVar(m.Name, m.Auth.Credential))
+	}
 	if err := credentials.Save(path, m.Name, m.Auth.Credential, secret); err != nil {
 		return err
 	}

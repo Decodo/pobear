@@ -61,6 +61,12 @@ func buildStages(extract string, css []string) ([]jobspec.Stage, *cliError) {
 			if !ok {
 				return nil, newCLIError(exitcode.UsageError, "invalid --css %q, want name=selector", kv)
 			}
+			if name == "" {
+				return nil, newCLIError(exitcode.UsageError, "invalid --css %q, field name is empty", kv)
+			}
+			if _, dup := fields[name]; dup {
+				return nil, newCLIError(exitcode.UsageError, "--css field %q is set more than once", name)
+			}
 			fields[name] = sel
 		}
 		stages = append(stages, jobspec.Stage{Use: "css", Fields: fields})
@@ -132,7 +138,7 @@ func buildErrorToCLIError(err error) *cliError {
 	return newCLIError(exitcode.Fatal, "%v", err)
 }
 
-func printSpecOrRun(ctx context.Context, runner JobRunner, resolvedIn, defaultsIn jobgen.Input, printSpec, printSpecVerbose bool, outputFormat, rawField, outPath string, stdout, stderr io.Writer) (int, *cliError) {
+func printSpecOrRun(ctx context.Context, runner JobRunner, resolvedIn, defaultsIn jobgen.Input, printSpec, printSpecVerbose, failOnEmpty bool, outputFormat, rawField, outPath string, stdout, stderr io.Writer) (int, *cliError) {
 	resolved, err := jobgen.Build(resolvedIn)
 	if err != nil {
 		return 0, buildErrorToCLIError(err)
@@ -160,7 +166,7 @@ func printSpecOrRun(ctx context.Context, runner JobRunner, resolvedIn, defaultsI
 	if outputFormat == "raw" {
 		return runJobRaw(ctx, runner, resolved, rawField, outPath, stdout, stderr)
 	}
-	return runJob(ctx, runner, resolved, stderr)
+	return runJob(ctx, runner, resolved, failOnEmpty, stderr)
 }
 
 type verboseFetch struct {
@@ -205,12 +211,18 @@ func printJSON(spec *jobspec.Spec, stdout io.Writer) (int, *cliError) {
 	return exitcode.Success, nil
 }
 
-func runJob(ctx context.Context, runner JobRunner, spec *jobspec.Spec, stderr io.Writer) (int, *cliError) {
+func runJob(ctx context.Context, runner JobRunner, spec *jobspec.Spec, failOnEmpty bool, stderr io.Writer) (int, *cliError) {
 	data, err := yaml.Marshal(spec)
 	if err != nil {
 		return 0, newCLIError(exitcode.Fatal, "%v", err)
 	}
-	code, _, cerr := execAndSummarize(ctx, runner, data, stderr)
+	code, result, cerr := execAndSummarize(ctx, runner, data, stderr)
+	if cerr != nil {
+		return code, cerr
+	}
+	if failOnEmpty && result.Succeeded > 0 && result.Empty == result.Succeeded {
+		return 0, newCLIError(exitcode.Fatal, "every fetched item extracted nothing (%d items)", result.Empty)
+	}
 	return code, cerr
 }
 
@@ -225,6 +237,10 @@ func execAndSummarize(ctx context.Context, runner JobRunner, data []byte, stderr
 	for _, e := range result.Errors {
 		fmt.Fprintln(stderr, e)
 	}
-	fmt.Fprintf(stderr, "fetched %d, errors %d, skipped %d\n", result.Succeeded, result.Failed, result.Skipped)
+	summary := fmt.Sprintf("fetched %d, errors %d, skipped %d", result.Succeeded, result.Failed, result.Skipped)
+	if result.Empty > 0 {
+		summary += fmt.Sprintf(", empty %d", result.Empty)
+	}
+	fmt.Fprintln(stderr, summary)
 	return exitcode.FromRun(result.Succeeded, result.Failed, result.Kinds), result, nil
 }

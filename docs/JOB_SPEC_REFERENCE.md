@@ -106,6 +106,14 @@ an in-page `<base href>` override is not honored. Anything that isn't a
 `http`/`https` URL once resolved (`mailto:`, `tel:`, `javascript:`, an unparsable
 `href`) is silently dropped; it was never a crawlable candidate.
 
+**What the frontier filters apply to:** `scope`, `include`/`exclude` and `robots`
+are evaluated on every candidate before it is fetched, and again on the URL a
+fetch actually landed on when a redirect moved it — a redirect into a disallowed
+or out-of-scope URL is neither emitted nor followed. Seeds are the one exemption:
+a URL the user named explicitly is fetched as asked, and keeps that exemption
+through a redirect. Sitemap-sourced URLs are **not** seeds — the site chose them,
+so every filter applies to them exactly as it does to a discovered link.
+
 **`robots`/`sitemap` fetching:** both `<origin>/robots.txt` and
 `<origin>/sitemap.xml` are always fetched via a plain, direct HTTP request,
 regardless of `fetch.use` — these files are meant to be openly fetchable by any
@@ -210,6 +218,14 @@ order-dependent overwrite to reason about either.
   output key is decided by the host callback at runtime, so it's exempt from
   this check — moot in practice today since `plugin` is unreachable outside
   `__rpc` mode (deferred, see §5).
+
+A textual response body is decoded to UTF-8 using whatever charset the response
+declares — the `Content-Type` header, a BOM, or a `<meta charset>` tag — so a
+page served as, say, ISO-8859-1 reads correctly in `body` and in every extracted
+value. An unrecognised charset label falls back to the HTML default of
+windows-1252, matching browser behaviour. Bodies that aren't textual are left as
+the bytes the server sent, since no charset applies and sniffing them would
+change the content.
 
 Every fetched item already carries the untouched body in a top-level `body` field
 (see `CLI_REFERENCE.md`'s examples), independent of `stages`. An empty `stages: []`

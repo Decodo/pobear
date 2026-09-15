@@ -124,7 +124,7 @@ func findUnknownOption(declared []provider.Option, opts map[string]string) (stri
 	return "", false
 }
 
-func resolveProviderOptions(providers *providerator.Providerator, credentialsPath, providerName, templateName string, opts map[string]string) (map[string]any, *cliError) {
+func resolveProviderOptions(providers *providerator.Providerator, credentialsPath, providerName, templateName string, opts map[string]string, requireCredential bool) (map[string]any, *cliError) {
 	manifests, err := providers.Load()
 	if err != nil {
 		return nil, newCLIError(exitcode.Fatal, "%v", err)
@@ -154,12 +154,14 @@ func resolveProviderOptions(providers *providerator.Providerator, credentialsPat
 		return nil, newCLIError(exitcode.UsageError, "%v", verr)
 	}
 
-	hasCred, cerr := providerator.CheckCredential(m, credentialsPath)
-	if cerr != nil {
-		return nil, newCLIError(exitcode.Fatal, "%v", cerr)
-	}
-	if !hasCred {
-		return nil, newCLIError(exitcode.AuthFailure, "missing credential for provider %q (run: pobear auth %s)", m.Name, m.Name)
+	if requireCredential {
+		hasCred, cerr := providerator.CheckCredential(m, credentialsPath)
+		if cerr != nil {
+			return nil, newCLIError(exitcode.Fatal, "%v", cerr)
+		}
+		if !hasCred {
+			return nil, newCLIError(exitcode.AuthFailure, "missing credential for provider %q (run: pobear auth %s)", m.Name, m.Name)
+		}
 	}
 
 	return validated, nil

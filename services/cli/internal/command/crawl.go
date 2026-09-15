@@ -38,7 +38,7 @@ func (c *Crawl) Run(ctx context.Context, args []string, stdin io.Reader, stdout,
 				robots = "ignore"
 			}
 			crawlIn := &jobgen.CrawlInput{
-				Depth: depth, MaxPages: maxPages, MaxDuration: maxDuration, Scope: scope,
+				Depth: depth, MaxPages: &maxPages, MaxDuration: maxDuration, Scope: scope,
 				Include: include, Exclude: exclude, Sitemap: sitemap, Robots: robots,
 			}
 			cc, cerr := crawlRun(ctx, c.Runner, c.Providers, c.CredentialsPath, cmdArgs[0], &f, crawlIn, noRedirects, stdout, stderr)
@@ -92,7 +92,7 @@ func crawlRun(ctx context.Context, runner JobRunner, providers *providerator.Pro
 	var fetchOptions map[string]any
 	if f.provider != "" {
 		var perr *cliError
-		fetchOptions, perr = resolveProviderOptions(providers, credentialsPath, f.provider, f.template, opts)
+		fetchOptions, perr = resolveProviderOptions(providers, credentialsPath, f.provider, f.template, opts, !f.printSpec && !f.printSpecVerbose)
 		if perr != nil {
 			return 0, perr
 		}
@@ -105,20 +105,22 @@ func crawlRun(ctx context.Context, runner JobRunner, providers *providerator.Pro
 		sinkUse, sinkPath = "ndjson", f.out
 	}
 
-	profile := f.profile
-	if fetchUse == "provider" {
-		profile = ""
+	profile, cerr := resolveProfile(f, fetchUse)
+	if cerr != nil {
+		return 0, cerr
 	}
 
 	resolvedIn := jobgen.Input{
 		URLs: []string{target}, Crawl: crawlIn, FetchUse: fetchUse, Proxy: f.proxy, Provider: f.provider, Template: f.template,
 		Profile: profile, Options: fetchOptions, Timeout: f.timeout, NoRedirects: noRedirects, Stages: stages,
-		Concurrency: f.concurrency, RPS: f.rps, Retries: f.retries, SinkUse: sinkUse, SinkPath: sinkPath,
+		Concurrency: &f.concurrency, RPS: &f.rps, Retries: &f.retries, SinkUse: sinkUse, SinkPath: sinkPath,
 	}
+	// The minimal spec must be diffed against the defaults `pobear run` would
+	// apply to a bare document, not against the CLI's own defaults. Crawl's
+	// CLI defaults (depth 1, rps 2) differ from the spec's (0 and 0), so
+	// omitting them would round-trip into a different job.
 	defaultsIn := jobgen.Input{
-		URLs: []string{target}, FetchUse: "local", Profile: "chrome", Timeout: "30s",
-		Crawl:       &jobgen.CrawlInput{Depth: 1, MaxPages: 100, Scope: "same-host", Robots: "respect"},
-		Concurrency: 8, Retries: 3, RPS: 2, SinkUse: "stdout",
+		URLs: []string{target}, FetchUse: "local", Crawl: &jobgen.CrawlInput{},
 	}
 
 	rawField := ""
@@ -126,5 +128,5 @@ func crawlRun(ctx context.Context, runner JobRunner, providers *providerator.Pro
 		rawField = names[0]
 	}
 
-	return printSpecOrRun(ctx, runner, resolvedIn, defaultsIn, f.printSpec, f.printSpecVerbose, f.outputFormat, rawField, f.out, stdout, stderr)
+	return printSpecOrRun(ctx, runner, resolvedIn, defaultsIn, f.printSpec, f.printSpecVerbose, f.failOnEmpty, f.outputFormat, rawField, f.out, stdout, stderr)
 }

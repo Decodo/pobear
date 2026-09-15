@@ -108,7 +108,7 @@ func TestExtractSuccessfulMatches(t *testing.T) {
 	resp := provider.Response{Status: "$.logicalStatus", Body: "$.content", FinalURL: "$.resolvedUrl"}
 	httpBody := []byte(`{"logicalStatus":429,"content":"the page","resolvedUrl":"https://a.test/final"}`)
 
-	status, body, finalURL, err := provider.Extract(resp, 200, httpBody, "https://a.test")
+	status, body, finalURL, _, err := provider.Extract(resp, 200, httpBody, "https://a.test")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -127,7 +127,7 @@ func TestExtractSuccessfulMatches(t *testing.T) {
 func TestExtractBodyMissProducesEmptyNotNilString(t *testing.T) {
 	resp := provider.Response{Body: "$.content"}
 
-	_, body, _, err := provider.Extract(resp, 500, []byte(`{"error":"boom"}`), "https://a.test")
+	_, body, _, _, err := provider.Extract(resp, 500, []byte(`{"error":"boom"}`), "https://a.test")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -140,7 +140,7 @@ func TestExtractBodyMissProducesEmptyNotNilString(t *testing.T) {
 func TestExtractBodyMissOnEmptyHTTPBodyProducesEmptyBody(t *testing.T) {
 	resp := provider.Response{Body: "$.content"}
 
-	_, body, _, err := provider.Extract(resp, 500, nil, "https://a.test")
+	_, body, _, _, err := provider.Extract(resp, 500, nil, "https://a.test")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -153,7 +153,7 @@ func TestExtractBodyMissOnEmptyHTTPBodyProducesEmptyBody(t *testing.T) {
 func TestExtractStatusMissFallsBackToHTTPStatus(t *testing.T) {
 	resp := provider.Response{Status: "$.logicalStatus", Body: "$.content"}
 
-	status, _, _, err := provider.Extract(resp, 500, []byte(`{"content":"x"}`), "https://a.test")
+	status, _, _, _, err := provider.Extract(resp, 500, []byte(`{"content":"x"}`), "https://a.test")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -166,7 +166,7 @@ func TestExtractStatusMissFallsBackToHTTPStatus(t *testing.T) {
 func TestExtractFinalURLMissFallsBackToRequestURL(t *testing.T) {
 	resp := provider.Response{FinalURL: "$.redirectedTo", Body: "$.content"}
 
-	_, _, finalURL, err := provider.Extract(resp, 200, []byte(`{"content":"x"}`), "https://a.test/page")
+	_, _, finalURL, _, err := provider.Extract(resp, 200, []byte(`{"content":"x"}`), "https://a.test/page")
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -179,9 +179,71 @@ func TestExtractFinalURLMissFallsBackToRequestURL(t *testing.T) {
 func TestExtractInvalidJSONPathErrors(t *testing.T) {
 	resp := provider.Response{Body: "$["}
 
-	_, _, _, err := provider.Extract(resp, 200, []byte(`{}`), "https://a.test")
+	_, _, _, _, err := provider.Extract(resp, 200, []byte(`{}`), "https://a.test")
 
 	if err == nil {
 		t.Fatal("expected an error for an invalid JSONPath, got nil")
+	}
+}
+
+func TestApplyOptionDefaultsFillsUnsetOptions(t *testing.T) {
+	declared := []provider.Option{
+		{Name: "headless", Type: "enum", Default: "html"},
+		{Name: "proxy_pool", Type: "enum", Default: "premium"},
+		{Name: "geo", Type: "string"},
+	}
+
+	got := provider.ApplyOptionDefaults(declared, map[string]any{"geo": "us"})
+
+	want := map[string]any{"headless": "html", "proxy_pool": "premium", "geo": "us"}
+	if len(got) != len(want) {
+		t.Fatalf("expected %d options, got %d: %v", len(want), len(got), got)
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("option %q: expected %v, got %v", k, v, got[k])
+		}
+	}
+}
+
+func TestApplyOptionDefaultsDoesNotOverrideSuppliedValue(t *testing.T) {
+	declared := []provider.Option{{Name: "headless", Type: "enum", Default: "html"}}
+
+	got := provider.ApplyOptionDefaults(declared, map[string]any{"headless": "png"})
+
+	if got["headless"] != "png" {
+		t.Errorf("expected supplied value to win, got %v", got["headless"])
+	}
+}
+
+func TestApplyOptionDefaultsLeavesSuppliedMapUnmodified(t *testing.T) {
+	declared := []provider.Option{{Name: "headless", Type: "enum", Default: "html"}}
+	supplied := map[string]any{"geo": "us"}
+
+	provider.ApplyOptionDefaults(declared, supplied)
+
+	if _, ok := supplied["headless"]; ok {
+		t.Error("expected the supplied map to be left unmodified")
+	}
+}
+
+func TestRenderDropsKeyWhenUnsetOptionIsInterpolated(t *testing.T) {
+	req := provider.Request{
+		Body: map[string]any{
+			"url":    "{{ .URL }}",
+			"intref": "count={{ .Options.n }}",
+		},
+	}
+
+	body, _, err := provider.Render(req, "https://a.test/page", map[string]any{})
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if _, ok := body["intref"]; ok {
+		t.Errorf("expected intref to be dropped, got %q", body["intref"])
+	}
+	if body["url"] != "https://a.test/page" {
+		t.Errorf("expected url to survive, got %v", body["url"])
 	}
 }
