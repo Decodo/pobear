@@ -50,16 +50,28 @@ $ pobear scrape urls.txt --print-spec
 | `--render` | off | sugar for `--opt render=true` |
 | `--geo <code>` | — | sugar for `--opt geo=<code>` |
 | `--opt name=value` | — | repeatable; set any option the chosen provider declares — see below |
-| `--timeout <duration>` | `30s` | per-request timeout |
-| `--extract raw\|markdown` | — | add an extraction stage |
+| `-t, --timeout <duration>` | `30s` | per-request timeout |
+| `-e, --extract raw\|markdown` | — | add an extraction stage |
 | `--css name=selector[@attr]` | — | repeatable |
-| `--out <path>` | stdout | write NDJSON to a file, or one file per target plus an `index.json` if `<path>` is a directory — see below |
-| `--bare` | off | print just the extracted value, no envelope — see below |
+| `-o, --out <path>` | stdout | write NDJSON to a file, or one file per target plus an `index.json` if `<path>` is a directory — see below |
+| `-b, --bare` | off | print just the extracted value, no envelope — see below |
 | `--print-spec` | off | print the spec, don't run it — fields still at their default are omitted, see below |
 | `--print-spec-verbose` | off | like `--print-spec`, but every field is shown fully resolved, defaults included |
-| `--concurrency <n>` | 8 | |
-| `--retries <n>` | 3 | |
+| `-c, --concurrency <n>` | 8 | |
+| `-r, --retries <n>` | 3 | |
 | `--rps <n>` | 0 (unlimited) | requests/sec across every host combined |
+
+Not every flag gets a single-letter shorthand — `pflag` limits a shorthand to exactly
+one ASCII character, so it's reserved for flags that are frequent enough to be worth
+it and don't collide with something more central. `--proxy`/`--provider`/`--profile`
+all start with `p` and are equally central, so none of them claims it rather than
+picking a winner; `--render` is itself sugar for `--opt`, so it doesn't need its own
+shortcut; `--print-spec`/`--print-spec-verbose`/`--rps` are debugging/advanced knobs
+left fully explicit on purpose. `--css` keeps its full name too — its value
+(`name=selector[@attr]`) is already the verbose part, so a shorter flag name saves
+little. `crawl`'s own flags follow the same reasoning (below) — notably
+`--ignore-robots` is deliberately never abbreviated, since it disables a
+legal/courtesy default and shouldn't be easy to fat-finger.
 
 ### `--print-spec` vs `--print-spec-verbose` — sane defaults, or every field resolved
 
@@ -320,11 +332,11 @@ Everything `scrape` has, plus:
 
 | Flag | Default | Notes |
 |---|---|---|
-| `--depth <n>` | 1 | link-following depth; `0` = seeds only |
+| `-d, --depth <n>` | 1 | link-following depth; `0` = seeds only |
 | `--max-pages <n>` | 100 | |
 | `--max-duration <duration>` | no limit | stop the whole crawl after this long, even if `max-pages` isn't reached |
-| `--scope same-host\|same-domain\|any` | `same-host` | |
-| `--include <glob>` | — | repeatable |
+| `-s, --scope same-host\|same-domain\|any` | `same-host` | |
+| `-i, --include <glob>` | — | repeatable |
 | `--exclude <glob>` | — | repeatable; wins over include |
 | `--sitemap` | off | also seed from `/sitemap.xml` |
 | `--ignore-robots` | off | `robots.txt` is respected by default |
