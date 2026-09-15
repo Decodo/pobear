@@ -48,6 +48,14 @@ contains() {
 	esac
 }
 
+assert() {
+	if [ "$2" = "0" ]; then
+		ok "$1"
+	else
+		bad "$1" "$3"
+	fi
+}
+
 lacks() {
 	case "$2" in
 	*"$3"*) bad "$1" "expected output NOT to contain '$3', got: $2" ;;
@@ -56,7 +64,7 @@ lacks() {
 }
 
 build_fixtures() {
-	os=$(uname -s | tr 'A-Z' 'a-z')
+	os=$(uname -s | tr '[:upper:]' '[:lower:]')
 	case "$(uname -m)" in
 	x86_64 | amd64) arch="amd64" ;;
 	*) arch="arm64" ;;
@@ -74,7 +82,8 @@ build_fixtures() {
 	BROKEN_ASSET="pobear_8.8.8_${os}_${arch}.tar.gz"
 	tar -czf "$ROOT/mirror/$BROKEN_ASSET" -C "$ROOT/stage-broken" pobear
 
-	(cd "$ROOT/mirror" && sums *.tar.gz >checksums.txt)
+	# goreleaser writes bare filenames; strip the ./ the glob introduces.
+	(cd "$ROOT/mirror" && sums ./*.tar.gz | sed 's|\./||' >checksums.txt)
 	printf '{"tag_name":"v%s"}' "$VERSION" >"$ROOT/mirror/latest.json"
 }
 
@@ -138,14 +147,14 @@ CASE="$ROOT/cases"
 out=$(run_install happy || true)
 contains "installs and reports the version" "$out" "pobear $VERSION"
 check "binary is executable" "$("$CASE/happy/target/pobear" version)" "pobear $VERSION"
-lacks "no leftover .tmp file" "$(ls "$CASE/happy/target")" ".tmp"
+lacks "no leftover .tmp file" "$(find "$CASE/happy/target" -name "*.tmp" -print)" ".tmp"
 
 out=$(run_install happy2 || true)
 out=$(cd "$CASE/happy2" && env -i HOME="$CASE/happy2/home" PATH="$CASE/happy2/pathdir:/usr/bin:/bin" \
 	SHELL=/bin/zsh POBEAR_INSTALL_DIR="$CASE/happy2/target" POBEAR_VERSION="$VERSION" \
 	sh "$ROOT/install.sh" 2>&1 || true)
 contains "reinstall succeeds" "$out" "pobear $VERSION"
-check "reinstall leaves one file" "$(ls "$CASE/happy2/target" | wc -l | tr -d ' ')" "1"
+check "reinstall leaves one file" "$(find "$CASE/happy2/target" -type f | wc -l | tr -d ' ')" "1"
 
 out=$(rm -rf "$CASE/tag" && mkdir -p "$CASE/tag/home" "$CASE/tag/pathdir" "$CASE/tag/target" &&
 	env -i HOME="$CASE/tag/home" PATH="$CASE/tag/pathdir:/usr/bin:/bin" SHELL=/bin/zsh \
@@ -157,7 +166,7 @@ sed 's/^[0-9a-f]\{64\}/000000000000000000000000000000000000000000000000000000000
 	"$ROOT/checksums.bak" >"$ROOT/mirror/checksums.txt"
 out=$(run_install badsum || true)
 contains "checksum mismatch is rejected" "$out" "checksum mismatch"
-check "nothing installed on mismatch" "$(ls "$CASE/badsum/target" | wc -l | tr -d ' ')" "0"
+check "nothing installed on mismatch" "$(find "$CASE/badsum/target" -type f | wc -l | tr -d ' ')" "0"
 cp "$ROOT/checksums.bak" "$ROOT/mirror/checksums.txt"
 
 grep -v "$ASSET" "$ROOT/checksums.bak" >"$ROOT/mirror/checksums.txt"
@@ -218,9 +227,11 @@ out=$(env -i HOME="$CASE/slash/home" PATH="$CASE/slash/target:/usr/bin:/bin" SHE
 	sh "$ROOT/install.sh" 2>&1 || true)
 lacks "a trailing slash does not cause a false PATH warning" "$out" "not on your PATH"
 contains "a trailing slash is normalised in the reported path" "$out" "$CASE/slash/target/pobear"
-[ -L "$CASE/slash/target/pobear" ] &&
-	bad "an unnormalised dir does not self-symlink" "pobear in the install dir is a symlink" ||
+if [ -L "$CASE/slash/target/pobear" ]; then
+	bad "an unnormalised dir does not self-symlink" "pobear in the install dir is a symlink"
+else
 	ok "an unnormalised dir does not self-symlink"
+fi
 
 rm -rf "$CASE/rel"
 mkdir -p "$CASE/rel/home" "$CASE/rel/target"
@@ -231,9 +242,11 @@ contains "a relative dir is reported as an absolute path" "$out" "$CASE/rel/targ
 
 out=$(run_install link || true)
 contains "links into a writable directory on PATH" "$out" "Linked into"
-[ -L "$CASE/link/pathdir/pobear" ] &&
-	ok "the link is a symlink" ||
+if [ -L "$CASE/link/pathdir/pobear" ]; then
+	ok "the link is a symlink"
+else
 	bad "the link is a symlink" "no symlink at $CASE/link/pathdir/pobear"
+fi
 
 rm -rf "$CASE/rc"
 mkdir -p "$CASE/rc/home" "$CASE/rc/ro" "$CASE/rc/target"
@@ -242,9 +255,11 @@ out=$(env -i HOME="$CASE/rc/home" PATH="$CASE/rc/ro:/usr/bin:/bin" SHELL=/bin/zs
 	POBEAR_INSTALL_DIR="$CASE/rc/target" POBEAR_VERSION="$VERSION" \
 	sh "$ROOT/install.sh" 2>&1 || true)
 contains "falls back to editing the shell rc" "$out" "Added"
-grep -Fq "$CASE/rc/target" "$CASE/rc/home/.zshrc" 2>/dev/null &&
-	ok "the rc file gained the export line" ||
+if grep -Fq "$CASE/rc/target" "$CASE/rc/home/.zshrc" 2>/dev/null; then
+	ok "the rc file gained the export line"
+else
 	bad "the rc file gained the export line" "no PATH line in .zshrc"
+fi
 chmod 755 "$CASE/rc/ro"
 
 rm -rf "$CASE/nomod"
@@ -254,9 +269,11 @@ out=$(env -i HOME="$CASE/nomod/home" PATH="$CASE/nomod/ro:/usr/bin:/bin" SHELL=/
 	POBEAR_INSTALL_DIR="$CASE/nomod/target" POBEAR_VERSION="$VERSION" POBEAR_NO_MODIFY_PATH=1 \
 	sh "$ROOT/install.sh" 2>&1 || true)
 contains "POBEAR_NO_MODIFY_PATH prints the hint instead" "$out" "is not on your PATH"
-[ -f "$CASE/nomod/home/.zshrc" ] &&
-	bad "POBEAR_NO_MODIFY_PATH leaves the rc alone" "a .zshrc was created" ||
+if [ -f "$CASE/nomod/home/.zshrc" ]; then
+	bad "POBEAR_NO_MODIFY_PATH leaves the rc alone" "a .zshrc was created"
+else
 	ok "POBEAR_NO_MODIFY_PATH leaves the rc alone"
+fi
 chmod 755 "$CASE/nomod/ro"
 
 echo

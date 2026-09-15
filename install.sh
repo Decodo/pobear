@@ -147,6 +147,7 @@ first_writable_path_dir() {
 	old_ifs="$IFS"
 	IFS=:
 	set -f
+	# shellcheck disable=SC2086 # IFS is ":" here; splitting PATH is the point
 	set -- $PATH
 	set +f
 	IFS="$old_ifs"
@@ -182,6 +183,7 @@ add_to_rc_file() {
 		return 0
 	fi
 	mkdir -p "$(dirname "$RC_FILE")" 2>/dev/null || return 1
+	# shellcheck disable=SC2016 # $PATH must reach the rc file unexpanded
 	if [ "$(basename "${SHELL:-/bin/sh}")" = "fish" ]; then
 		printf '\nset -gx PATH "%s" $PATH\n' "$INSTALL_DIR" >>"$RC_FILE" || return 1
 	else
