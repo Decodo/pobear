@@ -48,8 +48,6 @@ jobs:
   install-script:
     runs-on: ubuntu-latest
     env:
-      # Pinned so a runner image bump cannot change which findings are reported;
-      # the same version is what contributors get from `make lint-install`.
       SHELLCHECK_VERSION: v0.11.0
     steps:
       - uses: actions/checkout@v7
