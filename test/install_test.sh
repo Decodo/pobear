@@ -150,15 +150,16 @@ check "binary is executable" "$("$CASE/happy/target/pobear" version)" "pobear $V
 lacks "no leftover .tmp file" "$(find "$CASE/happy/target" -name "*.tmp" -print)" ".tmp"
 
 out=$(run_install happy2 || true)
-out=$(cd "$CASE/happy2" && env -i HOME="$CASE/happy2/home" PATH="$CASE/happy2/pathdir:/usr/bin:/bin" \
+out=$(env -i HOME="$CASE/happy2/home" PATH="$CASE/happy2/pathdir:/usr/bin:/bin" \
 	SHELL=/bin/zsh POBEAR_INSTALL_DIR="$CASE/happy2/target" POBEAR_VERSION="$VERSION" \
-	sh "$ROOT/install.sh" 2>&1 || true)
+	sh "$ROOT/install.sh" 2>&1) || true
 contains "reinstall succeeds" "$out" "pobear $VERSION"
 check "reinstall leaves one file" "$(find "$CASE/happy2/target" -type f | wc -l | tr -d ' ')" "1"
 
-out=$(rm -rf "$CASE/tag" && mkdir -p "$CASE/tag/home" "$CASE/tag/pathdir" "$CASE/tag/target" &&
-	env -i HOME="$CASE/tag/home" PATH="$CASE/tag/pathdir:/usr/bin:/bin" SHELL=/bin/zsh \
-		POBEAR_INSTALL_DIR="$CASE/tag/target" sh "$ROOT/install.sh" 2>&1 || true)
+rm -rf "$CASE/tag"
+mkdir -p "$CASE/tag/home" "$CASE/tag/pathdir" "$CASE/tag/target"
+out=$(env -i HOME="$CASE/tag/home" PATH="$CASE/tag/pathdir:/usr/bin:/bin" SHELL=/bin/zsh \
+	POBEAR_INSTALL_DIR="$CASE/tag/target" sh "$ROOT/install.sh" 2>&1) || true
 contains "resolves the latest tag when POBEAR_VERSION is unset" "$out" "v$VERSION"
 
 cp "$ROOT/mirror/checksums.txt" "$ROOT/checksums.bak"
@@ -174,10 +175,11 @@ out=$(run_install nosum || true)
 contains "asset missing from checksums.txt is rejected" "$out" "not listed in checksums.txt"
 cp "$ROOT/checksums.bak" "$ROOT/mirror/checksums.txt"
 
-out=$(rm -rf "$CASE/missing" && mkdir -p "$CASE/missing/home" "$CASE/missing/pathdir" "$CASE/missing/target" &&
-	env -i HOME="$CASE/missing/home" PATH="$CASE/missing/pathdir:/usr/bin:/bin" SHELL=/bin/zsh \
-		POBEAR_INSTALL_DIR="$CASE/missing/target" POBEAR_VERSION="1.2.3" \
-		sh "$ROOT/install.sh" 2>&1 || true)
+rm -rf "$CASE/missing"
+mkdir -p "$CASE/missing/home" "$CASE/missing/pathdir" "$CASE/missing/target"
+out=$(env -i HOME="$CASE/missing/home" PATH="$CASE/missing/pathdir:/usr/bin:/bin" SHELL=/bin/zsh \
+	POBEAR_INSTALL_DIR="$CASE/missing/target" POBEAR_VERSION="1.2.3" \
+	sh "$ROOT/install.sh" 2>&1) || true
 contains "a 404 does not claim the asset is absent" "$out" "may not exist or the repository may be private"
 
 rm -rf "$CASE/ro"
@@ -214,10 +216,11 @@ out=$(env -i HOME="$CASE/broken/home" PATH="$CASE/broken/pathdir:/usr/bin:/bin" 
 	sh "$ROOT/install.sh" 2>&1 || true)
 contains "a broken existing install is repaired" "$out" "pobear $VERSION"
 
-out=$(rm -rf "$CASE/norun" && mkdir -p "$CASE/norun/home" "$CASE/norun/pathdir" "$CASE/norun/target" &&
-	env -i HOME="$CASE/norun/home" PATH="$CASE/norun/pathdir:/usr/bin:/bin" SHELL=/bin/zsh \
-		POBEAR_INSTALL_DIR="$CASE/norun/target" POBEAR_VERSION="8.8.8" \
-		sh "$ROOT/install.sh" 2>&1 || true)
+rm -rf "$CASE/norun"
+mkdir -p "$CASE/norun/home" "$CASE/norun/pathdir" "$CASE/norun/target"
+out=$(env -i HOME="$CASE/norun/home" PATH="$CASE/norun/pathdir:/usr/bin:/bin" SHELL=/bin/zsh \
+	POBEAR_INSTALL_DIR="$CASE/norun/target" POBEAR_VERSION="8.8.8" \
+	sh "$ROOT/install.sh" 2>&1) || true
 contains "a binary that will not run is caught after install" "$out" "will not run"
 
 rm -rf "$CASE/slash"
@@ -237,7 +240,7 @@ rm -rf "$CASE/rel"
 mkdir -p "$CASE/rel/home" "$CASE/rel/target"
 out=$(cd "$CASE/rel" && env -i HOME="$CASE/rel/home" PATH="$CASE/rel/target:/usr/bin:/bin" SHELL=/bin/zsh \
 	POBEAR_INSTALL_DIR="./target" POBEAR_VERSION="$VERSION" \
-	sh "$ROOT/install.sh" 2>&1 || true)
+	sh "$ROOT/install.sh" 2>&1) || true
 contains "a relative dir is reported as an absolute path" "$out" "$CASE/rel/target/pobear"
 
 out=$(run_install link || true)

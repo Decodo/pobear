@@ -1,7 +1,7 @@
 BINARY := pobear
 CMD    := ./cmd/core
 
-.PHONY: build run test test-install lint fmt fmt-check tidy vet ci clean
+.PHONY: build run test test-install lint-install lint fmt fmt-check tidy vet ci clean
 
 build:
 	go build -o bin/$(BINARY) $(CMD)
@@ -14,6 +14,9 @@ test:
 
 test-install:
 	sh test/install_test.sh install.sh
+
+lint-install:
+	shellcheck install.sh test/install_test.sh
 
 lint:
 	golangci-lint run ./...
@@ -30,7 +33,7 @@ tidy:
 vet:
 	go vet ./...
 
-ci: vet lint test test-install build
+ci: vet lint lint-install test test-install build
 
 clean:
 	rm -rf bin/
