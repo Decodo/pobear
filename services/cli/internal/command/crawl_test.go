@@ -54,8 +54,8 @@ func TestCrawlWithNoFlagsSucceeds(t *testing.T) {
 	}
 }
 
-func TestCrawlUnknownOutputFormatErrors(t *testing.T) {
-	args := cliArgs("crawl https://example.com --depth 0 --extract markdown --output-format markdown")
+func TestCrawlBareWithTwoFieldsErrors(t *testing.T) {
+	args := cliArgs("crawl https://example.com --depth 0 --css title=h1 --css link=a@href --bare")
 
 	cmd := &command.Crawl{Runner: &fakeRunner{}, Providers: providerator.New(t.TempDir())}
 
@@ -63,9 +63,9 @@ func TestCrawlUnknownOutputFormatErrors(t *testing.T) {
 	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &bytes.Buffer{}, &stderr)
 
 	if got != 3 {
-		t.Fatalf("Run() = %d, want 3 (unknown --output-format value)", got)
+		t.Fatalf("Run() = %d, want 3 (--bare requires at most one field)", got)
 	}
-	if want := "pobear: --output-format must be json or raw, got \"markdown\"\n"; stderr.String() != want {
+	if want := "pobear: --bare requires at most one extracted value, but 2 fields are set (title, link)\n"; stderr.String() != want {
 		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
 	}
 }

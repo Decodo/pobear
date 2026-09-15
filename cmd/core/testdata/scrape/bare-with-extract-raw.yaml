@@ -1,4 +1,4 @@
-args: scrape {{base}}/page.html --extract raw --output-format raw
+args: scrape {{base}}/page.html --extract raw --bare
 stdout: <h1>Hello</h1><p>world</p>
 stderr: |
     fetched 1, errors 0, skipped 0

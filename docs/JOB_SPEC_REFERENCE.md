@@ -214,9 +214,8 @@ order-dependent overwrite to reason about either.
 Every fetched item already carries the untouched body in a top-level `body` field
 (see `CLI_REFERENCE.md`'s examples), independent of `stages`. An empty `stages: []`
 still gives you that field — `raw` doesn't fetch anything extra, it just copies the
-same content into `data.raw` too, which is what makes it eligible for
-`--output-format raw` and lets it sit alongside other fields (`css`, `markdown`) in
-the same `data` map.
+same content into `data.raw` too, which is what makes it eligible for `--bare` and
+lets it sit alongside other fields (`css`, `markdown`) in the same `data` map.
 
 ---
 

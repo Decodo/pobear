@@ -71,7 +71,7 @@ type commonFlags struct {
 	extract          string
 	css              []string
 	out              string
-	outputFormat     string
+	bare             bool
 	printSpec        bool
 	printSpecVerbose bool
 	concurrency      int
@@ -92,7 +92,7 @@ func registerCommonFlags(cmd *cobra.Command, f *commonFlags, defaultRPS int) {
 	flags.StringVar(&f.extract, "extract", "", "add an extraction stage: raw or markdown")
 	flags.StringArrayVar(&f.css, "css", nil, "add a css extraction field as name=selector[@attr] (repeatable)")
 	flags.StringVar(&f.out, "out", "", "write NDJSON to this file instead of stdout, or one file per target plus an index.json if this names a directory")
-	flags.StringVar(&f.outputFormat, "output-format", "json", "raw prints just the extracted value, no envelope")
+	flags.BoolVar(&f.bare, "bare", false, "print just the extracted value, no envelope -- requires at most one field from --extract/--css (falls back to the raw fetched body if neither is set)")
 	flags.BoolVar(&f.printSpec, "print-spec", false, "print the job spec, don't run it")
 	flags.BoolVar(&f.printSpecVerbose, "print-spec-verbose", false, "like --print-spec, but every field is shown fully resolved")
 	flags.IntVar(&f.concurrency, "concurrency", 8, "maximum concurrent fetches")

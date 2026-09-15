@@ -1,0 +1,5 @@
+args: scrape https://example.com --css title=h1 --css link=a@href --bare
+stdout: ""
+stderr: |
+    pobear: --bare requires at most one extracted value, but 2 fields are set (title, link)
+exit: 3
