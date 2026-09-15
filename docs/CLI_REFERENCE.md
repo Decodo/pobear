@@ -50,17 +50,29 @@ $ pobear scrape urls.txt --print-spec
 | `--render` | off | sugar for `--opt render=true` |
 | `--geo <code>` | — | sugar for `--opt geo=<code>` |
 | `--opt name=value` | — | repeatable; set any option the chosen provider declares — see below |
-| `--timeout <duration>` | `30s` | per-request timeout |
-| `--extract raw\|markdown` | — | add an extraction stage |
+| `-t, --timeout <duration>` | `30s` | per-request timeout |
+| `-e, --extract raw\|markdown` | — | add an extraction stage |
 | `--css name=selector[@attr]` | — | repeatable; each field name must be non-empty and set at most once |
-| `--out <path>` | stdout | write NDJSON to a file, or one file per target plus an `index.json` if `<path>` is a directory — see below |
-| `--output-format raw\|json` | `json` | `raw` prints just the extracted value, no envelope — see below |
+| `-o, --out <path>` | stdout | write NDJSON to a file, or one file per target plus an `index.json` if `<path>` is a directory — see below |
+| `-b, --bare` | off | print just the extracted value, no envelope — see below |
 | `--print-spec` | off | print the spec, don't run it — fields still at their default are omitted, see below |
 | `--print-spec-verbose` | off | like `--print-spec`, but every field is shown fully resolved, defaults included |
 | `--fail-on-empty` | off | exit `5` when every fetched item extracted nothing — see below |
-| `--concurrency <n>` | 8 | |
-| `--retries <n>` | 3 | |
+| `-c, --concurrency <n>` | 8 | |
+| `-r, --retries <n>` | 3 | |
 | `--rps <n>` | 0 (unlimited) | requests/sec across every host combined |
+
+Not every flag gets a single-letter shorthand — `pflag` limits a shorthand to exactly
+one ASCII character, so it's reserved for flags that are frequent enough to be worth
+it and don't collide with something more central. `--proxy`/`--provider`/`--profile`
+all start with `p` and are equally central, so none of them claims it rather than
+picking a winner; `--render` is itself sugar for `--opt`, so it doesn't need its own
+shortcut; `--print-spec`/`--print-spec-verbose`/`--rps` are debugging/advanced knobs
+left fully explicit on purpose. `--css` keeps its full name too — its value
+(`name=selector[@attr]`) is already the verbose part, so a shorter flag name saves
+little. `crawl`'s own flags follow the same reasoning (below) — notably
+`--ignore-robots` is deliberately never abbreviated, since it disables a
+legal/courtesy default and shouldn't be easy to fat-finger.
 
 ### `--print-spec` vs `--print-spec-verbose` — sane defaults, or every field resolved
 
@@ -162,28 +174,38 @@ $ echo $?
 `--extract` and `--css` compose freely — each adds its own stage to the pipeline
 (§6 of `JOB_SPEC_REFERENCE.md`), so `--extract markdown --css title=h1` produces
 both a stage using `markdown` and a stage using `css`, writing `data.markdown` and `data.title`
-in the same item. The only place the combination matters is `--output-format raw`
-(below), which requires the *total* result to be a single value across every stage.
+in the same item. The only place the combination matters is `--bare` (below), which
+requires the *total* result to be a single value across every stage.
 
-### `--output-format raw` — just the extracted value, no envelope
+### `--bare` — just the extracted value, no envelope
 
-Valid only when exactly one URL is targeted and exactly one extraction result would
-otherwise land in `data` — one bare `--extract` stage, or exactly one `--css` field.
-Anything more (a URL list file, or more than one field) is ambiguous and rejected.
-Since `css` always writes a list (`JOB_SPEC_REFERENCE.md` §6), `--output-format raw`
-additionally requires that field's list to hold exactly one element — one CSS field
-matching zero or 2+ elements is also rejected as ambiguous, same as multiple fields.
+Strips the response down to one bare string, no envelope. Valid only when exactly
+one URL is targeted and at most one extraction result would otherwise land in `data`
+— one bare `--extract` stage, or exactly one `--css` field. More than one field is
+ambiguous and rejected. Since `css` always writes a list (`JOB_SPEC_REFERENCE.md` §6),
+`--bare` additionally requires that field's list to hold exactly one element — one
+CSS field matching zero or 2+ elements is also rejected as ambiguous, same as multiple
+fields.
 
 ```
-$ pobear scrape https://example.com --extract markdown --output-format raw
+$ pobear scrape https://example.com --extract markdown --bare
 # Example Domain
 
 This domain is for use in illustrative examples...
 ```
 
+If neither `--extract` nor `--css` is set, `--bare` falls back to the raw fetched
+body — the same content `--extract raw` would put in `data.raw`, without needing
+that stage at all:
+
 ```
-$ pobear scrape https://example.com --css 'title=h1' --css 'link=a@href' --output-format raw
-pobear: --output-format raw requires exactly one extracted value, but 2 fields are set (title, link)
+$ pobear scrape https://example.com --bare
+<!doctype html><html>...
+```
+
+```
+$ pobear scrape https://example.com --css 'title=h1' --css 'link=a@href' --bare
+pobear: --bare requires at most one extracted value, but 2 fields are set (title, link)
 $ echo $?
 3
 ```
@@ -198,13 +220,12 @@ slash — is file mode: a single NDJSON file, as above.
 
 In directory mode, every target gets its own file, named by a sequential,
 zero-padded index in fetch order (`0001`, `0002`, …), not by URL — URLs can
-collide or contain characters that are awkward as filenames. With the default
-`--output-format json`, each file is that target's full NDJSON line
-(`0001.json`); with `--output-format raw`, each file holds just the extracted
-value (`0001.html`). Unlike file mode, `--output-format raw` in directory mode
-does not require exactly one target — and a single item's extraction failing
-(its field missing, or a `--css` match producing 0 or 2+ elements) only fails
-that one entry, not the whole run.
+collide or contain characters that are awkward as filenames. Without `--bare`,
+each file is that target's full NDJSON line (`0001.json`); with `--bare`, each
+file holds just the extracted value (`0001.html`). Unlike file mode, `--bare`
+in directory mode does not require exactly one target — and a single item's
+extraction failing (its field missing, or a `--css` match producing 0 or 2+
+elements) only fails that one entry, not the whole run.
 
 Every target — succeeded, failed, or skipped — also gets an entry in
 `index.json`. In `crawl`, a discovered link can be skipped instead of fetched
@@ -347,11 +368,11 @@ Everything `scrape` has, plus:
 
 | Flag | Default | Notes |
 |---|---|---|
-| `--depth <n>` | 1 | link-following depth; `0` = seeds only |
+| `-d, --depth <n>` | 1 | link-following depth; `0` = seeds only |
 | `--max-pages <n>` | 100 | |
 | `--max-duration <duration>` | no limit | stop the whole crawl after this long, even if `max-pages` isn't reached |
-| `--scope same-host\|same-domain\|any` | `same-host` | |
-| `--include <glob>` | — | repeatable |
+| `-s, --scope same-host\|same-domain\|any` | `same-host` | |
+| `-i, --include <glob>` | — | repeatable |
 | `--exclude <glob>` | — | repeatable; wins over include |
 | `--sitemap` | off | also seed from `/sitemap.xml` |
 | `--ignore-robots` | off | `robots.txt` is respected by default |

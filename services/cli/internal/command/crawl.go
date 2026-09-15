@@ -51,11 +51,11 @@ func (c *Crawl) Run(ctx context.Context, args []string, stdin io.Reader, stdout,
 	}
 	registerCommonFlags(cmd, &f, 2)
 	flags := cmd.Flags()
-	flags.IntVar(&depth, "depth", 1, "link-following depth; 0 = seeds only")
+	flags.IntVarP(&depth, "depth", "d", 1, "link-following depth; 0 = seeds only")
 	flags.IntVar(&maxPages, "max-pages", 100, "stop after fetching this many pages")
 	flags.StringVar(&maxDuration, "max-duration", "", "stop the whole crawl after this long, even if max-pages isn't reached")
-	flags.StringVar(&scope, "scope", "same-host", "same-host, same-domain, or any")
-	flags.StringArrayVar(&include, "include", nil, "only follow links matching this glob (repeatable)")
+	flags.StringVarP(&scope, "scope", "s", "same-host", "same-host, same-domain, or any")
+	flags.StringArrayVarP(&include, "include", "i", nil, "only follow links matching this glob (repeatable)")
 	flags.StringArrayVar(&exclude, "exclude", nil, "never follow links matching this glob (repeatable); wins over --include")
 	flags.BoolVar(&sitemap, "sitemap", false, "also seed from /sitemap.xml")
 	flags.BoolVar(&ignoreRobots, "ignore-robots", false, "robots.txt is respected by default")
@@ -71,12 +71,8 @@ func crawlRun(ctx context.Context, runner JobRunner, providers *providerator.Pro
 		return 0, cerr
 	}
 
-	if cerr := validateOutputFormat(f.outputFormat); cerr != nil {
-		return 0, cerr
-	}
-
 	names := extractedFieldNames(f.extract, f.css)
-	if cerr := validateOutputFormatRaw(f.outputFormat, names); cerr != nil {
+	if cerr := validateBare(f.bare, names); cerr != nil {
 		return 0, cerr
 	}
 
@@ -128,5 +124,5 @@ func crawlRun(ctx context.Context, runner JobRunner, providers *providerator.Pro
 		rawField = names[0]
 	}
 
-	return printSpecOrRun(ctx, runner, resolvedIn, defaultsIn, f.printSpec, f.printSpecVerbose, f.failOnEmpty, f.outputFormat, rawField, f.out, stdout, stderr)
+	return printSpecOrRun(ctx, runner, resolvedIn, defaultsIn, f.printSpec, f.printSpecVerbose, f.bare, f.failOnEmpty, rawField, f.out, stdout, stderr)
 }

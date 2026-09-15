@@ -112,8 +112,8 @@ func TestScrapeUnknownProviderOptionErrors(t *testing.T) {
 	}
 }
 
-func TestScrapeUnknownOutputFormatErrors(t *testing.T) {
-	args := cliArgs("scrape https://example.com --extract markdown --output-format markdown")
+func TestScrapeBareWithTwoFieldsErrors(t *testing.T) {
+	args := cliArgs("scrape https://example.com --css title=h1 --css link=a@href --bare")
 
 	cmd := &command.Scrape{Runner: &fakeRunner{}, Providers: providerator.New(t.TempDir())}
 
@@ -121,22 +121,10 @@ func TestScrapeUnknownOutputFormatErrors(t *testing.T) {
 	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &bytes.Buffer{}, &stderr)
 
 	if got != 3 {
-		t.Fatalf("Run() = %d, want 3 (unknown --output-format value)", got)
+		t.Fatalf("Run() = %d, want 3 (--bare requires at most one field)", got)
 	}
-	if want := "pobear: --output-format must be json or raw, got \"markdown\"\n"; stderr.String() != want {
+	if want := "pobear: --bare requires at most one extracted value, but 2 fields are set (title, link)\n"; stderr.String() != want {
 		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
-	}
-}
-
-func TestScrapeOutputFormatRawWithoutExtractionErrors(t *testing.T) {
-	args := cliArgs("scrape https://example.com --output-format raw")
-
-	cmd := &command.Scrape{Runner: &fakeRunner{}, Providers: providerator.New(t.TempDir())}
-
-	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &bytes.Buffer{}, &bytes.Buffer{})
-
-	if got != 3 {
-		t.Fatalf("Run() = %d, want 3 (no extraction stage set, ambiguous)", got)
 	}
 }
 

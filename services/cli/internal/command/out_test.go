@@ -88,7 +88,7 @@ func TestWriteDirOutputsJSONFormat(t *testing.T) {
 	}
 	outDir := t.TempDir()
 
-	entries, err := writeDirOutputs(tmpPath, outDir, "json", "", nil, nil)
+	entries, err := writeDirOutputs(tmpPath, outDir, false, "", nil, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -122,7 +122,7 @@ func TestWriteDirOutputsRawFormatPerItemFailureDoesNotAbortOthers(t *testing.T) 
 	}
 	outDir := t.TempDir()
 
-	entries, err := writeDirOutputs(tmpPath, outDir, "raw", "title", nil, nil)
+	entries, err := writeDirOutputs(tmpPath, outDir, true, "title", nil, nil)
 	if err != nil {
 		t.Fatalf("expected writeDirOutputs itself to succeed even though one item's extraction failed, got %v", err)
 	}
@@ -157,6 +157,35 @@ func TestWriteDirOutputsRawFormatPerItemFailureDoesNotAbortOthers(t *testing.T) 
 	}
 }
 
+func TestWriteDirOutputsBareWithNoFieldUsesBody(t *testing.T) {
+	tmpPath := filepath.Join(t.TempDir(), "out.ndjson")
+	content := `{"url":"https://a.test","status":200,"body":"<h1>raw body</h1>","data":{}}
+`
+	if err := os.WriteFile(tmpPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("writing fixture: %v", err)
+	}
+	outDir := t.TempDir()
+
+	entries, err := writeDirOutputs(tmpPath, outDir, true, "", nil, nil)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("got %d entries, want 1", len(entries))
+	}
+	if !entries[0].Succeeded || entries[0].File != "0001.html" {
+		t.Errorf("entries[0] = %+v, want succeeded with file 0001.html", entries[0])
+	}
+
+	got, err := os.ReadFile(filepath.Join(outDir, "0001.html")) //nolint:gosec // outDir is t.TempDir(), not user-controlled input
+	if err != nil {
+		t.Fatalf("reading 0001.html: %v", err)
+	}
+	if string(got) != "<h1>raw body</h1>" {
+		t.Fatalf("0001.html content = %q, want the fetched body verbatim", got)
+	}
+}
+
 func TestWriteDirOutputsIncludesFailureLines(t *testing.T) {
 	tmpPath := filepath.Join(t.TempDir(), "out.ndjson")
 	content := `{"url":"https://a.test","status":200,"data":{"raw":"a"}}
@@ -167,7 +196,7 @@ func TestWriteDirOutputsIncludesFailureLines(t *testing.T) {
 	outDir := t.TempDir()
 
 	failureLine := `https://b.test [http]: tiers: http status 404`
-	entries, err := writeDirOutputs(tmpPath, outDir, "json", "", []string{failureLine}, nil)
+	entries, err := writeDirOutputs(tmpPath, outDir, false, "", []string{failureLine}, nil)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -190,7 +219,7 @@ func TestWriteDirOutputsIncludesSkippedLines(t *testing.T) {
 	outDir := t.TempDir()
 
 	skippedLine := `https://b.test: disallowed by robots.txt`
-	entries, err := writeDirOutputs(tmpPath, outDir, "json", "", nil, []string{skippedLine})
+	entries, err := writeDirOutputs(tmpPath, outDir, false, "", nil, []string{skippedLine})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}

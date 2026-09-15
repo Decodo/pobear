@@ -1,5 +1,0 @@
-args: scrape https://example.com --output-format raw
-stdout: ""
-stderr: |
-    pobear: --output-format raw requires exactly one extracted value, but 0 fields are set
-exit: 3
