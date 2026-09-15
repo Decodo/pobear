@@ -111,10 +111,6 @@ func crawlRun(ctx context.Context, runner JobRunner, providers *providerator.Pro
 		Profile: profile, Options: fetchOptions, Timeout: f.timeout, NoRedirects: noRedirects, Stages: stages,
 		Concurrency: &f.concurrency, RPS: &f.rps, Retries: &f.retries, SinkUse: sinkUse, SinkPath: sinkPath,
 	}
-	// The minimal spec must be diffed against the defaults `pobear run` would
-	// apply to a bare document, not against the CLI's own defaults. Crawl's
-	// CLI defaults (depth 1, rps 2) differ from the spec's (0 and 0), so
-	// omitting them would round-trip into a different job.
 	defaultsIn := jobgen.Input{
 		URLs: []string{target}, FetchUse: "local", Crawl: &jobgen.CrawlInput{},
 	}

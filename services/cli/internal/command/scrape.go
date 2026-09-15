@@ -130,8 +130,6 @@ func scrapeRun(ctx context.Context, runner JobRunner, providers *providerator.Pr
 		Profile: profile, Options: fetchOptions, Timeout: f.timeout, Stages: stages,
 		Concurrency: &f.concurrency, RPS: &f.rps, Retries: &f.retries, SinkUse: sinkUse, SinkPath: sinkPath,
 	}
-	// Diffed against what `pobear run` applies to a bare document, so the
-	// printed spec round-trips into the same job.
 	defaultsIn := jobgen.Input{URLs: urls, FetchUse: "local"}
 
 	rawField := ""
