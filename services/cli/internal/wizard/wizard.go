@@ -6,14 +6,19 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/pobear/pobear/services/cli/internal/providerator"
 )
 
-type Wizard struct{}
+type Wizard struct {
+	Providers *providerator.Providerator
+}
 
 func (w *Wizard) Run(ctx context.Context, _ []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	p := tea.NewProgram(newModel(),
+	p := tea.NewProgram(newApp(newModel(w.providerNames())),
 		tea.WithContext(ctx),
 		tea.WithInput(stdin),
 		tea.WithOutput(stdout),
@@ -24,4 +29,20 @@ func (w *Wizard) Run(ctx context.Context, _ []string, stdin io.Reader, stdout, s
 		return 1
 	}
 	return 0
+}
+
+func (w *Wizard) providerNames() []string {
+	if w.Providers == nil {
+		return nil
+	}
+	manifests, err := w.Providers.Load()
+	if err != nil {
+		return nil
+	}
+	names := make([]string, len(manifests))
+	for i, m := range manifests {
+		names[i] = m.Name
+	}
+	slices.Sort(names)
+	return names
 }
