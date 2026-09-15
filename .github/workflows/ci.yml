@@ -44,3 +44,11 @@ jobs:
       - uses: golangci/golangci-lint-action@v9
         with:
           version: latest
+
+  install-script:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - run: shellcheck install.sh test/install_test.sh
+      - run: sh test/install_test.sh install.sh
