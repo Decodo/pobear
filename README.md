@@ -8,6 +8,34 @@ Status: early development — most of what's documented in `/docs` doesn't
 exist as code yet. This repo currently holds the design specs and the
 project skeleton.
 
+## Install
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Decodo/pobear/main/install.sh | sh
+```
+
+Downloads the latest release for your platform, verifies it against the
+release `checksums.txt`, runs the installed binary to confirm it works, and
+installs it to `$HOME/.local/bin`.
+
+If the install directory isn't already on your `PATH`, the script symlinks the
+binary into a directory that is; failing that, it appends the directory to your
+shell's startup file and tells you how to activate it in the current shell.
+
+| Variable | Default | Effect |
+|---|---|---|
+| `POBEAR_VERSION` | latest release | pin a release tag, e.g. `v0.1.0` |
+| `POBEAR_INSTALL_DIR` | `$HOME/.local/bin` | where to install |
+| `POBEAR_NO_MODIFY_PATH` | unset | `1` never symlinks or edits startup files; prints the `export` line instead |
+| `POBEAR_FORCE` | unset | `1` overwrites a different program already named `pobear` |
+
+```sh
+POBEAR_VERSION=v0.1.0 POBEAR_INSTALL_DIR=/usr/local/bin sh install.sh
+```
+
+Linux and macOS only. On Windows, download a `.zip` from the
+[releases page](https://github.com/Decodo/pobear/releases).
+
 ## Documentation
 
 - [`docs/CLI_REFERENCE.md`](docs/CLI_REFERENCE.md) — commands, flags, exit codes

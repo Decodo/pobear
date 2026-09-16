@@ -44,3 +44,19 @@ jobs:
       - uses: golangci/golangci-lint-action@v9
         with:
           version: latest
+
+  install-script:
+    runs-on: ubuntu-latest
+    env:
+      SHELLCHECK_VERSION: v0.11.0
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: install shellcheck
+        run: |
+          curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" | tar -xJ
+          sudo install "shellcheck-${SHELLCHECK_VERSION}/shellcheck" /usr/local/bin/shellcheck
+          shellcheck --version
+
+      - run: shellcheck install.sh test/install_test.sh
+      - run: sh test/install_test.sh install.sh
