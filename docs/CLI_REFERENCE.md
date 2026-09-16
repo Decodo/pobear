@@ -511,6 +511,44 @@ $ echo $?
 
 ---
 
+## `pobear docs`
+
+| Flag | Default | Notes |
+|---|---|---|
+| `--json` | off | the same content as a parseable document |
+
+Prints the contract for driving pobear from a script or agent: the command list,
+what goes to stdout versus stderr, the fields on an emitted item, the exit codes,
+and the named contracts below. It exists because pobear ships as a single binary
+— an agent that installed it has no repository, so anything documented only in
+`/docs` never reaches it.
+
+```
+$ pobear docs --json
+{
+  "version": "0.1.0",
+  "commands": [{"name": "auth", "summary": "Save a credential for a provider"}, ...],
+  "exitCodes": [{"code": 0, "meaning": "everything succeeded"}, ...],
+  "output": {
+    "stdout": "one NDJSON object per fetched item",
+    "stderr": "the `fetched N, errors N, skipped N` summary, and one detail line per failed URL",
+    "itemFields": ["url", "finalUrl", "parentUrl", "status", "body", "depth", "data"]
+  },
+  "contracts": [{"id": "provider-schema", "summary": "..."}, ...]
+}
+```
+
+Each contract carries a stable `id` — `provider-schema`, `spec-round-trip`,
+`bare-output`, `empty-extraction`, `soft-block`. The `summary` wording may be
+edited; an `id` is the handle a caller keys off, so renaming one is a breaking
+change to the contract rather than a rewording.
+
+`exitCodes` is generated from the same constants the CLI exits with, and
+`itemFields` is pinned on both sides by tests, so neither can drift from the
+behaviour it describes without a test failing.
+
+---
+
 ## `pobear auth <provider>`
 
 No flags. Prompts for a secret on stderr. When stdin is a real terminal, the
@@ -759,6 +797,82 @@ Flags:
 $ echo $?
 3
 ```
+
+## Driving pobear from an agent
+
+Everything an agent needs to run pobear as a subprocess and consume the result
+without parsing prose. Each rule below is a contract, not a convention.
+
+The installed binary carries this same contract: `pobear docs` prints it, and
+`pobear docs --json` emits it as a parseable document. An agent with only the
+binary and no access to this repository should start there.
+
+**Discover a provider's fields from the schema, never from `--help`.**
+`--help` is free text for a human skimming; its wording and layout can change.
+`providers <name> --json` re-serializes the manifest's own validated schema, so
+it is the stable surface:
+
+```
+$ pobear providers decodo --json
+{"name":"decodo","templates":[{"name":"universal","default":true,"options":[...]}]}
+```
+
+**Build a spec, inspect it, then run it.** `--print-spec` prints the job spec
+instead of running it, and that output is valid, equivalent input to `run -`.
+This lets an agent construct a job from flags, check or store it, and execute it
+as a separate step:
+
+```
+$ pobear scrape https://example.com --print-spec | pobear run -
+```
+
+`--print-spec-verbose` prints the same job with every default filled in. Neither
+form requires a provider credential, so a spec can be generated on a machine
+that has never run `pobear auth`.
+
+**Results are on stdout, progress is on stderr.** Every fetched item is one
+NDJSON object on stdout. The `fetched N, errors N, skipped N` summary and the
+per-failure detail lines go to stderr. Redirecting stdout therefore captures
+exactly the data and nothing else:
+
+```
+$ pobear scrape https://example.com --css 'title=h1' > items.ndjson
+fetched 1, errors 0, skipped 0          # ← stderr, still on the terminal
+```
+
+**Use `--bare` for a single value.** It drops the envelope and prints just the
+extracted value, which suits substitution into another command. It requires at
+most one extracted field and rejects anything ambiguous:
+
+```
+$ pobear scrape https://example.com --css 'title=h1' --bare
+Example Domain
+
+$ pobear scrape https://example.com --css 'a=h1' --css 'b=p' --bare
+pobear: --bare requires at most one extracted value, but 2 fields are set (a, b)
+```
+
+**Branch on the exit code, not on the message text.** The codes are listed in
+full below: `0` success, `1` auth, `3` usage or invalid spec, `4` partial, `5`
+fatal. `4` is the one worth handling deliberately — some items succeeded and
+their data is on stdout, so a run that exits `4` is still worth consuming.
+
+**Check `empty` before trusting a successful run.** A site that serves an
+interstitial challenge page answers with a normal `200` and real HTML, so the
+fetch cannot be classified as `[blocked]` the way a `403` can. What pobear can
+report is that the stages you asked for extracted nothing:
+
+```
+$ pobear scrape https://example.com --css 'price=.price'
+fetched 1, errors 0, skipped 0, empty 1
+```
+
+`empty N` equal to the fetched count is the signal that a run succeeded
+mechanically and produced no data — a challenge page, a layout change, or a
+wrong selector all look like this. `--fail-on-empty` turns the all-empty case
+into exit `5` for pipelines that must not record a run of blank items.
+
+---
 
 ## Exit codes, at a glance
 

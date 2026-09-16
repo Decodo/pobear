@@ -49,8 +49,19 @@ func printHelp(stdout io.Writer, commands map[string]command.Command) {
 	fmt.Fprintln(stdout, "Usage:")
 	fmt.Fprintln(stdout, "  pobear <command> [flags]")
 	fmt.Fprintln(stdout)
+	width := 0
+	for _, name := range names {
+		if len(name) > width {
+			width = len(name)
+		}
+	}
+
 	fmt.Fprintln(stdout, "Commands:")
 	for _, name := range names {
+		if s, ok := commands[name].(command.Summarizer); ok {
+			fmt.Fprintf(stdout, "  %-*s  %s\n", width, name, s.Summary())
+			continue
+		}
 		fmt.Fprintf(stdout, "  %s\n", name)
 	}
 }

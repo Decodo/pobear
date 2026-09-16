@@ -21,8 +21,8 @@ func (a *Auth) Run(_ context.Context, args []string, stdin io.Reader, stdout, st
 	code := 0
 
 	cmd := &cobra.Command{
-		Use:   "pobear auth <provider>",
-		Short: "Save a credential for a provider",
+		Use:   "auth <provider>",
+		Short: (&Auth{}).Summary(),
 		Long:  "Prompts for a secret and saves it for every subsequent run.",
 		Args:  a.requireProviderName(),
 		RunE: func(_ *cobra.Command, cmdArgs []string) error {
@@ -73,3 +73,5 @@ func (a *Auth) run(name string, stdout io.Writer) *cliError {
 	}
 	return nil
 }
+
+func (*Auth) Summary() string { return "Save a credential for a provider" }

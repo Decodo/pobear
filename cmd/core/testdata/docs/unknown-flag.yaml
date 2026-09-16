@@ -1,0 +1,5 @@
+args: docs --bogus
+stdout: ""
+stderr: |
+    pobear: unknown flag: --bogus
+exit: 3
