@@ -57,8 +57,8 @@ func (s *Scrape) Run(ctx context.Context, args []string, stdin io.Reader, stdout
 	code := 0
 
 	cmd := &cobra.Command{
-		Use:   "pobear scrape <url|file>",
-		Short: "Scrape a single URL, or every URL listed in a file",
+		Use:   "scrape <url|file>",
+		Short: (&Scrape{}).Summary(),
 		Long: "Scrape a single URL, or every URL listed in a file.\n\n" +
 			"The positional argument is either a single absolute http/https URL, or a\n" +
 			"path to a file listing many: plain text, one URL per line, blank lines and\n" +
@@ -139,3 +139,5 @@ func scrapeRun(ctx context.Context, runner JobRunner, providers *providerator.Pr
 
 	return printSpecOrRun(ctx, runner, resolvedIn, defaultsIn, f.printSpec, f.printSpecVerbose, f.bare, f.failOnEmpty, rawField, f.out, stdout, stderr)
 }
+
+func (*Scrape) Summary() string { return "Scrape a single URL, or every URL listed in a file" }

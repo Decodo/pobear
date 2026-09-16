@@ -2,6 +2,7 @@ package sinks_test
 
 import (
 	"encoding/json"
+	"sort"
 	"testing"
 
 	"github.com/pobear/pobear/services/core/internal/sink/sinks"
@@ -111,4 +112,34 @@ func TestItemBodyIsLiteralStringNotBase64(t *testing.T) {
 	if got != item.Body {
 		t.Errorf("body = %q, want literal %q (not base64-encoded)", got, item.Body)
 	}
+}
+
+func TestItemJSONFieldsAreStable(t *testing.T) {
+	encoded, err := json.Marshal(sinks.Item{Data: map[string]any{"x": 1}})
+	if err != nil {
+		t.Fatalf("marshalling an item: %v", err)
+	}
+	var got map[string]json.RawMessage
+	if err := json.Unmarshal(encoded, &got); err != nil {
+		t.Fatalf("unmarshalling an item: %v", err)
+	}
+
+	want := []string{"url", "finalUrl", "parentUrl", "status", "body", "depth", "data"}
+	if len(got) != len(want) {
+		t.Fatalf("item has %d fields %v, want %d %v", len(got), keysOf(got), len(want), want)
+	}
+	for _, name := range want {
+		if _, ok := got[name]; !ok {
+			t.Errorf("item is missing documented field %q", name)
+		}
+	}
+}
+
+func keysOf(m map[string]json.RawMessage) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }

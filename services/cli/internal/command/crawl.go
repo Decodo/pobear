@@ -25,8 +25,8 @@ func (c *Crawl) Run(ctx context.Context, args []string, stdin io.Reader, stdout,
 	code := 0
 
 	cmd := &cobra.Command{
-		Use:   "pobear crawl <url>",
-		Short: "Crawl a site starting from one URL",
+		Use:   "crawl <url>",
+		Short: (&Crawl{}).Summary(),
 		Long: "Crawl a site starting from one URL, following links up to --depth.\n\n" +
 			"Takes exactly one starting URL -- there's no flag to add extra seeds; a\n" +
 			"crawl with multiple seeds is only reachable by writing the job spec\n" +
@@ -122,3 +122,5 @@ func crawlRun(ctx context.Context, runner JobRunner, providers *providerator.Pro
 
 	return printSpecOrRun(ctx, runner, resolvedIn, defaultsIn, f.printSpec, f.printSpecVerbose, f.bare, f.failOnEmpty, rawField, f.out, stdout, stderr)
 }
+
+func (*Crawl) Summary() string { return "Crawl a site starting from one URL" }

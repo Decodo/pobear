@@ -1,0 +1,17 @@
+args: --help
+stdout: |
+    pobear - short for polar bear
+    
+    Usage:
+      pobear <command> [flags]
+    
+    Commands:
+      auth       Save a credential for a provider
+      crawl      Crawl a site starting from one URL
+      docs       Print the contract for driving pobear from a script or agent
+      providers  List installed provider manifests, or describe one
+      run        Run a job spec file
+      scrape     Scrape a single URL, or every URL listed in a file
+      version    Print the version pobear was built from
+stderr: ""
+exit: 0

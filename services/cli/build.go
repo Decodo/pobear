@@ -24,6 +24,16 @@ func New(providersDir string, coreService *core.Service, credentialsPath, versio
 		"run":       &command.Run{Parser: jobspecParser{}, Runner: runner},
 	}
 
+	summaries := make(map[string]string, len(commands)+1)
+	for name, cmd := range commands {
+		if s, ok := cmd.(command.Summarizer); ok {
+			summaries[name] = s.Summary()
+		}
+	}
+	docs := &command.Docs{Version: version, Commands: summaries}
+	summaries["docs"] = docs.Summary()
+	commands["docs"] = docs
+
 	return NewService(commands)
 }
 

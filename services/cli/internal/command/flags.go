@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -40,6 +41,7 @@ func requireExactlyOne(usageNoun string) cobra.PositionalArgs {
 func runCobraCommand(cmd *cobra.Command, args []string, stdin io.Reader, stdout, stderr io.Writer, code *int) int {
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
+	cmd.SetUsageTemplate(strings.Replace(cmd.UsageTemplate(), "{{.UseLine}}", "pobear {{.UseLine}}", 1))
 	cmd.SetArgs(args)
 	cmd.SetIn(stdin)
 	cmd.SetOut(stdout)

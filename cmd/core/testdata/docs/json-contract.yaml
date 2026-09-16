@@ -1,0 +1,94 @@
+args: docs --json
+stdout: |
+    {
+      "version": "dev",
+      "commands": [
+        {
+          "name": "auth",
+          "summary": "Save a credential for a provider"
+        },
+        {
+          "name": "crawl",
+          "summary": "Crawl a site starting from one URL"
+        },
+        {
+          "name": "docs",
+          "summary": "Print the contract for driving pobear from a script or agent"
+        },
+        {
+          "name": "providers",
+          "summary": "List installed provider manifests, or describe one"
+        },
+        {
+          "name": "run",
+          "summary": "Run a job spec file"
+        },
+        {
+          "name": "scrape",
+          "summary": "Scrape a single URL, or every URL listed in a file"
+        },
+        {
+          "name": "version",
+          "summary": "Print the version pobear was built from"
+        }
+      ],
+      "exitCodes": [
+        {
+          "code": 0,
+          "meaning": "everything succeeded"
+        },
+        {
+          "code": 1,
+          "meaning": "auth failure: a credential is missing or was rejected"
+        },
+        {
+          "code": 3,
+          "meaning": "usage error or invalid job spec, nothing was fetched"
+        },
+        {
+          "code": 4,
+          "meaning": "some items failed; the ones that succeeded are on stdout"
+        },
+        {
+          "code": 5,
+          "meaning": "every item failed, or the failure is unclassified"
+        }
+      ],
+      "output": {
+        "stdout": "one NDJSON object per fetched item",
+        "stderr": "the `fetched N, errors N, skipped N` summary, and one detail line per failed URL",
+        "itemFields": [
+          "url",
+          "finalUrl",
+          "parentUrl",
+          "status",
+          "body",
+          "depth",
+          "data"
+        ]
+      },
+      "contracts": [
+        {
+          "id": "provider-schema",
+          "summary": "`pobear providers \u003cname\u003e --json` is the stable way to discover a provider's fields; --help is free text and must not be parsed"
+        },
+        {
+          "id": "spec-round-trip",
+          "summary": "`--print-spec` output is valid, equivalent input to `pobear run -`, and printing it needs no credential"
+        },
+        {
+          "id": "bare-output",
+          "summary": "`--bare` prints only the extracted value with no envelope, and requires at most one extracted field"
+        },
+        {
+          "id": "empty-extraction",
+          "summary": "`empty N` in the summary counts fetched items whose stages produced nothing; --fail-on-empty exits 5 when every item was empty"
+        },
+        {
+          "id": "soft-block",
+          "summary": "a challenge page answers with HTTP 200 and real HTML, so it cannot be reported as [blocked]; `empty N` equal to the fetched count is the signal"
+        }
+      ]
+    }
+stderr: ""
+exit: 0

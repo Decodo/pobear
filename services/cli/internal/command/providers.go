@@ -23,8 +23,8 @@ func (p *Providers) Run(_ context.Context, args []string, stdin io.Reader, stdou
 	code := 0
 
 	cmd := &cobra.Command{
-		Use:   "pobear providers [name]",
-		Short: "List installed provider manifests, or describe one",
+		Use:   "providers [name]",
+		Short: (&Providers{}).Summary(),
 		Long: "With no name, lists every installed manifest, one line each.\n\n" +
 			"With a name, describes that one manifest in full -- every template,\n" +
 			"every option, its type, constraints, and default.",
@@ -154,3 +154,5 @@ func formatMinMax(min, max *int) string {
 		return fmt.Sprintf("max: %d", *max)
 	}
 }
+
+func (*Providers) Summary() string { return "List installed provider manifests, or describe one" }

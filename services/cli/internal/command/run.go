@@ -27,8 +27,8 @@ func (c *Run) Run(ctx context.Context, args []string, stdin io.Reader, stdout, s
 	code := 0
 
 	cmd := &cobra.Command{
-		Use:   "pobear run <job.yaml|->",
-		Short: "Run a job spec file",
+		Use:   "run <job.yaml|->",
+		Short: (&Run{}).Summary(),
 		Long: "Run a job spec file, or read it from stdin with '-'.\n\n" +
 			"Since '-' reads from stdin, the output of --print-spec from any other\n" +
 			"command is itself a valid input to run.",
@@ -97,3 +97,5 @@ func runDefaultsSpec(spec *jobspec.Spec) *jobspec.Spec {
 	}
 	return d
 }
+
+func (*Run) Summary() string { return "Run a job spec file" }
