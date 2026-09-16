@@ -45,3 +45,4 @@ release:
   github:
     owner: Decodo
     name: pobear
+  prerelease: auto
