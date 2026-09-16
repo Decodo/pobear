@@ -1,0 +1,8 @@
+width=20 height=5 cursor=0
+---
+pobear needs a bigger
+terminal (min 36x8).
+
+Resize, or run
+pobear scrape/crawl
+directly instead. (q)

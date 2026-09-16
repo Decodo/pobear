@@ -4,6 +4,7 @@ import (
 	"github.com/pobear/pobear/pkg/jobspec"
 	"github.com/pobear/pobear/services/cli/internal/command"
 	"github.com/pobear/pobear/services/cli/internal/providerator"
+	"github.com/pobear/pobear/services/cli/internal/wizard"
 	"github.com/pobear/pobear/services/core"
 )
 
@@ -22,6 +23,7 @@ func New(providersDir string, coreService *core.Service, credentialsPath, versio
 		"scrape":    &command.Scrape{Runner: runner, Providers: providers, CredentialsPath: credentialsPath},
 		"crawl":     &command.Crawl{Runner: runner, Providers: providers, CredentialsPath: credentialsPath},
 		"run":       &command.Run{Parser: jobspecParser{}, Runner: runner},
+		"wizard":    &wizard.Wizard{},
 	}
 
 	return NewService(commands)

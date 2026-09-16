@@ -20,8 +20,7 @@ func NewService(commands map[string]command.Command) *Service {
 
 func (s *Service) Run(ctx context.Context, argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(argv) == 0 {
-		fmt.Fprintln(stderr, "pobear: interactive mode is not yet available; run 'pobear --help' for usage")
-		return exitcode.UsageError
+		argv = []string{"wizard"}
 	}
 
 	name, args := argv[0], argv[1:]
