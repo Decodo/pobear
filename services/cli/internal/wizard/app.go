@@ -6,12 +6,18 @@ type pushScreenMsg struct{ screen tea.Model }
 
 type popScreenMsg struct{}
 
+type replaceTopMsg struct{ screen tea.Model }
+
 func pushScreen(screen tea.Model) tea.Cmd {
 	return func() tea.Msg { return pushScreenMsg{screen: screen} }
 }
 
 func popScreen() tea.Cmd {
 	return func() tea.Msg { return popScreenMsg{} }
+}
+
+func replaceTop(screen tea.Model) tea.Cmd {
+	return func() tea.Msg { return replaceTopMsg{screen: screen} }
 }
 
 type app struct {
@@ -49,15 +55,25 @@ func (a app) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, tea.Batch(cmds...)
 
 	case pushScreenMsg:
-		updated, cmd := msg.screen.Update(tea.WindowSizeMsg{Width: a.width, Height: a.height})
+		initCmd := msg.screen.Init()
+		updated, sizeCmd := msg.screen.Update(tea.WindowSizeMsg{Width: a.width, Height: a.height})
 		a.stack = append(a.stack, updated)
-		return a, cmd
+		return a, tea.Batch(initCmd, sizeCmd)
 
 	case popScreenMsg:
 		if len(a.stack) > 1 {
 			a.stack = a.stack[:len(a.stack)-1]
 		}
 		return a, nil
+
+	case replaceTopMsg:
+		if len(a.stack) > 0 {
+			a.stack = a.stack[:len(a.stack)-1]
+		}
+		initCmd := msg.screen.Init()
+		updated, sizeCmd := msg.screen.Update(tea.WindowSizeMsg{Width: a.width, Height: a.height})
+		a.stack = append(a.stack, updated)
+		return a, tea.Batch(initCmd, sizeCmd)
 	}
 
 	updated, cmd := a.top().Update(msg)

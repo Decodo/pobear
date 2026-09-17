@@ -13,5 +13,6 @@ stdout: |
       run        Run a job spec file
       scrape     Scrape a single URL, or every URL listed in a file
       version    Print the version pobear was built from
+      wizard     Launch the interactive full-screen wizard
 stderr: ""
 exit: 0

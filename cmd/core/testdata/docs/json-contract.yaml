@@ -30,6 +30,10 @@ stdout: |
         {
           "name": "version",
           "summary": "Print the version pobear was built from"
+        },
+        {
+          "name": "wizard",
+          "summary": "Launch the interactive full-screen wizard"
         }
       ],
       "exitCodes": [

@@ -1,6 +1,7 @@
 package wizard
 
 import (
+	"context"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -34,7 +35,7 @@ func findField(fields []field, name string) (field, bool) {
 
 func TestComputeFieldsDefaultState(t *testing.T) {
 	fields := computeFields(newFormState(), nil)
-	want := []string{"url", "fetchVia", "profile", "extract", "concurrency", "retries"}
+	want := []string{"url", "fetchVia", "profile", "extract", "concurrency", "retries", "saveAction", "runAction"}
 	got := fieldNames(fields)
 	if len(got) != len(want) {
 		t.Fatalf("got fields %v, want %v", got, want)
@@ -120,6 +121,24 @@ func TestComputeFieldsProfileIsAChoiceOfThree(t *testing.T) {
 	}
 }
 
+func TestComputeFieldsExtractIsAChoiceOfFourIncludingBare(t *testing.T) {
+	s := newFormState()
+	fields := computeFields(s, nil)
+	extract, ok := findField(fields, "extract")
+	if !ok {
+		t.Fatal("expected an \"extract\" field")
+	}
+	want := []string{"raw", "markdown", "css fields", "bare"}
+	if len(extract.options) != len(want) {
+		t.Fatalf("extract options = %v, want %v", extract.options, want)
+	}
+	for i := range want {
+		if extract.options[i] != want[i] {
+			t.Errorf("extract option %d = %q, want %q", i, extract.options[i], want[i])
+		}
+	}
+}
+
 func TestComputeFieldsProviderIsAChoiceOfKnownProviders(t *testing.T) {
 	s := newFormState()
 	s.fetchVia = "provider"
@@ -156,7 +175,7 @@ func TestComputeFieldsProviderWithNoneConfiguredStillRenders(t *testing.T) {
 }
 
 func TestScrapeFormCtrlDRemovesCSSFieldPair(t *testing.T) {
-	f := newScrapeForm(nil)
+	f := newScrapeForm(nil, context.Background(), "", "")
 	f.state.extract = "css fields"
 	f.state.cssFields = []cssFieldPair{
 		{name: "title", selector: "h1"},
@@ -184,7 +203,7 @@ func TestScrapeFormCtrlDRemovesCSSFieldPair(t *testing.T) {
 }
 
 func TestScrapeFormCtrlDOnNonCSSFieldIsANoOp(t *testing.T) {
-	f := newScrapeForm(nil)
+	f := newScrapeForm(nil, context.Background(), "", "")
 	before := len(f.fields)
 
 	updated, _ := f.Update(tea.KeyMsg{Type: tea.KeyCtrlD})
@@ -196,7 +215,7 @@ func TestScrapeFormCtrlDOnNonCSSFieldIsANoOp(t *testing.T) {
 }
 
 func TestScrapeFormCursorMovesAndWraps(t *testing.T) {
-	f := newScrapeForm(nil)
+	f := newScrapeForm(nil, context.Background(), "", "")
 	n := len(f.fields)
 
 	updated, _ := f.Update(tea.KeyMsg{Type: tea.KeyUp})
@@ -213,7 +232,7 @@ func TestScrapeFormCursorMovesAndWraps(t *testing.T) {
 }
 
 func TestScrapeFormEscPopsScreen(t *testing.T) {
-	f := newScrapeForm(nil)
+	f := newScrapeForm(nil, context.Background(), "", "")
 	_, cmd := f.Update(tea.KeyMsg{Type: tea.KeyEsc})
 	if cmd == nil {
 		t.Fatal("expected esc to return a popScreen command, got nil")
@@ -224,7 +243,7 @@ func TestScrapeFormEscPopsScreen(t *testing.T) {
 }
 
 func TestScrapeFormChangingFetchViaKeepsItFocused(t *testing.T) {
-	f := newScrapeForm(nil)
+	f := newScrapeForm(nil, context.Background(), "", "")
 	updated, _ := f.Update(tea.KeyMsg{Type: tea.KeyDown})
 	f = updated.(*scrapeForm)
 	if f.fields[f.cursor].name != "fetchVia" {
@@ -243,7 +262,7 @@ func TestScrapeFormChangingFetchViaKeepsItFocused(t *testing.T) {
 }
 
 func TestScrapeFormAddFieldAppendsCSSPair(t *testing.T) {
-	f := newScrapeForm(nil)
+	f := newScrapeForm(nil, context.Background(), "", "")
 	f.state.extract = "css fields"
 	f.rebuild()
 
@@ -268,7 +287,7 @@ func TestScrapeFormAddFieldAppendsCSSPair(t *testing.T) {
 }
 
 func TestScrapeFormTypingIntoURLUpdatesTheLiveField(t *testing.T) {
-	f := newScrapeForm(nil)
+	f := newScrapeForm(nil, context.Background(), "", "")
 	for _, r := range "https://example.com" {
 		updated, _ := f.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
 		f = updated.(*scrapeForm)
@@ -283,7 +302,7 @@ func TestScrapeFormTypingIntoURLUpdatesTheLiveField(t *testing.T) {
 }
 
 func TestScrapeFormLeftRightMovesCursorWithinURLWithoutResettingIt(t *testing.T) {
-	f := newScrapeForm(nil)
+	f := newScrapeForm(nil, context.Background(), "", "")
 	for _, r := range "helloworld" {
 		updated, _ := f.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
 		f = updated.(*scrapeForm)
@@ -300,8 +319,71 @@ func TestScrapeFormLeftRightMovesCursorWithinURLWithoutResettingIt(t *testing.T)
 	}
 }
 
+func TestScrapeFormEnterOnURLAddsANewLineInsteadOfLeavingTheField(t *testing.T) {
+	f := newScrapeForm(nil, context.Background(), "", "")
+	for _, r := range "https://a.test" {
+		updated, _ := f.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		f = updated.(*scrapeForm)
+	}
+	updated, _ := f.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	f = updated.(*scrapeForm)
+	for _, r := range "https://b.test" {
+		updated, _ := f.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		f = updated.(*scrapeForm)
+	}
+
+	if f.fields[f.cursor].name != "url" {
+		t.Fatalf("expected enter to stay on the url field, cursor is on %q", f.fields[f.cursor].name)
+	}
+	want := "https://a.test\nhttps://b.test"
+	if got := f.fields[f.cursor].value(); got != want {
+		t.Fatalf("url field value = %q, want %q", got, want)
+	}
+}
+
+func TestScrapeFormUpDownWithinURLMovesLinesNotFields(t *testing.T) {
+	f := newScrapeForm(nil, context.Background(), "", "")
+	for _, r := range "https://a.test" {
+		updated, _ := f.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		f = updated.(*scrapeForm)
+	}
+	updated, _ := f.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	f = updated.(*scrapeForm)
+	for _, r := range "https://b.test" {
+		updated, _ := f.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		f = updated.(*scrapeForm)
+	}
+
+	updated, _ = f.Update(tea.KeyMsg{Type: tea.KeyUp})
+	f = updated.(*scrapeForm)
+	if f.fields[f.cursor].name != "url" {
+		t.Fatalf("expected up to stay on the url field while it has more lines, cursor is on %q", f.fields[f.cursor].name)
+	}
+
+	updated, _ = f.Update(tea.KeyMsg{Type: tea.KeyUp})
+	f = updated.(*scrapeForm)
+	if f.fields[f.cursor].name == "url" {
+		t.Fatal("expected up from the url field's top line to move to the previous form field")
+	}
+}
+
+func TestURLListSplitsAndTrimsLinesDroppingBlanks(t *testing.T) {
+	s := newFormState()
+	s.url = "  https://a.test  \n\nhttps://b.test\n   \n"
+	got := urlList(s)
+	want := []string{"https://a.test", "https://b.test"}
+	if len(got) != len(want) {
+		t.Fatalf("urlList = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("urlList[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
 func TestScrapeFormNavigatingAwayAndBackPreservesTypedText(t *testing.T) {
-	f := newScrapeForm(nil)
+	f := newScrapeForm(nil, context.Background(), "", "")
 	for _, r := range "https://example.com" {
 		updated, _ := f.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
 		f = updated.(*scrapeForm)

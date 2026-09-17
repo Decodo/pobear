@@ -1,0 +1,300 @@
+package wizard
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/pobear/pobear/pkg/jobresult"
+)
+
+func TestBuildJobSpecLocal(t *testing.T) {
+	s := newFormState()
+	s.url = "https://example.com"
+
+	spec, err := buildJobSpec(s)
+	if err != nil {
+		t.Fatalf("buildJobSpec: %v", err)
+	}
+	if got := spec.Source.URLs; len(got) != 1 || got[0] != s.url {
+		t.Errorf("Source.URLs = %v, want [%q]", got, s.url)
+	}
+	if spec.Fetch.Use != "local" {
+		t.Errorf("Fetch.Use = %q, want \"local\"", spec.Fetch.Use)
+	}
+	if spec.Fetch.Profile != "chrome" {
+		t.Errorf("Fetch.Profile = %q, want \"chrome\"", spec.Fetch.Profile)
+	}
+	if len(spec.Stages) != 1 || spec.Stages[0].Use != "markdown" {
+		t.Errorf("Stages = %v, want one markdown stage", spec.Stages)
+	}
+	if spec.Limits.Concurrency != 8 || spec.Limits.Retries != 3 {
+		t.Errorf("Limits = %+v, want concurrency=8 retries=3", spec.Limits)
+	}
+}
+
+func TestBuildJobSpecProxy(t *testing.T) {
+	s := newFormState()
+	s.url = "https://example.com"
+	s.fetchVia = "proxy"
+	s.proxyURL = "http://proxy.example.com:8080"
+
+	spec, err := buildJobSpec(s)
+	if err != nil {
+		t.Fatalf("buildJobSpec: %v", err)
+	}
+	if spec.Fetch.Use != "proxy" {
+		t.Errorf("Fetch.Use = %q, want \"proxy\"", spec.Fetch.Use)
+	}
+	if spec.Fetch.Proxy != s.proxyURL {
+		t.Errorf("Fetch.Proxy = %q, want %q", spec.Fetch.Proxy, s.proxyURL)
+	}
+	if spec.Fetch.Profile != "chrome" {
+		t.Errorf("Fetch.Profile = %q, want \"chrome\" (profile applies to proxy too)", spec.Fetch.Profile)
+	}
+}
+
+func TestBuildJobSpecProviderClearsProfile(t *testing.T) {
+	s := newFormState()
+	s.url = "https://example.com"
+	s.fetchVia = "provider"
+	s.providerName = "decodo"
+
+	spec, err := buildJobSpec(s)
+	if err != nil {
+		t.Fatalf("buildJobSpec: %v", err)
+	}
+	if spec.Fetch.Use != "provider" {
+		t.Errorf("Fetch.Use = %q, want \"provider\"", spec.Fetch.Use)
+	}
+	if spec.Fetch.Name != "decodo" {
+		t.Errorf("Fetch.Name = %q, want \"decodo\"", spec.Fetch.Name)
+	}
+	if spec.Fetch.Profile != "" {
+		t.Errorf("Fetch.Profile = %q, want empty for provider fetch", spec.Fetch.Profile)
+	}
+}
+
+func TestBuildJobSpecCSSFieldsFiltersBlankPairs(t *testing.T) {
+	s := newFormState()
+	s.url = "https://example.com"
+	s.extract = "css fields"
+	s.cssFields = []cssFieldPair{
+		{name: "title", selector: "h1"},
+		{name: "", selector: ""},
+		{name: "price", selector: ".price"},
+	}
+
+	spec, err := buildJobSpec(s)
+	if err != nil {
+		t.Fatalf("buildJobSpec: %v", err)
+	}
+	if len(spec.Stages) != 1 || spec.Stages[0].Use != "css" {
+		t.Fatalf("Stages = %v, want one css stage", spec.Stages)
+	}
+	want := map[string]string{"title": "h1", "price": ".price"}
+	if len(spec.Stages[0].Fields) != len(want) {
+		t.Fatalf("Stages[0].Fields = %v, want %v", spec.Stages[0].Fields, want)
+	}
+	for k, v := range want {
+		if spec.Stages[0].Fields[k] != v {
+			t.Errorf("Stages[0].Fields[%q] = %q, want %q", k, spec.Stages[0].Fields[k], v)
+		}
+	}
+}
+
+func TestBuildJobSpecBareRunsNoStage(t *testing.T) {
+	s := newFormState()
+	s.url = "https://example.com"
+	s.extract = "bare"
+
+	spec, err := buildJobSpec(s)
+	if err != nil {
+		t.Fatalf("buildJobSpec: %v", err)
+	}
+	if len(spec.Stages) != 0 {
+		t.Fatalf("Stages = %v, want none for bare extract (falls back to the raw fetched body)", spec.Stages)
+	}
+}
+
+func TestBuildResultRowsFallsBackToBodyPreviewWhenNoDataExtracted(t *testing.T) {
+	items := []jobresult.Item{{URL: "https://a.test", Outcome: jobresult.Succeeded}}
+	sinkItems := map[string]sinkItem{
+		"https://a.test": {URL: "https://a.test", Status: 200, Body: "<html>\n<body>hello</body>\n</html>"},
+	}
+
+	rows := buildResultRows(items, sinkItems)
+	if len(rows) != 1 {
+		t.Fatalf("rows = %v, want 1", rows)
+	}
+	if !strings.Contains(rows[0].detail, "hello") {
+		t.Fatalf("detail = %q, want a body preview since Data was empty", rows[0].detail)
+	}
+	if _, hasData := rows[0].raw["data"]; hasData {
+		t.Errorf(`raw = %v, want no "data" key when nothing was extracted -- just the body`, rows[0].raw)
+	}
+	if _, hasBody := rows[0].raw["body"]; !hasBody {
+		t.Errorf(`raw = %v, want a "body" key`, rows[0].raw)
+	}
+}
+
+func TestBuildResultRowsCollapsesMultilineErrorsToOneLine(t *testing.T) {
+	multiline := "connection failed:\nsome cause\nanother cause"
+	items := []jobresult.Item{{URL: "https://a.test", Outcome: jobresult.Failed, Err: multiline}}
+
+	rows := buildResultRows(items, nil)
+	if len(rows) != 1 {
+		t.Fatalf("rows = %v, want 1", rows)
+	}
+	if strings.Contains(rows[0].detail, "\n") {
+		t.Fatalf("detail = %q, want a single line with no embedded newlines", rows[0].detail)
+	}
+	if !strings.Contains(rows[0].detail, "connection failed:") || !strings.Contains(rows[0].detail, "some cause") {
+		t.Fatalf("detail = %q, want it to still contain the error text, just on one line", rows[0].detail)
+	}
+	if rows[0].raw["error"] != multiline {
+		t.Fatalf(`raw["error"] = %q, want the full multiline error preserved for the JSON detail view`, rows[0].raw["error"])
+	}
+}
+
+func TestDoSaveWritesJobFile(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	s := newFormState()
+	s.url = "https://example.com"
+
+	status := doSave(s)
+	if !strings.HasPrefix(status, "✓") {
+		t.Fatalf("doSave status = %q, want success", status)
+	}
+
+	data, err := os.ReadFile(savedJobFilename)
+	if err != nil {
+		t.Fatalf("reading %s: %v", savedJobFilename, err)
+	}
+	if !strings.Contains(string(data), "https://example.com") {
+		t.Errorf("%s doesn't contain the URL:\n%s", savedJobFilename, data)
+	}
+}
+
+func TestDoSaveReportsBuildErrors(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	s := newFormState()
+	s.url = "" // no URL at all should fail jobspec validation
+
+	status := doSave(s)
+	if !strings.HasPrefix(status, "✗") {
+		t.Fatalf("doSave status = %q, want a failure", status)
+	}
+	if _, err := os.Stat(savedJobFilename); err == nil {
+		t.Errorf("expected no %s to be written on a build error", savedJobFilename)
+	}
+}
+
+func TestDoRunAgainstLocalServer(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "<html><body><h1>hello</h1></body></html>")
+	}))
+	defer srv.Close()
+
+	s := newFormState()
+	s.url = srv.URL
+	s.extract = "raw"
+
+	status, rows := doRun(context.Background(), s, t.TempDir(), filepath.Join(t.TempDir(), "credentials"), nil)
+	if !strings.HasPrefix(status, "✓") {
+		t.Fatalf("doRun status = %q, want success", status)
+	}
+	if !strings.Contains(status, "fetched 1, errors 0, skipped 0") {
+		t.Errorf("doRun status = %q, want a 1/0/0 summary", status)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("doRun rows = %v, want exactly 1 row", rows)
+	}
+	if rows[0].url != s.url || !strings.HasPrefix(rows[0].status, "✓") {
+		t.Errorf("doRun rows[0] = %+v, want url=%q and a success status", rows[0], s.url)
+	}
+}
+
+func TestDoRunReportsFetchFailures(t *testing.T) {
+	s := newFormState()
+	s.url = "http://127.0.0.1:1" // nothing listens here -- should fail fast
+	s.extract = "raw"
+
+	status, rows := doRun(context.Background(), s, t.TempDir(), filepath.Join(t.TempDir(), "credentials"), nil)
+	if !strings.HasPrefix(status, "✗") {
+		t.Fatalf("doRun status = %q, want a failure", status)
+	}
+	if len(rows) != 1 || strings.HasPrefix(rows[0].status, "✓") {
+		t.Fatalf("doRun rows = %v, want exactly 1 non-success row", rows)
+	}
+}
+
+func TestDoRunReportsBuildErrors(t *testing.T) {
+	s := newFormState()
+	s.url = ""
+
+	status, rows := doRun(context.Background(), s, t.TempDir(), "", nil)
+	if !strings.HasPrefix(status, "✗") {
+		t.Fatalf("doRun status = %q, want a build-error failure", status)
+	}
+	if rows != nil {
+		t.Fatalf("doRun rows = %v, want nil for a build error (job never ran)", rows)
+	}
+}
+
+func TestDoWriteItemWritesJSONFile(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	row := resultRow{url: "https://example.com/page", status: "✓ 200", raw: map[string]any{"url": "https://example.com/page", "status": 200}}
+	status := doWriteItem(row)
+	if !strings.HasPrefix(status, "✓") {
+		t.Fatalf("doWriteItem status = %q, want success", status)
+	}
+
+	name := sanitizeFilename(row.url) + ".json"
+	data, err := os.ReadFile(name) //nolint:gosec // name is this test's own t.Chdir(t.TempDir()) output file
+	if err != nil {
+		t.Fatalf("reading %s: %v", name, err)
+	}
+	if !strings.Contains(string(data), "https://example.com/page") {
+		t.Errorf("%s doesn't contain the URL:\n%s", name, data)
+	}
+}
+
+func TestDoWriteAllItemsWritesOneFilePerRow(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	rows := []resultRow{
+		{url: "https://a.test", raw: map[string]any{"url": "https://a.test"}},
+		{url: "https://b.test", raw: map[string]any{"url": "https://b.test"}},
+	}
+	status := doWriteAllItems(rows)
+	if !strings.HasPrefix(status, "✓") {
+		t.Fatalf("doWriteAllItems status = %q, want success", status)
+	}
+
+	entries, err := os.ReadDir(resultsDirName)
+	if err != nil {
+		t.Fatalf("reading %s: %v", resultsDirName, err)
+	}
+	if len(entries) != len(rows) {
+		t.Fatalf("wrote %d files, want %d", len(entries), len(rows))
+	}
+}
+
+func TestSanitizeFilenameProducesASafeName(t *testing.T) {
+	got := sanitizeFilename("https://a.test/path?q=1&x=2")
+	if strings.ContainsAny(got, "/:?&") {
+		t.Fatalf("sanitizeFilename(%q) = %q, still contains unsafe characters", "https://a.test/path?q=1&x=2", got)
+	}
+	if got == "" {
+		t.Fatal("sanitizeFilename produced an empty name")
+	}
+}

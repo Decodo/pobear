@@ -7,21 +7,14 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/pobear/pobear/pkg/fault"
+	"github.com/pobear/pobear/pkg/jobresult"
 	"github.com/pobear/pobear/pkg/jobspec"
 	"github.com/pobear/pobear/services/cli/internal/jobgen"
 	"github.com/pobear/pobear/services/cli/internal/providerator"
 	"github.com/pobear/pobear/services/core"
 )
 
-type RunResult struct {
-	Succeeded   int
-	Failed      int
-	Skipped     int
-	Empty       int
-	Kinds       []fault.Kind
-	Errors      []string
-	SkippedURLs []string
-}
+type RunResult = jobresult.Result
 
 type JobRunner interface {
 	Run(ctx context.Context, data []byte, mode jobspec.Mode) (RunResult, fault.Kind, error)
@@ -34,16 +27,7 @@ func NewJobRunner(svc *core.Service) JobRunner {
 }
 
 func (r coreRunner) Run(ctx context.Context, data []byte, mode jobspec.Mode) (RunResult, fault.Kind, error) {
-	result, kind, err := r.svc.Run(ctx, data, mode)
-	return RunResult{
-		Succeeded:   result.Succeeded,
-		Failed:      result.Failed,
-		Skipped:     result.Skipped,
-		Empty:       result.Empty,
-		Kinds:       result.Kinds,
-		Errors:      result.Errors,
-		SkippedURLs: result.SkippedURLs,
-	}, kind, err
+	return r.svc.Run(ctx, data, mode)
 }
 
 type Scrape struct {

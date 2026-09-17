@@ -2,7 +2,6 @@ width=100 height=30 cursor=4 fetchVia=local extract=css-fields cssFields=title:h
 ---
                                                                                                     
                                                                                                     
-                                                                                                    
                                             __         __                                           
                                            (  \_______/  )                                          
                                            /   •     •   \                                          
@@ -12,10 +11,10 @@ width=100 height=30 cursor=4 fetchVia=local extract=css-fields cssFields=title:h
                                                                                                     
        ┌─ Scrape ─────────────────────────────────────────────────────── esc: back to menu ─┐       
        │                                                                                    │       
-       │  URL                                                                               │       
+       │  URL            (one per line)                                                     │       
        │  Fetch via      local          (local / proxy / provider)                          │       
        │  Profile        chrome         (TLS fingerprint)                                   │       
-       │  Extract        css fields     (raw / markdown / css fields)                       │       
+       │  Extract        css fields     (raw / markdown / css fields / bare)                │       
        │›   Field name   title          (ctrl+d remove)                                     │       
        │      Selector   h1                                                                 │       
        │    Field name   price          (ctrl+d remove)                                     │       
@@ -23,10 +22,11 @@ width=100 height=30 cursor=4 fetchVia=local extract=css-fields cssFields=title:h
        │    + add field                                                                     │       
        │  Concurrency    8                                                                  │       
        │  Retries        3                                                                  │       
+       │  [ Save as job.yaml ]                                                              │       
+       │  [ Run ]                                                                           │       
        │                                                                                    │       
        └────────────────────────────────────────────────────────────────────────────────────┘       
        ↑/↓ move   enter edit   esc back                                                             
-                                                                                                    
                                                                                                     
                                                                                                     
                                                                                                     
