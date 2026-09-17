@@ -6,10 +6,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math/rand"
 	"slices"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/pobear/pobear/pkg/provider"
 	"github.com/pobear/pobear/services/cli/internal/providerator"
 )
 
@@ -19,7 +22,8 @@ type Wizard struct {
 }
 
 func (w *Wizard) Run(ctx context.Context, _ []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	p := tea.NewProgram(newApp(newModel(w.providerNames(), ctx, w.providersDir(), w.CredentialsPath)),
+	bareEasterEgg = rand.Intn(1000) == 0 //nolint:gosec // cosmetic easter egg, not security-sensitive
+	p := tea.NewProgram(newApp(newModel(w.providerManifests(), ctx, w.providersDir(), w.CredentialsPath)),
 		tea.WithContext(ctx),
 		tea.WithInput(stdin),
 		tea.WithOutput(stdout),
@@ -41,7 +45,7 @@ func (w *Wizard) providersDir() string {
 	return w.Providers.Dir
 }
 
-func (w *Wizard) providerNames() []string {
+func (w *Wizard) providerManifests() []*provider.Manifest {
 	if w.Providers == nil {
 		return nil
 	}
@@ -49,10 +53,6 @@ func (w *Wizard) providerNames() []string {
 	if err != nil {
 		return nil
 	}
-	names := make([]string, len(manifests))
-	for i, m := range manifests {
-		names[i] = m.Name
-	}
-	slices.Sort(names)
-	return names
+	slices.SortFunc(manifests, func(a, b *provider.Manifest) int { return strings.Compare(a.Name, b.Name) })
+	return manifests
 }

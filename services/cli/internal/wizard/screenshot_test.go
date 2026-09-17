@@ -112,7 +112,7 @@ func TestFormScreenshotScenarios(t *testing.T) {
 	for _, path := range paths {
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			width, height, cursor, state, want := readFormScreenshot(t, path)
-			fields := computeFields(state, []string{"acme", "decodo"})
+			fields := computeFields(state, manifestsWithNames("acme", "decodo"))
 			got := ansi.Strip(renderForm(width, height, fields, cursor, ""))
 
 			if *updateScreenshots {

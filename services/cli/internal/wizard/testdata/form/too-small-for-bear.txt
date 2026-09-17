@@ -5,7 +5,7 @@ width=90 height=11 cursor=0 fetchVia=local extract=markdown cssFields=
   │› URL            (one per line)                                                     │  
   │  Fetch via      local          (local / proxy / provider)                          │  
   │  Profile        chrome         (TLS fingerprint)                                   │  
-  │  Extract        markdown       (raw / markdown / css fields / bare)                │  
+  │  Extract        markdown       (bare / raw / markdown / css fields)                │  
   │  Concurrency    8                                                                  │  
   │  Retries        3                                                                  │  
   │  [ Save as job.yaml ]                                                              │  

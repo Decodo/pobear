@@ -17,7 +17,7 @@ func TestBuildJobSpecLocal(t *testing.T) {
 	s := newFormState()
 	s.url = "https://example.com"
 
-	spec, err := buildJobSpec(s)
+	spec, err := buildJobSpec(s, "")
 	if err != nil {
 		t.Fatalf("buildJobSpec: %v", err)
 	}
@@ -30,8 +30,8 @@ func TestBuildJobSpecLocal(t *testing.T) {
 	if spec.Fetch.Profile != "chrome" {
 		t.Errorf("Fetch.Profile = %q, want \"chrome\"", spec.Fetch.Profile)
 	}
-	if len(spec.Stages) != 1 || spec.Stages[0].Use != "markdown" {
-		t.Errorf("Stages = %v, want one markdown stage", spec.Stages)
+	if len(spec.Stages) != 0 {
+		t.Errorf("Stages = %v, want none for the default \"bare\" extract mode", spec.Stages)
 	}
 	if spec.Limits.Concurrency != 8 || spec.Limits.Retries != 3 {
 		t.Errorf("Limits = %+v, want concurrency=8 retries=3", spec.Limits)
@@ -44,7 +44,7 @@ func TestBuildJobSpecProxy(t *testing.T) {
 	s.fetchVia = "proxy"
 	s.proxyURL = "http://proxy.example.com:8080"
 
-	spec, err := buildJobSpec(s)
+	spec, err := buildJobSpec(s, "")
 	if err != nil {
 		t.Fatalf("buildJobSpec: %v", err)
 	}
@@ -59,13 +59,49 @@ func TestBuildJobSpecProxy(t *testing.T) {
 	}
 }
 
+func writeManifest(t *testing.T, name, yaml string) string {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, name+".yaml"), []byte(yaml), 0o600); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	return dir
+}
+
+const flatOptionsManifest = `
+name: decodo
+endpoint: https://scraper-api.decodo.com/v2/scrape
+auth: {type: bearer, credential: token}
+options:
+  - {name: headless, type: enum, values: [html, png], default: html}
+  - {name: geo, type: string}
+request: {body: {url: "{{ .URL }}"}}
+response: {body: "$.html"}
+`
+
+const templatedManifest = `
+name: acme
+endpoint: https://acme.example.com/scrape
+auth: {type: bearer, credential: token}
+templates:
+  - name: product
+    options:
+      - {name: domain, type: string}
+    request: {body: {url: "{{ .URL }}"}}
+  - name: search
+    options:
+      - {name: query, type: string}
+    request: {body: {url: "{{ .URL }}"}}
+response: {body: "$.html"}
+`
+
 func TestBuildJobSpecProviderClearsProfile(t *testing.T) {
 	s := newFormState()
 	s.url = "https://example.com"
 	s.fetchVia = "provider"
 	s.providerName = "decodo"
 
-	spec, err := buildJobSpec(s)
+	spec, err := buildJobSpec(s, writeManifest(t, "decodo", flatOptionsManifest))
 	if err != nil {
 		t.Fatalf("buildJobSpec: %v", err)
 	}
@@ -80,6 +116,111 @@ func TestBuildJobSpecProviderClearsProfile(t *testing.T) {
 	}
 }
 
+func TestBuildJobSpecProviderIncludesResolvedOptions(t *testing.T) {
+	s := newFormState()
+	s.url = "https://example.com"
+	s.fetchVia = "provider"
+	s.providerName = "decodo"
+	s.providerOptions = map[string]string{"headless": "png", "geo": "us"}
+
+	spec, err := buildJobSpec(s, writeManifest(t, "decodo", flatOptionsManifest))
+	if err != nil {
+		t.Fatalf("buildJobSpec: %v", err)
+	}
+	if got := spec.Fetch.Options["headless"]; got != "png" {
+		t.Errorf(`Fetch.Options["headless"] = %v, want "png"`, got)
+	}
+	if got := spec.Fetch.Options["geo"]; got != "us" {
+		t.Errorf(`Fetch.Options["geo"] = %v, want "us"`, got)
+	}
+}
+
+func TestBuildJobSpecProviderTemplateDefaultsToFirstWhenAmbiguous(t *testing.T) {
+	s := newFormState()
+	s.url = "https://example.com"
+	s.fetchVia = "provider"
+	s.providerName = "acme"
+	s.providerOptions = map[string]string{"domain": "example.com"}
+
+	spec, err := buildJobSpec(s, writeManifest(t, "acme", templatedManifest))
+	if err != nil {
+		t.Fatalf("buildJobSpec: %v", err)
+	}
+	if spec.Fetch.Template != "product" {
+		t.Errorf("Fetch.Template = %q, want \"product\" (the first declared template, matching the form's own default)", spec.Fetch.Template)
+	}
+	if got := spec.Fetch.Options["domain"]; got != "example.com" {
+		t.Errorf(`Fetch.Options["domain"] = %v, want "example.com"`, got)
+	}
+}
+
+const templatedManifestWithDefault = `
+name: decodo
+endpoint: https://scraper-api.decodo.com/v2/scrape
+auth: {type: bearer, credential: token}
+templates:
+  - name: universal
+    default: true
+    options:
+      - {name: geo, type: string}
+    request: {body: {url: "{{ .URL }}"}}
+  - name: google
+    options:
+      - {name: page_count, type: int, default: 1, min: 1, max: 10}
+    request: {body: {url: "{{ .URL }}"}}
+response: {body: "$.html"}
+`
+
+func TestBuildJobSpecProviderDefaultsToTheMarkedDefaultTemplate(t *testing.T) {
+	s := newFormState()
+	s.url = "https://example.com"
+	s.fetchVia = "provider"
+	s.providerName = "decodo"
+	s.providerOptions = map[string]string{"geo": "us"}
+
+	spec, err := buildJobSpec(s, writeManifest(t, "decodo", templatedManifestWithDefault))
+	if err != nil {
+		t.Fatalf("buildJobSpec: %v", err)
+	}
+	if spec.Fetch.Template != "universal" {
+		t.Errorf("Fetch.Template = %q, want \"universal\" (the manifest's declared default)", spec.Fetch.Template)
+	}
+	if got := spec.Fetch.Options["geo"]; got != "us" {
+		t.Errorf(`Fetch.Options["geo"] = %v, want "us"`, got)
+	}
+}
+
+func TestBuildJobSpecProviderHonorsExplicitNonDefaultTemplate(t *testing.T) {
+	s := newFormState()
+	s.url = "https://example.com"
+	s.fetchVia = "provider"
+	s.providerName = "decodo"
+	s.templateName = "google"
+	s.providerOptions = map[string]string{"page_count": "5"}
+
+	spec, err := buildJobSpec(s, writeManifest(t, "decodo", templatedManifestWithDefault))
+	if err != nil {
+		t.Fatalf("buildJobSpec: %v", err)
+	}
+	if spec.Fetch.Template != "google" {
+		t.Errorf("Fetch.Template = %q, want \"google\" (explicitly chosen, overriding the default)", spec.Fetch.Template)
+	}
+	if got := spec.Fetch.Options["page_count"]; got != 5 {
+		t.Errorf(`Fetch.Options["page_count"] = %v, want 5`, got)
+	}
+}
+
+func TestBuildJobSpecProviderUnknownProviderErrors(t *testing.T) {
+	s := newFormState()
+	s.url = "https://example.com"
+	s.fetchVia = "provider"
+	s.providerName = "nope"
+
+	if _, err := buildJobSpec(s, t.TempDir()); err == nil {
+		t.Fatal("buildJobSpec with an unknown provider = nil error, want one")
+	}
+}
+
 func TestBuildJobSpecCSSFieldsFiltersBlankPairs(t *testing.T) {
 	s := newFormState()
 	s.url = "https://example.com"
@@ -90,7 +231,7 @@ func TestBuildJobSpecCSSFieldsFiltersBlankPairs(t *testing.T) {
 		{name: "price", selector: ".price"},
 	}
 
-	spec, err := buildJobSpec(s)
+	spec, err := buildJobSpec(s, "")
 	if err != nil {
 		t.Fatalf("buildJobSpec: %v", err)
 	}
@@ -113,7 +254,7 @@ func TestBuildJobSpecBareRunsNoStage(t *testing.T) {
 	s.url = "https://example.com"
 	s.extract = "bare"
 
-	spec, err := buildJobSpec(s)
+	spec, err := buildJobSpec(s, "")
 	if err != nil {
 		t.Fatalf("buildJobSpec: %v", err)
 	}
@@ -168,7 +309,7 @@ func TestDoSaveWritesJobFile(t *testing.T) {
 	s := newFormState()
 	s.url = "https://example.com"
 
-	status := doSave(s)
+	status := doSave(s, "")
 	if !strings.HasPrefix(status, "✓") {
 		t.Fatalf("doSave status = %q, want success", status)
 	}
@@ -188,12 +329,52 @@ func TestDoSaveReportsBuildErrors(t *testing.T) {
 	s := newFormState()
 	s.url = "" // no URL at all should fail jobspec validation
 
-	status := doSave(s)
+	status := doSave(s, "")
 	if !strings.HasPrefix(status, "✗") {
 		t.Fatalf("doSave status = %q, want a failure", status)
 	}
 	if _, err := os.Stat(savedJobFilename); err == nil {
 		t.Errorf("expected no %s to be written on a build error", savedJobFilename)
+	}
+}
+
+func TestCheckProviderCredentialCatchesMissingCredential(t *testing.T) {
+	s := newFormState()
+	s.fetchVia = "provider"
+	s.providerName = "decodo"
+
+	dir := writeManifest(t, "decodo", flatOptionsManifest)
+	credPath := filepath.Join(t.TempDir(), "credentials")
+
+	got := checkProviderCredential(s, dir, credPath)
+	if !strings.HasPrefix(got, "✗") {
+		t.Fatalf("checkProviderCredential = %q, want a failure message", got)
+	}
+	if !strings.Contains(got, "decodo") || !strings.Contains(got, "Manage credentials") {
+		t.Fatalf("checkProviderCredential = %q, want it to name the provider and point at \"Manage credentials\"", got)
+	}
+}
+
+func TestCheckProviderCredentialPassesWhenCredentialPresent(t *testing.T) {
+	s := newFormState()
+	s.fetchVia = "provider"
+	s.providerName = "decodo"
+
+	dir := writeManifest(t, "decodo", flatOptionsManifest)
+	credPath := filepath.Join(t.TempDir(), "credentials")
+	if err := os.WriteFile(credPath, []byte("POBEAR_PROVIDER_DECODO_TOKEN=secret\n"), 0o600); err != nil {
+		t.Fatalf("write credentials: %v", err)
+	}
+
+	if got := checkProviderCredential(s, dir, credPath); got != "" {
+		t.Fatalf("checkProviderCredential = %q, want empty (credential present)", got)
+	}
+}
+
+func TestCheckProviderCredentialSkippedForNonProviderFetch(t *testing.T) {
+	s := newFormState()
+	if got := checkProviderCredential(s, t.TempDir(), ""); got != "" {
+		t.Fatalf("checkProviderCredential for a non-provider fetch = %q, want empty", got)
 	}
 }
 

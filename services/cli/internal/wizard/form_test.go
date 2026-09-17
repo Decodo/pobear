@@ -2,10 +2,21 @@ package wizard
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/pobear/pobear/pkg/provider"
 )
+
+func manifestsWithNames(names ...string) []*provider.Manifest {
+	manifests := make([]*provider.Manifest, len(names))
+	for i, n := range names {
+		manifests[i] = &provider.Manifest{Name: n}
+	}
+	return manifests
+}
 
 func fieldNames(fields []field) []string {
 	names := make([]string, len(fields))
@@ -128,7 +139,7 @@ func TestComputeFieldsExtractIsAChoiceOfFourIncludingBare(t *testing.T) {
 	if !ok {
 		t.Fatal("expected an \"extract\" field")
 	}
-	want := []string{"raw", "markdown", "css fields", "bare"}
+	want := []string{"bare", "raw", "markdown", "css fields"}
 	if len(extract.options) != len(want) {
 		t.Fatalf("extract options = %v, want %v", extract.options, want)
 	}
@@ -139,10 +150,54 @@ func TestComputeFieldsExtractIsAChoiceOfFourIncludingBare(t *testing.T) {
 	}
 }
 
+func TestNewFormStateDefaultsExtractToBare(t *testing.T) {
+	if got := newFormState().extract; got != "bare" {
+		t.Fatalf("newFormState().extract = %q, want \"bare\"", got)
+	}
+}
+
+func TestBareEasterEggOnlyChangesDisplayNeverTheRealValue(t *testing.T) {
+	old := bareEasterEgg
+	defer func() { bareEasterEgg = old }()
+
+	bareEasterEgg = true
+	s := newFormState()
+	s.extract = "bare"
+	fields := computeFields(s, nil)
+	extract, _ := findField(fields, "extract")
+	if extract.value() != "bare" {
+		t.Fatalf("extract.value() with the easter egg active = %q, want the real value \"bare\" unchanged", extract.value())
+	}
+	if extract.options[0] != "bare" {
+		t.Fatalf("extract.options[0] = %q, want the real option \"bare\" unchanged", extract.options[0])
+	}
+	if extract.displayOverride != "bear" {
+		t.Fatalf("displayOverride with the easter egg active and extract=bare = %q, want \"bear\"", extract.displayOverride)
+	}
+	if !strings.Contains(extract.render(true, 20), "bear") {
+		t.Fatalf("render() with the easter egg active = %q, want it to show \"bear\" instead of \"bare\"", extract.render(true, 20))
+	}
+
+	bareEasterEgg = false
+	fields = computeFields(s, nil)
+	extract, _ = findField(fields, "extract")
+	if extract.displayOverride != "" {
+		t.Fatalf("displayOverride with the easter egg inactive = %q, want empty", extract.displayOverride)
+	}
+
+	bareEasterEgg = true
+	s.extract = "raw"
+	fields = computeFields(s, nil)
+	extract, _ = findField(fields, "extract")
+	if extract.displayOverride != "" {
+		t.Fatalf("displayOverride for extract=%q with the easter egg active = %q, want empty (only \"bare\" gets the substitution)", s.extract, extract.displayOverride)
+	}
+}
+
 func TestComputeFieldsProviderIsAChoiceOfKnownProviders(t *testing.T) {
 	s := newFormState()
 	s.fetchVia = "provider"
-	fields := computeFields(s, []string{"acme", "decodo"})
+	fields := computeFields(s, manifestsWithNames("acme", "decodo"))
 	provider, ok := findField(fields, "provider")
 	if !ok {
 		t.Fatal("expected a \"provider\" field")
@@ -171,6 +226,199 @@ func TestComputeFieldsProviderWithNoneConfiguredStillRenders(t *testing.T) {
 	}
 	if len(provider.options) == 0 {
 		t.Fatal("expected a placeholder option when no providers are configured")
+	}
+}
+
+func flatOptionsManifestFixture() *provider.Manifest {
+	return &provider.Manifest{
+		Name: "decodo",
+		Options: []provider.Option{
+			{Name: "headless", Type: "enum", Values: []string{"html", "png"}, Default: "html"},
+			{Name: "geo", Type: "string"},
+		},
+	}
+}
+
+func templatedManifestFixture() *provider.Manifest {
+	return &provider.Manifest{
+		Name: "acme",
+		Templates: []provider.Template{
+			{Name: "product", Options: []provider.Option{{Name: "domain", Type: "string"}}},
+			{Name: "search", Options: []provider.Option{{Name: "query", Type: "string"}}},
+		},
+	}
+}
+
+func TestComputeFieldsProviderShowsManifestOptionFields(t *testing.T) {
+	s := newFormState()
+	s.fetchVia = "provider"
+	s.providerName = "decodo"
+
+	fields := computeFields(s, []*provider.Manifest{flatOptionsManifestFixture()})
+	if !containsName(fields, "opt.headless") || !containsName(fields, "opt.geo") {
+		t.Fatalf("expected opt.headless/opt.geo fields, got %v", fieldNames(fields))
+	}
+	if containsName(fields, "template") {
+		t.Error("expected no \"template\" field for a manifest with no templates")
+	}
+
+	headless, _ := findField(fields, "opt.headless")
+	if headless.value() != "html" {
+		t.Errorf("opt.headless default value = %q, want \"html\" (the manifest's declared default)", headless.value())
+	}
+}
+
+func TestComputeFieldsProviderIntOptionFieldShowsHint(t *testing.T) {
+	s := newFormState()
+	s.fetchVia = "provider"
+	s.providerName = "decodo"
+	m := &provider.Manifest{
+		Name:    "decodo",
+		Options: []provider.Option{{Name: "page_count", Type: "int", Default: 1, Min: intPtr(1), Max: intPtr(10)}},
+	}
+
+	fields := computeFields(s, []*provider.Manifest{m})
+	pageCount, ok := findField(fields, "opt.page_count")
+	if !ok {
+		t.Fatal("expected an \"opt.page_count\" field")
+	}
+	if pageCount.hint == "" {
+		t.Error("expected a non-empty hint on an int-typed option field, same as enum/bool/string options get")
+	}
+}
+
+func intPtr(n int) *int { return &n }
+
+func TestComputeFieldsProviderWithAmbiguousTemplatesShowsTemplateField(t *testing.T) {
+	s := newFormState()
+	s.fetchVia = "provider"
+	s.providerName = "acme"
+
+	fields := computeFields(s, []*provider.Manifest{templatedManifestFixture()})
+	tmpl, ok := findField(fields, "template")
+	if !ok {
+		t.Fatal("expected a \"template\" field when the manifest has 2+ templates and none is default")
+	}
+	want := []string{"product", "search"}
+	if len(tmpl.options) != len(want) || tmpl.options[0] != want[0] || tmpl.options[1] != want[1] {
+		t.Errorf("template options = %v, want %v", tmpl.options, want)
+	}
+	if !containsName(fields, "opt.domain") {
+		t.Errorf("expected the first template's (product) options to show by default, got %v", fieldNames(fields))
+	}
+	if containsName(fields, "opt.query") {
+		t.Errorf("expected only the selected template's options, not search's, got %v", fieldNames(fields))
+	}
+}
+
+func TestComputeFieldsProviderWithDefaultTemplateStillShowsTemplateField(t *testing.T) {
+	s := newFormState()
+	s.fetchVia = "provider"
+	s.providerName = "decodo"
+	m := &provider.Manifest{
+		Name: "decodo",
+		Templates: []provider.Template{
+			{Name: "universal", Default: true, Options: []provider.Option{{Name: "geo", Type: "string"}}},
+			{Name: "google", Options: []provider.Option{{Name: "page_count", Type: "int"}}},
+		},
+	}
+
+	fields := computeFields(s, []*provider.Manifest{m})
+	tmpl, ok := findField(fields, "template")
+	if !ok {
+		t.Fatal("expected a \"template\" field even though one template is marked default -- the user should still be able to reach the non-default ones")
+	}
+	if tmpl.value() != "universal" {
+		t.Errorf("template default value = %q, want \"universal\" (the manifest's declared default)", tmpl.value())
+	}
+	if !containsName(fields, "opt.geo") || containsName(fields, "opt.page_count") {
+		t.Errorf("expected only the default template's (universal) options until the user switches, got %v", fieldNames(fields))
+	}
+}
+
+func TestComputeFieldsProviderWithSingleTemplateHidesTemplateField(t *testing.T) {
+	s := newFormState()
+	s.fetchVia = "provider"
+	s.providerName = "decodo"
+	m := &provider.Manifest{
+		Name: "decodo",
+		Templates: []provider.Template{
+			{Name: "universal", Options: []provider.Option{{Name: "geo", Type: "string"}}},
+		},
+	}
+
+	fields := computeFields(s, []*provider.Manifest{m})
+	if containsName(fields, "template") {
+		t.Error("expected no \"template\" field when there's only one template -- there's nothing to choose")
+	}
+	if !containsName(fields, "opt.geo") {
+		t.Errorf("expected the single template's options to show directly, got %v", fieldNames(fields))
+	}
+}
+
+func TestScrapeFormTypingIntoTemplateSwitchesToNonDefaultOptions(t *testing.T) {
+	m := &provider.Manifest{
+		Name: "decodo",
+		Templates: []provider.Template{
+			{Name: "universal", Default: true, Options: []provider.Option{{Name: "geo", Type: "string"}}},
+			{Name: "google", Options: []provider.Option{{Name: "page_count", Type: "int"}}},
+		},
+	}
+	f := newScrapeForm([]*provider.Manifest{m}, context.Background(), "", "")
+	f.state.fetchVia = "provider"
+	f.state.providerName = "decodo"
+	f.rebuild()
+
+	for i, fld := range f.fields {
+		if fld.name == "template" {
+			f.cursor = i
+			break
+		}
+	}
+	f.refocus()
+	for _, r := range "goo" {
+		updated, _ := f.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		f = updated.(*scrapeForm)
+	}
+
+	if f.state.templateName != "google" {
+		t.Fatalf("templateName after typing \"goo\" = %q, want \"google\"", f.state.templateName)
+	}
+	if !containsName(f.fields, "opt.page_count") || containsName(f.fields, "opt.geo") {
+		t.Errorf("expected google's options after switching away from the default, got %v", fieldNames(f.fields))
+	}
+}
+
+func TestScrapeFormChangingProviderResetsTemplateAndOptions(t *testing.T) {
+	f := newScrapeForm([]*provider.Manifest{templatedManifestFixture(), flatOptionsManifestFixture()}, context.Background(), "", "")
+	f.state.fetchVia = "provider"
+	f.state.providerName = "acme"
+	f.state.templateName = "search"
+	f.state.templateQuery = "sea"
+	f.state.providerOptions = map[string]string{"query": "shoes"}
+	f.rebuild()
+
+	for i, fld := range f.fields {
+		if fld.name == "provider" {
+			f.cursor = i
+			break
+		}
+	}
+	f.refocus()
+	updated, _ := f.Update(tea.KeyMsg{Type: tea.KeyRight})
+	f = updated.(*scrapeForm)
+
+	if f.state.providerName != "decodo" {
+		t.Fatalf("providerName after cycling = %q, want \"decodo\"", f.state.providerName)
+	}
+	if f.state.templateName != "" {
+		t.Errorf("templateName after switching provider = %q, want reset to \"\"", f.state.templateName)
+	}
+	if f.state.templateQuery != "" {
+		t.Errorf("templateQuery after switching provider = %q, want reset to \"\"", f.state.templateQuery)
+	}
+	if len(f.state.providerOptions) != 0 {
+		t.Errorf("providerOptions after switching provider = %v, want reset to empty", f.state.providerOptions)
 	}
 }
 
@@ -399,7 +647,7 @@ func TestScrapeFormNavigatingAwayAndBackPreservesTypedText(t *testing.T) {
 }
 
 func TestNumberFieldArrowsIncrementAndDecrementWithFloor(t *testing.T) {
-	f := numberField("retries", "Retries", "3", 0)
+	f := numberField("retries", "Retries", "", "3", 0, nil)
 	f = f.focus()
 
 	updated, changed := f.update(tea.KeyMsg{Type: tea.KeyRight})
@@ -421,8 +669,162 @@ func TestNumberFieldArrowsIncrementAndDecrementWithFloor(t *testing.T) {
 	}
 }
 
+func TestChoiceFieldTypingJumpsToMatchingOption(t *testing.T) {
+	f := choiceField("template", "Template", "", []string{"universal", "google", "bing", "amazon"}, "universal")
+	f = f.focus()
+
+	updated, changed := f.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
+	if !changed || updated.value() != "google" {
+		t.Fatalf(`typing "g": value = %q, changed = %v, want "google", true`, updated.value(), changed)
+	}
+
+	updated, _ = updated.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("o")})
+	if updated.value() != "google" {
+		t.Fatalf(`typing "go": value = %q, want it to stay on "google"`, updated.value())
+	}
+}
+
+func TestChoiceFieldTypingRestartsFilterWhenNothingMatches(t *testing.T) {
+	f := choiceField("template", "Template", "", []string{"universal", "google", "bing", "amazon"}, "universal")
+	f = f.focus()
+
+	updated, _ := f.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
+	updated, _ = updated.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("z")})
+	if updated.value() != "google" {
+		t.Fatalf(`typing "gz" (no match): value = %q, want unchanged "google"`, updated.value())
+	}
+
+	updated, changed := updated.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("b")})
+	if !changed || updated.value() != "bing" {
+		t.Fatalf(`typing "b" after a failed match: value = %q, changed = %v, want "bing", true (filter restarts from just the new character)`, updated.value(), changed)
+	}
+}
+
+func TestChoiceFieldFilterResetsOnFocus(t *testing.T) {
+	f := choiceField("template", "Template", "", []string{"universal", "google", "bing", "amazon"}, "universal")
+	f = f.focus()
+	f, _ = f.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
+	f = f.blur().focus()
+
+	updated, changed := f.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
+	if !changed || updated.value() != "amazon" {
+		t.Fatalf(`typing "a" after refocusing: value = %q, changed = %v, want "amazon", true (stale "g" filter must not carry over)`, updated.value(), changed)
+	}
+}
+
+func TestChoiceFieldArrowsStillCycleAndResetFilter(t *testing.T) {
+	f := choiceField("template", "Template", "", []string{"universal", "google", "bing", "amazon"}, "universal")
+	f = f.focus()
+	f, _ = f.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
+
+	updated, changed := f.update(tea.KeyMsg{Type: tea.KeyRight})
+	if !changed || updated.value() != "bing" {
+		t.Fatalf("right arrow after typing: value = %q, changed = %v, want \"bing\", true", updated.value(), changed)
+	}
+}
+
+func TestSearchFieldStartsResolvedToTheDefaultWhenEmpty(t *testing.T) {
+	f := templateSearchField([]string{"universal", "google", "bing"}, "universal", "")
+	if got := f.value(); got != "universal" {
+		t.Fatalf("value() on an empty search field = %q, want the default %q", got, "universal")
+	}
+	if got := f.render(true, 20); !strings.Contains(got, "(universal)") {
+		t.Fatalf("render() = %q, want it to show the resolved default in the hint even with nothing typed", got)
+	}
+}
+
+func TestSearchFieldTypingResolvesToTheMatchingOption(t *testing.T) {
+	f := templateSearchField([]string{"universal", "google", "bing"}, "universal", "")
+	f = f.focus()
+
+	for _, r := range "goo" {
+		f, _ = f.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+	if f.value() != "google" {
+		t.Fatalf("value() after typing \"goo\" = %q, want \"google\"", f.value())
+	}
+	if got := f.render(true, 20); !strings.Contains(got, "goo") || !strings.Contains(got, "(google)") {
+		t.Fatalf("render() = %q, want the typed text \"goo\" and the resolved \"(google)\" hint", got)
+	}
+}
+
+func TestSearchFieldNonMatchingTextKeepsThePreviousMatch(t *testing.T) {
+	f := templateSearchField([]string{"universal", "google", "bing"}, "universal", "")
+	f = f.focus()
+	for _, r := range "goo" {
+		f, _ = f.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+
+	updated, changed := f.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("z")})
+	if changed || updated.value() != "google" {
+		t.Fatalf(`typing "z" after "goo" (no match for "gooz"): value = %q, changed = %v, want unchanged "google", false`, updated.value(), changed)
+	}
+}
+
+func TestSearchFieldClearingTheTextRevertsToTheDefault(t *testing.T) {
+	f := templateSearchField([]string{"universal", "google", "bing"}, "universal", "")
+	f = f.focus()
+	for _, r := range "goo" {
+		f, _ = f.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+
+	for range 3 {
+		f, _ = f.update(tea.KeyMsg{Type: tea.KeyBackspace})
+	}
+	if got := f.value(); got != "universal" {
+		t.Fatalf("value() after clearing the typed text = %q, want reverted to the default %q", got, "universal")
+	}
+}
+
+func TestSearchFieldQueryTextSurvivesARebuild(t *testing.T) {
+	m := &provider.Manifest{
+		Name: "decodo",
+		Templates: []provider.Template{
+			{Name: "universal", Default: true, Options: []provider.Option{{Name: "geo", Type: "string"}}},
+			{Name: "google", Options: []provider.Option{{Name: "page_count", Type: "int"}}},
+		},
+	}
+	f := newScrapeForm([]*provider.Manifest{m}, context.Background(), "", "")
+	f.state.fetchVia = "provider"
+	f.state.providerName = "decodo"
+	f.rebuild()
+
+	for i, fld := range f.fields {
+		if fld.name == "template" {
+			f.cursor = i
+			break
+		}
+	}
+	f.refocus()
+	for _, r := range "goo" {
+		updated, _ := f.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		f = updated.(*scrapeForm)
+	}
+
+	tmpl, ok := findField(f.fields, "template")
+	if !ok {
+		t.Fatal("expected a \"template\" field after typing")
+	}
+	if got := tmpl.rawText(); got != "goo" {
+		t.Fatalf("template field's typed text after the rebuild triggered by resolving to google = %q, want \"goo\" preserved", got)
+	}
+}
+
+func TestNumberFieldArrowsClampAtDeclaredMax(t *testing.T) {
+	max := 10
+	f := numberField("opt.page_count", "Page count", "", "9", 1, &max)
+	f = f.focus()
+
+	for range 3 {
+		f, _ = f.update(tea.KeyMsg{Type: tea.KeyRight})
+	}
+	if got := f.value(); got != "10" {
+		t.Fatalf("value after 3 right arrows past the max = %q, want clamped to \"10\"", got)
+	}
+}
+
 func TestNumberFieldBackspaceRemovesFromTheEndAfterArrowAdjustment(t *testing.T) {
-	f := numberField("concurrency", "Concurrency", "8", 1)
+	f := numberField("concurrency", "Concurrency", "", "8", 1, nil)
 	f = f.focus()
 
 	for range 3 {
@@ -446,7 +848,7 @@ func TestNumberFieldBackspaceRemovesFromTheEndAfterArrowAdjustment(t *testing.T)
 }
 
 func TestNumberFieldIsHandEditable(t *testing.T) {
-	f := numberField("concurrency", "Concurrency", "8", 1)
+	f := numberField("concurrency", "Concurrency", "", "8", 1, nil)
 	f = f.focus()
 
 	updated, _ := f.update(tea.KeyMsg{Type: tea.KeyBackspace})
