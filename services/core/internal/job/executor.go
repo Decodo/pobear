@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/pobear/pobear/pkg/fault"
+	"github.com/pobear/pobear/pkg/jobresult"
 	"github.com/pobear/pobear/pkg/jobspec"
 	"github.com/pobear/pobear/services/core/internal/job/pool"
 	"github.com/pobear/pobear/services/core/internal/job/workers"
@@ -22,15 +23,7 @@ type SinkCloser interface {
 	Close() error
 }
 
-type Result struct {
-	Succeeded   int
-	Failed      int
-	Skipped     int
-	Empty       int
-	Kinds       []fault.Kind
-	Errors      []string
-	SkippedURLs []string
-}
+type Result = jobresult.Result
 
 type Executor struct {
 	scrape ScrapeWorker
@@ -65,15 +58,19 @@ func (e *Executor) Run(ctx context.Context, spec *jobspec.Spec) (result Result, 
 			defer mu.Unlock()
 			if scrapeErr == nil && kind == "" {
 				result.Succeeded++
+				result.Items = append(result.Items, jobresult.Item{URL: url, Outcome: jobresult.Succeeded})
 				return
 			}
 			result.Failed++
+			errMsg := ""
 			if kind != "" {
 				result.Kinds = append(result.Kinds, kind)
 			}
 			if scrapeErr != nil {
+				errMsg = scrapeErr.Error()
 				result.Errors = append(result.Errors, fault.FormatFailure(url, kind, scrapeErr))
 			}
+			result.Items = append(result.Items, jobresult.Item{URL: url, Outcome: jobresult.Failed, Kind: kind, Err: errMsg})
 		})
 	}
 	p.Wait()

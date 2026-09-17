@@ -14,11 +14,12 @@ import (
 )
 
 type Wizard struct {
-	Providers *providerator.Providerator
+	Providers       *providerator.Providerator
+	CredentialsPath string
 }
 
 func (w *Wizard) Run(ctx context.Context, _ []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	p := tea.NewProgram(newApp(newModel(w.providerNames())),
+	p := tea.NewProgram(newApp(newModel(w.providerNames(), ctx, w.providersDir(), w.CredentialsPath)),
 		tea.WithContext(ctx),
 		tea.WithInput(stdin),
 		tea.WithOutput(stdout),
@@ -29,6 +30,13 @@ func (w *Wizard) Run(ctx context.Context, _ []string, stdin io.Reader, stdout, s
 		return 1
 	}
 	return 0
+}
+
+func (w *Wizard) providersDir() string {
+	if w.Providers == nil {
+		return ""
+	}
+	return w.Providers.Dir
 }
 
 func (w *Wizard) providerNames() []string {

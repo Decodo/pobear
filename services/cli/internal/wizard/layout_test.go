@@ -7,6 +7,23 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+func assertNeverExceedsSize(t *testing.T, minH, maxH, stepH, minW, maxW, stepW int, view func(w, h int) string) {
+	t.Helper()
+	for h := minH; h <= maxH; h += stepH {
+		for w := minW; w <= maxW; w += stepW {
+			lines := strings.Split(view(w, h), "\n")
+			if len(lines) != h {
+				t.Fatalf("view(%d,%d): got %d lines, want exactly %d", w, h, len(lines), h)
+			}
+			for _, l := range lines {
+				if got := lipgloss.Width(l); got > w {
+					t.Fatalf("view(%d,%d): a line is %d cells wide, want <= %d:\n%q", w, h, got, w, l)
+				}
+			}
+		}
+	}
+}
+
 func TestClassify(t *testing.T) {
 	cases := []struct {
 		name          string
@@ -59,10 +76,15 @@ func TestRenderMenuEveryNonUnsupportedSizeProducesExactCanvas(t *testing.T) {
 
 func TestRenderFormNeverExceedsRequestedSize(t *testing.T) {
 	fields := computeFields(newFormState(), nil)
-	minHeight := len(fields) + 4 + footerRows // top border + padTop + fields + padBottom + bottom border + footer
+
+	renderedLines := 0
+	for i, f := range fields {
+		renderedLines += strings.Count(f.render(i == 0, formLabelWidth, formValueWidth), "\n") + 1
+	}
+	minHeight := renderedLines + 4 + footerRows
 	for h := minHeight; h <= 40; h++ {
 		for w := 60; w <= 160; w += 5 {
-			out := renderForm(w, h, fields, 0)
+			out := renderForm(w, h, fields, 0, "")
 			lines := strings.Split(out, "\n")
 			if len(lines) != h {
 				t.Fatalf("renderForm(%d,%d): got %d lines, want exactly %d", w, h, len(lines), h)
@@ -93,6 +115,33 @@ func TestDecideBearPlacement(t *testing.T) {
 			if got := decideBearPlacement(boxW, boxH, bearW, bearH, c.termWidth, c.termHeight); got != c.want {
 				t.Errorf("decideBearPlacement(box=%dx%d, bear=%dx%d, term=%dx%d) = %v, want %v",
 					boxW, boxH, bearW, bearH, c.termWidth, c.termHeight, got, c.want)
+			}
+		})
+	}
+}
+
+func TestDecideTopOnlyBearPlacementNeverReturnsSide(t *testing.T) {
+	const boxW, boxH = 86, 10
+	const bearW, bearH = 18, 6
+
+	cases := []struct {
+		name                  string
+		termWidth, termHeight int
+		want                  bearPlacement
+	}{
+		{"box barely fits, no room for anything else", boxW, boxH, bearNone},
+		{"generously wide and tall would favor side under decideBearPlacement, but this never returns it", boxW + bearGap + bearW + 20, boxH + 20, bearTop},
+		{"not tall enough for top either", boxW + 1, bearH + bearTopGap + boxH + footerRows - 1, bearNone},
+		{"narrower than the box itself never gets a bear", boxW - 5, bearH + bearTopGap + boxH + 20, bearNone},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := decideTopOnlyBearPlacement(boxW, boxH, bearW, bearH, c.termWidth, c.termHeight); got != c.want {
+				t.Errorf("decideTopOnlyBearPlacement(box=%dx%d, bear=%dx%d, term=%dx%d) = %v, want %v",
+					boxW, boxH, bearW, bearH, c.termWidth, c.termHeight, got, c.want)
+			}
+			if got := decideTopOnlyBearPlacement(boxW, boxH, bearW, bearH, c.termWidth, c.termHeight); got == bearSide {
+				t.Errorf("decideTopOnlyBearPlacement must never return bearSide, got it for term=%dx%d", c.termWidth, c.termHeight)
 			}
 		})
 	}

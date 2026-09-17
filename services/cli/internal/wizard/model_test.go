@@ -1,13 +1,14 @@
 package wizard
 
 import (
+	"context"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestUpdateTracksWindowSize(t *testing.T) {
-	m := newModel(nil)
+	m := newModel(nil, context.Background(), "", "")
 	updated, cmd := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	got := updated.(model)
 	if got.width != 80 || got.height != 24 {
@@ -19,7 +20,7 @@ func TestUpdateTracksWindowSize(t *testing.T) {
 }
 
 func TestUpdateCursorMovesAndWraps(t *testing.T) {
-	m := newModel(nil)
+	m := newModel(nil, context.Background(), "", "")
 
 	down := func(mm model) model {
 		updated, _ := mm.Update(tea.KeyMsg{Type: tea.KeyDown})
@@ -53,7 +54,7 @@ func TestUpdateCursorMovesAndWraps(t *testing.T) {
 }
 
 func TestUpdateQReturnsQuitCommand(t *testing.T) {
-	m := newModel(nil)
+	m := newModel(nil, context.Background(), "", "")
 	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
 	if cmd == nil {
 		t.Fatal("expected 'q' to return a quit command, got nil")
@@ -61,7 +62,7 @@ func TestUpdateQReturnsQuitCommand(t *testing.T) {
 }
 
 func TestUpdateEnterOnScrapePushesForm(t *testing.T) {
-	m := newModel(nil)
+	m := newModel(nil, context.Background(), "", "")
 	m.cursor = 0
 
 	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -75,7 +76,7 @@ func TestUpdateEnterOnScrapePushesForm(t *testing.T) {
 }
 
 func TestUpdateEnterOnOtherItemsDoesNothingYet(t *testing.T) {
-	m := newModel(nil)
+	m := newModel(nil, context.Background(), "", "")
 	m.cursor = 1
 
 	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -89,6 +90,6 @@ func TestUpdateEnterOnOtherItemsDoesNothingYet(t *testing.T) {
 }
 
 func TestViewRendersWithoutPanicBeforeAnyWindowSize(t *testing.T) {
-	m := newModel(nil)
+	m := newModel(nil, context.Background(), "", "")
 	_ = m.View()
 }

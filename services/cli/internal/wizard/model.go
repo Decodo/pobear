@@ -1,6 +1,7 @@
 package wizard
 
 import (
+	"context"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -26,10 +27,19 @@ type model struct {
 	cursor        int
 	blinking      bool
 	providerNames []string
+
+	ctx             context.Context
+	providersDir    string
+	credentialsPath string
 }
 
-func newModel(providerNames []string) model {
-	return model{providerNames: providerNames}
+func newModel(providerNames []string, ctx context.Context, providersDir, credentialsPath string) model {
+	return model{
+		providerNames:   providerNames,
+		ctx:             ctx,
+		providersDir:    providersDir,
+		credentialsPath: credentialsPath,
+	}
 }
 
 func (m model) Init() tea.Cmd {
@@ -60,7 +70,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor = (m.cursor + 1) % len(menuItems)
 		case "enter":
 			if menuItems[m.cursor] == "Scrape a page" {
-				return m, pushScreen(newScrapeForm(m.providerNames))
+				form := newScrapeForm(m.providerNames, m.ctx, m.providersDir, m.credentialsPath)
+				return m, pushScreen(form)
 			}
 		}
 		return m, nil

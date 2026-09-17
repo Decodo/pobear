@@ -1,0 +1,8 @@
+width=30 height=6 wrap=0 kind=small
+---
+    pobear needs a bigger     
+     terminal (min 36x8).     
+                              
+        Resize, or run        
+     pobear scrape/crawl      
+    directly instead. (q)     

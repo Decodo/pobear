@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/pobear/pobear/pkg/fault"
+	"github.com/pobear/pobear/pkg/jobresult"
 	"github.com/pobear/pobear/pkg/jobspec"
 	"github.com/pobear/pobear/services/core/internal/job"
 	"github.com/pobear/pobear/services/core/internal/job/workers"
@@ -79,6 +80,37 @@ func TestExecutorURLListDispatchesEachURLAndTalliesSuccesses(t *testing.T) {
 	slices.Sort(wantURLs)
 	if !slices.Equal(gotURLs, wantURLs) {
 		t.Fatalf("dispatched URLs (any order) = %v, want %v", scrape.gotURLs, want)
+	}
+}
+
+func TestExecutorURLListPopulatesItemsForSuccessesAndFailures(t *testing.T) {
+	scrape := &fakeScrapeWorker{results: map[string]fakeScrapeResult{
+		"https://b.test": {kind: fault.Network, err: errors.New("connection refused")},
+	}}
+	e := job.NewExecutor(scrape, &fakeCrawlWorker{}, &fakeSinkCloser{})
+
+	spec := &jobspec.Spec{Source: jobspec.Source{URLs: []string{"https://a.test", "https://b.test"}}}
+	got, err := e.Run(context.Background(), spec)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(got.Items) != 2 {
+		t.Fatalf("Items = %v, want 2 entries", got.Items)
+	}
+
+	byURL := map[string]jobresult.Item{}
+	for _, item := range got.Items {
+		byURL[item.URL] = item
+	}
+
+	success, ok := byURL["https://a.test"]
+	if !ok || success.Outcome != jobresult.Succeeded {
+		t.Fatalf("Items[https://a.test] = %+v, want Outcome=ItemSucceeded", success)
+	}
+
+	failure, ok := byURL["https://b.test"]
+	if !ok || failure.Outcome != jobresult.Failed || failure.Kind != fault.Network || failure.Err != "connection refused" {
+		t.Fatalf("Items[https://b.test] = %+v, want Outcome=ItemFailed Kind=Network Err=\"connection refused\"", failure)
 	}
 }
 
