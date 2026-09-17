@@ -80,7 +80,7 @@ func TestTextAreaFieldShowsFromTopWhileWithinMaxVisible(t *testing.T) {
 	f = pressEnter(f)
 	f = typeTextArea(f, "https://b.test")
 
-	view := f.render(true, 14, 60)
+	view := f.render(true, 60)
 	if !strings.Contains(view, "https://a.test") {
 		t.Fatalf("render() = %q, want the first line still visible (view must not scroll away from the top while content still fits)", view)
 	}
@@ -95,7 +95,7 @@ func TestTextAreaFieldScrollsOnceContentExceedsMaxVisible(t *testing.T) {
 		f = typeTextArea(f, "https://a.test/"+strconv.Itoa(i))
 		f = pressEnter(f)
 	}
-	view := f.render(true, 14, 60)
+	view := f.render(true, 60)
 	if strings.Contains(view, "https://a.test/0") {
 		t.Fatalf("render() = %q, want the first line scrolled out of view once content exceeds maxVisible", view)
 	}
@@ -106,12 +106,12 @@ func TestTextAreaFieldScrollsOnceContentExceedsMaxVisible(t *testing.T) {
 
 func TestTextAreaFieldShowsHintOnlyWhenEmpty(t *testing.T) {
 	f := textAreaField("URL", "(one per line)", "", 4, 60).focus()
-	if view := f.render(true, 14, 60); !strings.Contains(view, "(one per line)") {
+	if view := f.render(true, 60); !strings.Contains(view, "(one per line)") {
 		t.Fatalf("render() on an empty field = %q, want the hint visible", view)
 	}
 
 	f = typeTextArea(f, "https://a.test")
-	if view := f.render(true, 14, 60); strings.Contains(view, "(one per line)") {
+	if view := f.render(true, 60); strings.Contains(view, "(one per line)") {
 		t.Fatalf("render() after typing = %q, want the hint gone", view)
 	}
 }
@@ -120,8 +120,8 @@ func TestFieldRenderKeepsLineWidthStableWhenFocused(t *testing.T) {
 	withForcedColor(t, func() {
 		f := textField("x", "Field name", "(ctrl+d remove)", "title")
 
-		unfocused := f.blur().render(false, 14, 14)
-		focused := f.focus().render(true, 14, 14)
+		unfocused := f.blur().render(false, 14)
+		focused := f.focus().render(true, 14)
 
 		if lipgloss.Width(unfocused) != lipgloss.Width(focused) {
 			t.Errorf("line width changed when focused: unfocused=%d (%q) focused=%d (%q)",

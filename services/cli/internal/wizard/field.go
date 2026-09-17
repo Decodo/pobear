@@ -194,9 +194,9 @@ func (f *field) bumpNumber(delta int) {
 	f.input.CursorEnd()
 }
 
-func (f field) render(cursor bool, labelWidth, valueWidth int) string {
+func (f field) render(cursor bool, valueWidth int) string {
 	if f.kind == fieldTextArea {
-		return f.renderTextArea(cursor, labelWidth, valueWidth)
+		return f.renderTextArea(cursor, valueWidth)
 	}
 
 	marker := " "
@@ -208,7 +208,7 @@ func (f field) render(cursor bool, labelWidth, valueWidth int) string {
 		value = f.input.View()
 	}
 	value = padRightPlain(value, valueWidth)
-	label := padRightPlain(f.label, labelWidth)
+	label := padRightPlain(f.label, formLabelWidth)
 
 	line := marker + " " + label + " " + value
 	if f.hint != "" {
@@ -217,12 +217,12 @@ func (f field) render(cursor bool, labelWidth, valueWidth int) string {
 	return line
 }
 
-func (f field) renderTextArea(cursor bool, labelWidth, valueWidth int) string {
+func (f field) renderTextArea(cursor bool, valueWidth int) string {
 	marker := " "
 	if cursor {
 		marker = "›"
 	}
-	label := padRightPlain(f.label, labelWidth)
+	label := padRightPlain(f.label, formLabelWidth)
 	indent := strings.Repeat(" ", lipgloss.Width(marker+" "+label+" "))
 
 	valueLines := strings.Split(f.textarea.View(), "\n")

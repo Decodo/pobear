@@ -79,7 +79,7 @@ func TestRenderFormNeverExceedsRequestedSize(t *testing.T) {
 
 	renderedLines := 0
 	for i, f := range fields {
-		renderedLines += strings.Count(f.render(i == 0, formLabelWidth, formValueWidth), "\n") + 1
+		renderedLines += strings.Count(f.render(i == 0, formValueWidth), "\n") + 1
 	}
 	minHeight := renderedLines + 4 + footerRows
 	for h := minHeight; h <= 40; h++ {

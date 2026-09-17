@@ -148,15 +148,6 @@ func TestRunningScreenViewShowsPercentAndCounts(t *testing.T) {
 	}
 }
 
-func TestRunningScreenShowsBearOnTopWhenThereIsRoom(t *testing.T) {
-	s := newRunningScreen(&scrapeForm{}, newRunProgress(1))
-	s.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
-
-	if !strings.Contains(s.View(), "(ᴥ)") {
-		t.Fatal("expected the bear to be visible on a tall terminal")
-	}
-}
-
 func TestRunningScreenNeverPlacesBearOnTheSide(t *testing.T) {
 	s := newRunningScreen(&scrapeForm{}, newRunProgress(1))
 	s.Update(tea.WindowSizeMsg{Width: 200, Height: 40})

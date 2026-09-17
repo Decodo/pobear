@@ -258,7 +258,7 @@ func placeWithBear(box, footerHint string, width, height int, topOnly bool) stri
 func renderForm(width, height int, fields []field, cursor int, status string) string {
 	lines := make([]string, len(fields))
 	for i, f := range fields {
-		lines[i] = f.render(i == cursor, formLabelWidth, formValueWidth)
+		lines[i] = f.render(i == cursor, formValueWidth)
 	}
 	if status != "" {
 		lines = append(lines, "", status)

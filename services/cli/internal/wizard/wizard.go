@@ -32,6 +32,8 @@ func (w *Wizard) Run(ctx context.Context, _ []string, stdin io.Reader, stdout, s
 	return 0
 }
 
+func (*Wizard) Summary() string { return "Launch the interactive full-screen wizard" }
+
 func (w *Wizard) providersDir() string {
 	if w.Providers == nil {
 		return ""

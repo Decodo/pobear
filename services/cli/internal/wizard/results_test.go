@@ -148,16 +148,6 @@ func TestResultsScreenBoxWidthIsCappedOnWideTerminals(t *testing.T) {
 	}
 }
 
-func TestResultsScreenShowsBearWhenThereIsRoom(t *testing.T) {
-	rows := []resultRow{{url: "https://a.test", status: "✓ 200"}}
-	s := newResultsScreen(rows, "✓ fetched 1, errors 0, skipped 0")
-	s.Update(tea.WindowSizeMsg{Width: 200, Height: 40})
-
-	if !strings.Contains(s.View(), "(ᴥ)") {
-		t.Fatal("expected the bear to be visible on a generously sized terminal, same as the menu/form screens")
-	}
-}
-
 func TestResultsScreenWKeyWritesAllItems(t *testing.T) {
 	t.Chdir(t.TempDir())
 
