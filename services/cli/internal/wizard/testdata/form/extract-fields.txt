@@ -1,0 +1,32 @@
+width=100 height=30 cursor=4 fetchVia=local extract=css-fields cssFields=title:h1|price:.price
+---
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                            __         __                                           
+                                           (  \_______/  )                                          
+                                           /   •     •   \                                          
+                                          |      (ᴥ)      |                                         
+                                           \   <°)))><   /                                          
+                                            \____/_\____/                                           
+                                                                                                    
+       ┌─ Scrape ─────────────────────────────────────────────────────── esc: back to menu ─┐       
+       │                                                                                    │       
+       │  URL                                                                               │       
+       │  Fetch via      local          (local / proxy / provider)                          │       
+       │  Profile        chrome         (TLS fingerprint)                                   │       
+       │  Extract        css fields     (raw / markdown / css fields)                       │       
+       │›   Field name   title          (ctrl+d remove)                                     │       
+       │      Selector   h1                                                                 │       
+       │    Field name   price          (ctrl+d remove)                                     │       
+       │      Selector   .price                                                             │       
+       │    + add field                                                                     │       
+       │  Concurrency    8                                                                  │       
+       │  Retries        3                                                                  │       
+       │                                                                                    │       
+       └────────────────────────────────────────────────────────────────────────────────────┘       
+       ↑/↓ move   enter edit   esc back                                                             
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    

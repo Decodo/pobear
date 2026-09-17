@@ -25,10 +25,11 @@ type model struct {
 	width, height int
 	cursor        int
 	blinking      bool
+	providerNames []string
 }
 
-func newModel() model {
-	return model{}
+func newModel(providerNames []string) model {
+	return model{providerNames: providerNames}
 }
 
 func (m model) Init() tea.Cmd {
@@ -51,13 +52,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "q", "ctrl+c":
+		case "q":
 			return m, tea.Quit
 		case "up", "k":
 			m.cursor = (m.cursor - 1 + len(menuItems)) % len(menuItems)
 		case "down", "j":
 			m.cursor = (m.cursor + 1) % len(menuItems)
 		case "enter":
+			if menuItems[m.cursor] == "Scrape a page" {
+				return m, pushScreen(newScrapeForm(m.providerNames))
+			}
 		}
 		return m, nil
 	}

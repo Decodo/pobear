@@ -1,0 +1,13 @@
+width=90 height=11 cursor=0 fetchVia=local extract=markdown cssFields=
+---
+  ┌─ Scrape ─────────────────────────────────────────────────────── esc: back to menu ─┐  
+  │                                                                                    │  
+  │› URL                                                                               │  
+  │  Fetch via      local          (local / proxy / provider)                          │  
+  │  Profile        chrome         (TLS fingerprint)                                   │  
+  │  Extract        markdown       (raw / markdown / css fields)                       │  
+  │  Concurrency    8                                                                  │  
+  │  Retries        3                                                                  │  
+  │                                                                                    │  
+  └────────────────────────────────────────────────────────────────────────────────────┘  
+  ↑/↓ move   enter edit   esc back                                                        

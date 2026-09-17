@@ -1,0 +1,22 @@
+width=160 height=20 cursor=0 fetchVia=local extract=markdown cssFields=
+---
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                          ┌─ Scrape ─────────────────────────────────────────────────────── esc: back to menu ─┐                                                
+                          │                                                                                    │                                                
+                          │› URL                                                                               │       __         __                            
+                          │  Fetch via      local          (local / proxy / provider)                          │      (  \_______/  )                           
+                          │  Profile        chrome         (TLS fingerprint)                                   │      /   •     •   \                           
+                          │  Extract        markdown       (raw / markdown / css fields)                       │     |      (ᴥ)      |                          
+                          │  Concurrency    8                                                                  │      \   <°)))><   /                           
+                          │  Retries        3                                                                  │       \____/_\____/                            
+                          │                                                                                    │                                                
+                          └────────────────────────────────────────────────────────────────────────────────────┘                                                
+                          ↑/↓ move   enter edit   esc back                                                                                                      
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                
+                                                                                                                                                                

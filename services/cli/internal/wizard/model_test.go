@@ -7,7 +7,7 @@ import (
 )
 
 func TestUpdateTracksWindowSize(t *testing.T) {
-	m := newModel()
+	m := newModel(nil)
 	updated, cmd := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	got := updated.(model)
 	if got.width != 80 || got.height != 24 {
@@ -19,7 +19,7 @@ func TestUpdateTracksWindowSize(t *testing.T) {
 }
 
 func TestUpdateCursorMovesAndWraps(t *testing.T) {
-	m := newModel()
+	m := newModel(nil)
 
 	down := func(mm model) model {
 		updated, _ := mm.Update(tea.KeyMsg{Type: tea.KeyDown})
@@ -52,21 +52,30 @@ func TestUpdateCursorMovesAndWraps(t *testing.T) {
 	}
 }
 
-func TestUpdateQuitReturnsQuitCommand(t *testing.T) {
-	m := newModel()
-	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
-	if cmd == nil {
-		t.Fatal("expected ctrl+c to return a quit command, got nil")
-	}
-
-	_, cmd = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
+func TestUpdateQReturnsQuitCommand(t *testing.T) {
+	m := newModel(nil)
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
 	if cmd == nil {
 		t.Fatal("expected 'q' to return a quit command, got nil")
 	}
 }
 
-func TestUpdateEnterDoesNothingYet(t *testing.T) {
-	m := newModel()
+func TestUpdateEnterOnScrapePushesForm(t *testing.T) {
+	m := newModel(nil)
+	m.cursor = 0
+
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("expected enter on \"Scrape a page\" to return a pushScreen command, got nil")
+	}
+	msg := cmd()
+	if _, ok := msg.(pushScreenMsg); !ok {
+		t.Fatalf("expected a pushScreenMsg, got %T", msg)
+	}
+}
+
+func TestUpdateEnterOnOtherItemsDoesNothingYet(t *testing.T) {
+	m := newModel(nil)
 	m.cursor = 1
 
 	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -75,11 +84,11 @@ func TestUpdateEnterDoesNothingYet(t *testing.T) {
 		t.Fatalf("expected enter to leave the cursor untouched, got %d", got.cursor)
 	}
 	if cmd != nil {
-		t.Fatalf("expected enter to do nothing (no forms exist yet), got a command %v", cmd)
+		t.Fatalf("expected enter to do nothing (no crawl form exists yet), got a command %v", cmd)
 	}
 }
 
 func TestViewRendersWithoutPanicBeforeAnyWindowSize(t *testing.T) {
-	m := newModel()
+	m := newModel(nil)
 	_ = m.View()
 }

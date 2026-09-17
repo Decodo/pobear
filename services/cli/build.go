@@ -23,7 +23,7 @@ func New(providersDir string, coreService *core.Service, credentialsPath, versio
 		"scrape":    &command.Scrape{Runner: runner, Providers: providers, CredentialsPath: credentialsPath},
 		"crawl":     &command.Crawl{Runner: runner, Providers: providers, CredentialsPath: credentialsPath},
 		"run":       &command.Run{Parser: jobspecParser{}, Runner: runner},
-		"wizard":    &wizard.Wizard{},
+		"wizard":    &wizard.Wizard{Providers: providers},
 	}
 
 	summaries := make(map[string]string, len(commands)+1)

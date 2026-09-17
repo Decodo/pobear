@@ -27,6 +27,10 @@ const (
 	wideMinW          = 100
 	shortMaxH         = 11
 	standardMaxH      = 27
+
+	bearGap    = 4
+	bearTopGap = 1
+	footerRows = 1
 )
 
 type layoutKind int
@@ -59,13 +63,30 @@ func classify(width, height int) layoutKind {
 	return layoutStandard
 }
 
-func topBorderLine(innerWidth int) string {
-	const prefix, suffix = "─ ", " "
-	fill := max(0, innerWidth-lipgloss.Width(prefix+menuBoxTitle+suffix))
+func topBorderLine(innerWidth int, title, hint string) string {
+	const prefix, midSuffix = "─ ", " "
+	right := ""
+	if hint != "" {
+		right = " " + hint + " ─"
+	}
+	fill := max(0, innerWidth-lipgloss.Width(prefix+title+midSuffix)-lipgloss.Width(right))
 	return borderStyle.Render("┌"+prefix) +
-		titleStyle.Render(menuBoxTitle) +
-		suffix +
-		borderStyle.Render(strings.Repeat("─", fill)+"┐")
+		titleStyle.Render(title) +
+		midSuffix +
+		borderStyle.Render(strings.Repeat("─", fill)) +
+		right +
+		borderStyle.Render("┐")
+}
+
+func frameBox(innerWidth int, title, hint, body string, includePadding bool) string {
+	sides := lipgloss.NewStyle().
+		Width(innerWidth).
+		Border(lipgloss.NormalBorder(), false, true, true, true).
+		BorderForeground(borderColor)
+	if includePadding {
+		sides = sides.PaddingTop(1).PaddingBottom(1)
+	}
+	return lipgloss.JoinVertical(lipgloss.Left, topBorderLine(innerWidth, title, hint), sides.Render(body))
 }
 
 func menuBox(innerWidth, cursor int, includePadding bool) string {
@@ -78,16 +99,7 @@ func menuBox(innerWidth, cursor int, includePadding bool) string {
 		}
 	}
 	body := strings.Join(items, "\n")
-
-	sides := lipgloss.NewStyle().
-		Width(innerWidth).
-		Border(lipgloss.NormalBorder(), false, true, true, true).
-		BorderForeground(borderColor)
-	if includePadding {
-		sides = sides.PaddingTop(1).PaddingBottom(1)
-	}
-
-	return lipgloss.JoinVertical(lipgloss.Left, topBorderLine(innerWidth), sides.Render(body))
+	return frameBox(innerWidth, menuBoxTitle, "", body, includePadding)
 }
 
 func bearArt(blinking bool) string {
@@ -113,6 +125,31 @@ func bearArt(blinking bool) string {
 		lines[i] = l
 	}
 	return lipgloss.NewStyle().Width(width).Render(strings.Join(lines, "\n"))
+}
+
+func blankRows(n int) string {
+	return strings.Repeat("\n", n-1)
+}
+
+type bearPlacement int
+
+const (
+	bearNone bearPlacement = iota
+	bearTop
+	bearSide
+)
+
+func composeWithBear(box, footer, bear string, placement bearPlacement) string {
+	switch placement {
+	case bearSide:
+		combined := lipgloss.JoinHorizontal(lipgloss.Center, box, strings.Repeat(" ", bearGap), bear)
+		return lipgloss.JoinVertical(lipgloss.Left, combined, footer)
+	case bearTop:
+		withFooter := lipgloss.JoinVertical(lipgloss.Left, box, footer)
+		return lipgloss.JoinVertical(lipgloss.Center, bear, blankRows(bearTopGap), withFooter)
+	default:
+		return lipgloss.JoinVertical(lipgloss.Left, box, footer)
+	}
 }
 
 func fallbackMessage() string {
@@ -146,18 +183,15 @@ func renderMenu(width, height, cursor int, blinking bool) string {
 	}
 
 	box := menuBox(innerWidth, cursor, includePadding)
-	withFooter := lipgloss.JoinVertical(lipgloss.Left, box, footerStyle.Render(footer))
 
-	var block string
+	placement := bearNone
 	switch kind {
 	case layoutWideRoomy:
-		combined := lipgloss.JoinHorizontal(lipgloss.Center, box, "    ", bearArt(blinking))
-		block = lipgloss.JoinVertical(lipgloss.Left, combined, footerStyle.Render(footer))
+		placement = bearSide
 	case layoutStandardTall:
-		block = lipgloss.JoinVertical(lipgloss.Center, bearArt(blinking), "", withFooter)
-	default:
-		block = withFooter
+		placement = bearTop
 	}
+	block := composeWithBear(box, footerStyle.Render(footer), bearArt(blinking), placement)
 
 	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, block)
 }
@@ -173,4 +207,41 @@ func compactInnerWidth(termWidth int) int {
 		w = floor
 	}
 	return w
+}
+
+const (
+	formInnerWidth = 84
+	formLabelWidth = 14
+	formValueWidth = 14
+	formTitle      = "Scrape"
+	formBackHint   = "esc: back to menu"
+	formFooterHint = "↑/↓ move   enter edit   esc back"
+)
+
+func decideBearPlacement(boxWidth, boxHeight, bearWidth, bearHeight, termWidth, termHeight int) bearPlacement {
+	if termHeight >= boxHeight+footerRows && termWidth >= boxWidth+bearGap+bearWidth {
+		return bearSide
+	}
+	if termWidth >= max(boxWidth, bearWidth) && termHeight >= bearHeight+bearTopGap+boxHeight+footerRows {
+		return bearTop
+	}
+	return bearNone
+}
+
+func renderForm(width, height int, fields []field, cursor int) string {
+	lines := make([]string, len(fields))
+	for i, f := range fields {
+		lines[i] = f.render(i == cursor, formLabelWidth, formValueWidth)
+	}
+	body := strings.Join(lines, "\n")
+	box := frameBox(formInnerWidth, formTitle, formBackHint, body, true)
+	boxWidth, boxHeight := lipgloss.Width(box), lipgloss.Height(box)
+
+	bear := bearArt(false)
+	bearWidth, bearHeight := lipgloss.Width(bear), lipgloss.Height(bear)
+
+	placement := decideBearPlacement(boxWidth, boxHeight, bearWidth, bearHeight, width, height)
+	block := composeWithBear(box, footerStyle.Render(formFooterHint), bear, placement)
+
+	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, block)
 }
