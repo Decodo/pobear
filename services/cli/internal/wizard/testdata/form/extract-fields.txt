@@ -14,7 +14,7 @@ width=100 height=30 cursor=4 fetchVia=local extract=css-fields cssFields=title:h
        │  URL            (one per line)                                                     │       
        │  Fetch via      local          (local / proxy / provider)                          │       
        │  Profile        chrome         (TLS fingerprint)                                   │       
-       │  Extract        css fields     (raw / markdown / css fields / bare)                │       
+       │  Extract        css fields     (bare / raw / markdown / css fields)                │       
        │›   Field name   title          (ctrl+d remove)                                     │       
        │      Selector   h1                                                                 │       
        │    Field name   price          (ctrl+d remove)                                     │       

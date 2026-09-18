@@ -5,6 +5,8 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/pobear/pobear/pkg/provider"
 )
 
 const (
@@ -23,22 +25,22 @@ func scheduleBlinkOff() tea.Cmd {
 }
 
 type model struct {
-	width, height int
-	cursor        int
-	blinking      bool
-	providerNames []string
+	width, height     int
+	cursor            int
+	blinking          bool
+	providerManifests []*provider.Manifest
 
 	ctx             context.Context
 	providersDir    string
 	credentialsPath string
 }
 
-func newModel(providerNames []string, ctx context.Context, providersDir, credentialsPath string) model {
+func newModel(providerManifests []*provider.Manifest, ctx context.Context, providersDir, credentialsPath string) model {
 	return model{
-		providerNames:   providerNames,
-		ctx:             ctx,
-		providersDir:    providersDir,
-		credentialsPath: credentialsPath,
+		providerManifests: providerManifests,
+		ctx:               ctx,
+		providersDir:      providersDir,
+		credentialsPath:   credentialsPath,
 	}
 }
 
@@ -70,7 +72,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor = (m.cursor + 1) % len(menuItems)
 		case "enter":
 			if menuItems[m.cursor] == "Scrape a page" {
-				form := newScrapeForm(m.providerNames, m.ctx, m.providersDir, m.credentialsPath)
+				form := newScrapeForm(m.providerManifests, m.ctx, m.providersDir, m.credentialsPath)
 				return m, pushScreen(form)
 			}
 		}

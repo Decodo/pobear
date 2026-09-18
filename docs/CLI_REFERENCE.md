@@ -649,7 +649,7 @@ provider's fields; it reads them the same way `--opt` validation does.
 │                                                                                      │
 │      URL           https://example.com                                               │
 │      Fetch via     provider    (local / proxy / provider)                            │
-│   › Provider      decodo                                                             │
+│   › Provider      decodo       (type to search)                                      │
 │      Render        off         (decodo option)                                       │
 │      Geo           —           (decodo option)                                       │
 │      Extract       markdown    (raw / markdown / fields)                             │
@@ -661,26 +661,37 @@ provider's fields; it reads them the same way `--opt` validation does.
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-If `Provider` is set to one with no stored credential, pressing `enter` on it opens
-the same prompt as `pobear auth decodo` inline, then returns to this form. Changing
-`Provider` to a different one re-reads that provider's manifest and swaps the field
-list below it accordingly.
+(This example is a provider with flat `options:`, no `templates:` — see the next
+section for how a templated provider like the real Decodo manifest looks instead.)
+
+Both `Provider` and `Template` (below) support typing to jump straight to a match,
+not just cycling one at a time with the arrow keys — useful once either list grows
+past a handful of entries. If `Provider` has no stored credential, pressing `enter`
+on `[ Run ]` shows an error naming the provider and pointing at `Manage credentials`
+(or `pobear auth <name>`) instead of starting the run — `Save` never checks, since
+writing a spec to disk doesn't call the provider at all. Changing `Provider` to a
+different one re-reads that provider's manifest and swaps the field list below it
+accordingly, resetting `Template` and its options.
 
 ### A provider with more than one template gets a `Template` field too
 
-Decodo has a `default: true` template, so it never needs one. A provider that
-declares two or more templates with none marked `default` — the case where the CLI
-itself requires `--template` — gets a `Template` field between `Provider` and the
-option fields, mirroring the CLI exactly:
+Any provider that declares two or more templates gets a `Template` field between
+`Provider` and the option fields — regardless of whether one is marked `default` —
+so every template the CLI's `--template` flag can reach is reachable from the wizard
+too, not just the default. It defaults to the manifest's `default: true` template if
+one exists, otherwise the first declared template; the real Decodo manifest declares
+four (`universal`, marked default, plus `google`/`bing`/`amazon`):
 
 ```
 ┌─ Scrape ───────────────────────────────────────────────────────── esc: back to menu ─┐
 │                                                                                      │
 │      URL           https://example.com                                               │
 │      Fetch via     provider    (local / proxy / provider)                            │
-│      Provider      acme                                                              │
-│   › Template      product      (product / search)                                    │
-│      Domain        —           (product option)                                      │
+│      Provider      decodo      (type to search)                                      │
+│   › Template      universal    (type to search)                                      │
+│      Headless      html        (universal option)                                    │
+│      Proxy pool    premium     (universal option)                                    │
+│      Geo           —           (universal option)                                    │
 │      Extract       markdown    (raw / markdown / fields)                             │
 │      Concurrency   8                                                                 │
 │      Retries       3                                                                 │
@@ -692,8 +703,7 @@ option fields, mirroring the CLI exactly:
 
 Changing `Template` re-reads that template's declared options and swaps the field
 list below it, the same way changing `Provider` does. If the manifest has only one
-template, or one marked `default: true`, the `Template` field never appears at all
-— the form only ever shows a real choice, never a redundant one.
+template, the `Template` field never appears at all — there's nothing to choose.
 
 ### Changing "Extract" reacts the same way
 

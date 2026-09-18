@@ -20,22 +20,29 @@ import (
 	"github.com/pobear/pobear/pkg/jobspec"
 	"github.com/pobear/pobear/services/cli/internal/command"
 	"github.com/pobear/pobear/services/cli/internal/jobgen"
+	"github.com/pobear/pobear/services/cli/internal/providerator"
 	"github.com/pobear/pobear/services/core"
 )
 
 const savedJobFilename = "job.yaml"
 
-func buildJobSpec(state formState) (*jobspec.Spec, error) {
+func buildJobSpec(state formState, providersDir string) (*jobspec.Spec, error) {
 	concurrency, _ := strconv.Atoi(state.concurrency)
 	retries, _ := strconv.Atoi(state.retries)
 
-	profile, proxy, providerName := state.profile, "", ""
+	profile, proxy, providerName, templateName := state.profile, "", "", ""
+	var options map[string]any
 	switch state.fetchVia {
 	case "proxy":
 		proxy = state.proxyURL
 	case "provider":
-		providerName = state.providerName
 		profile = ""
+		providerName = state.providerName
+		var err error
+		templateName, options, err = resolveProviderOptions(state, providersDir)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	in := jobgen.Input{
@@ -43,6 +50,8 @@ func buildJobSpec(state formState) (*jobspec.Spec, error) {
 		FetchUse:    state.fetchVia,
 		Proxy:       proxy,
 		Provider:    providerName,
+		Template:    templateName,
+		Options:     options,
 		Profile:     profile,
 		Timeout:     "30s",
 		Stages:      buildStages(state),
@@ -51,6 +60,50 @@ func buildJobSpec(state formState) (*jobspec.Spec, error) {
 		SinkUse:     "stdout",
 	}
 	return jobgen.Build(in)
+}
+
+func resolveProviderOptions(state formState, providersDir string) (templateName string, options map[string]any, err error) {
+	manifests, err := providerator.New(providersDir).Load()
+	if err != nil {
+		return "", nil, err
+	}
+	m, ok := providerator.Lookup(manifests, state.providerName)
+	if !ok {
+		return "", nil, fmt.Errorf("unknown provider %q", state.providerName)
+	}
+
+	templateName = effectiveTemplateName(m, state.templateName)
+	declared, err := providerator.ResolveTemplate(m, templateName)
+	if err != nil {
+		return "", nil, err
+	}
+	options, err = providerator.ValidateOptions(declared, state.providerOptions)
+	if err != nil {
+		return "", nil, err
+	}
+	return templateName, options, nil
+}
+
+func checkProviderCredential(state formState, providersDir, credentialsPath string) string {
+	if state.fetchVia != "provider" {
+		return ""
+	}
+	manifests, err := providerator.New(providersDir).Load()
+	if err != nil {
+		return "✗ " + err.Error()
+	}
+	m, ok := providerator.Lookup(manifests, state.providerName)
+	if !ok {
+		return fmt.Sprintf("✗ unknown provider %q", state.providerName)
+	}
+	hasCred, err := providerator.CheckCredential(m, credentialsPath)
+	if err != nil {
+		return "✗ " + err.Error()
+	}
+	if !hasCred {
+		return fmt.Sprintf("✗ provider %q has no credential — run \"pobear auth %s\", or use \"Manage credentials\" from the main menu", m.Name, m.Name)
+	}
+	return ""
 }
 
 func urlList(state formState) []string {
@@ -82,8 +135,8 @@ func buildStages(state formState) []jobspec.Stage {
 	}
 }
 
-func doSave(state formState) string {
-	spec, err := buildJobSpec(state)
+func doSave(state formState, providersDir string) string {
+	spec, err := buildJobSpec(state, providersDir)
 	if err != nil {
 		return "✗ " + err.Error()
 	}
@@ -218,7 +271,7 @@ func (p *runProgress) percent() float64 {
 }
 
 func doRun(ctx context.Context, state formState, providersDir, credentialsPath string, progress *runProgress) (string, []resultRow) {
-	spec, err := buildJobSpec(state)
+	spec, err := buildJobSpec(state, providersDir)
 	if err != nil {
 		return "✗ " + err.Error(), nil
 	}
