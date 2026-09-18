@@ -4,7 +4,6 @@ width=100 height=30 cursor=1 fetchVia=proxy extract=markdown cssFields=
                                                                                                     
                                                                                                     
                                                                                                     
-                                                                                                    
                                             __         __                                           
                                            (  \_______/  )                                          
                                            /   •     •   \                                          
@@ -14,17 +13,18 @@ width=100 height=30 cursor=1 fetchVia=proxy extract=markdown cssFields=
                                                                                                     
        ┌─ Scrape ─────────────────────────────────────────────────────── esc: back to menu ─┐       
        │                                                                                    │       
-       │  URL                                                                               │       
+       │  URL            (one per line)                                                     │       
        │› Fetch via      proxy          (local / proxy / provider)                          │       
        │  Proxy URL                                                                         │       
        │  Profile        chrome         (TLS fingerprint)                                   │       
-       │  Extract        markdown       (raw / markdown / css fields)                       │       
+       │  Extract        markdown       (raw / markdown / css fields / bare)                │       
        │  Concurrency    8                                                                  │       
        │  Retries        3                                                                  │       
+       │  [ Save as job.yaml ]                                                              │       
+       │  [ Run ]                                                                           │       
        │                                                                                    │       
        └────────────────────────────────────────────────────────────────────────────────────┘       
        ↑/↓ move   enter edit   esc back                                                             
-                                                                                                    
                                                                                                     
                                                                                                     
                                                                                                     

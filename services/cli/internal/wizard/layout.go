@@ -216,6 +216,9 @@ const (
 	formTitle      = "Scrape"
 	formBackHint   = "esc: back to menu"
 	formFooterHint = "↑/↓ move   enter edit   esc back"
+
+	urlAreaHeight = 4
+	urlAreaWidth  = formInnerWidth - formLabelWidth - 4
 )
 
 func decideBearPlacement(boxWidth, boxHeight, bearWidth, bearHeight, termWidth, termHeight int) bearPlacement {
@@ -228,20 +231,39 @@ func decideBearPlacement(boxWidth, boxHeight, bearWidth, bearHeight, termWidth, 
 	return bearNone
 }
 
-func renderForm(width, height int, fields []field, cursor int) string {
-	lines := make([]string, len(fields))
-	for i, f := range fields {
-		lines[i] = f.render(i == cursor, formLabelWidth, formValueWidth)
+func decideTopOnlyBearPlacement(boxWidth, boxHeight, bearWidth, bearHeight, termWidth, termHeight int) bearPlacement {
+	if termWidth >= max(boxWidth, bearWidth) && termHeight >= bearHeight+bearTopGap+boxHeight+footerRows {
+		return bearTop
 	}
-	body := strings.Join(lines, "\n")
-	box := frameBox(formInnerWidth, formTitle, formBackHint, body, true)
+	return bearNone
+}
+
+func placeWithBear(box, footerHint string, width, height int, topOnly bool) string {
 	boxWidth, boxHeight := lipgloss.Width(box), lipgloss.Height(box)
 
 	bear := bearArt(false)
 	bearWidth, bearHeight := lipgloss.Width(bear), lipgloss.Height(bear)
 
-	placement := decideBearPlacement(boxWidth, boxHeight, bearWidth, bearHeight, width, height)
-	block := composeWithBear(box, footerStyle.Render(formFooterHint), bear, placement)
+	decide := decideBearPlacement
+	if topOnly {
+		decide = decideTopOnlyBearPlacement
+	}
+	placement := decide(boxWidth, boxHeight, bearWidth, bearHeight, width, height)
 
+	footer := footerStyle.Render(truncatePlain(footerHint, width))
+	block := composeWithBear(box, footer, bear, placement)
 	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, block)
+}
+
+func renderForm(width, height int, fields []field, cursor int, status string) string {
+	lines := make([]string, len(fields))
+	for i, f := range fields {
+		lines[i] = f.render(i == cursor, formValueWidth)
+	}
+	if status != "" {
+		lines = append(lines, "", status)
+	}
+	body := strings.Join(lines, "\n")
+	box := frameBox(formInnerWidth, formTitle, formBackHint, body, true)
+	return placeWithBear(box, formFooterHint, width, height, false)
 }

@@ -22,6 +22,21 @@ func (f fakeScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (f fakeScreen) View() string { return f.view }
 
+type initTrackingScreen struct {
+	fakeScreen
+	initCalled *bool
+}
+
+func (f initTrackingScreen) Init() tea.Cmd {
+	*f.initCalled = true
+	return func() tea.Msg { return "init-cmd-ran" }
+}
+
+func newInitTrackingScreen(view string) (tea.Model, *bool) {
+	called := false
+	return initTrackingScreen{fakeScreen: fakeScreen{view: view}, initCalled: &called}, &called
+}
+
 func TestAppCtrlCAlwaysQuits(t *testing.T) {
 	a := newApp(fakeScreen{view: "root"})
 	_, cmd := a.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
@@ -57,6 +72,56 @@ func TestAppPopOnRootIsANoOp(t *testing.T) {
 	got := updated.(app)
 	if got.View() != "root" {
 		t.Fatalf("popping the root screen should be a no-op, got View() = %q", got.View())
+	}
+}
+
+func TestAppPushCallsInitOnTheNewScreen(t *testing.T) {
+	a := newApp(fakeScreen{view: "root"})
+	screen, called := newInitTrackingScreen("pushed")
+
+	_, cmd := a.Update(pushScreenMsg{screen: screen})
+	if !*called {
+		t.Fatal("expected pushScreen to call Init() on the pushed screen")
+	}
+	if cmd == nil {
+		t.Fatal("expected the pushed screen's Init() command to be returned (batched), got nil")
+	}
+}
+
+func TestAppReplaceTopCallsInitOnTheNewScreen(t *testing.T) {
+	a := newApp(fakeScreen{view: "root"})
+	updated, _ := a.Update(pushScreenMsg{screen: fakeScreen{view: "loading"}})
+	a = updated.(app)
+
+	screen, called := newInitTrackingScreen("results")
+	_, cmd := a.Update(replaceTopMsg{screen: screen})
+	if !*called {
+		t.Fatal("expected replaceTop to call Init() on the replacement screen")
+	}
+	if cmd == nil {
+		t.Fatal("expected the replacement screen's Init() command to be returned (batched), got nil")
+	}
+}
+
+func TestAppReplaceTopSwapsAtomicallyAndKeepsDeeperScreens(t *testing.T) {
+	a := newApp(fakeScreen{view: "root"})
+	updated, _ := a.Update(pushScreenMsg{screen: fakeScreen{view: "loading"}})
+	a = updated.(app)
+
+	updated, _ = a.Update(replaceTopMsg{screen: fakeScreen{view: "results"}})
+	a = updated.(app)
+
+	if got := a.View(); got != "results" {
+		t.Fatalf("View() after replaceTop = %q, want %q", got, "results")
+	}
+	if len(a.stack) != 2 {
+		t.Fatalf("stack depth = %d, want 2 (root still underneath)", len(a.stack))
+	}
+
+	updated, _ = a.Update(popScreenMsg{})
+	a = updated.(app)
+	if got := a.View(); got != "root" {
+		t.Fatalf("View() after popping the replaced screen = %q, want %q (root untouched)", got, "root")
 	}
 }
 

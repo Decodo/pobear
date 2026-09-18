@@ -1,0 +1,32 @@
+width=100 height=30 cursor=0 rows=2 status=0
+---
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                            __         __                                           
+                                           (  \_______/  )                                          
+                                           /   •     •   \                                          
+                                          |      (ᴥ)      |                                         
+                                           \   <°)))><   /                                          
+                                            \____/_\____/                                           
+                                                                                                    
+       ┌─ Results ────────────────────────────────────────────────────── esc: back to form ─┐       
+       │✓ fetched 2, errors 0, skipped 0                                                    │       
+       │                                                                                    │       
+       │› ✓ 200    https://a.test/page0                 markdown: # hello                   │       
+       │  ✓ 200    https://a.test/page1                 markdown: # hello                   │       
+       └────────────────────────────────────────────────────────────────────────────────────┘       
+       ↑/↓ move   enter open   w write all   esc back                                               
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    

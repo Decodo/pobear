@@ -1,6 +1,7 @@
 package wizard
 
 import (
+	"context"
 	"strconv"
 	"strings"
 
@@ -33,7 +34,11 @@ func newFormState() formState {
 	}
 }
 
-const addFieldName = "addField"
+const (
+	addFieldName   = "addField"
+	saveActionName = "saveAction"
+	runActionName  = "runAction"
+)
 
 func cssFieldName(i int, part string) string {
 	return "css." + part + "." + strconv.Itoa(i)
@@ -41,7 +46,7 @@ func cssFieldName(i int, part string) string {
 
 func computeFields(s formState, providerNames []string) []field {
 	fields := []field{
-		textField("url", "URL", "", s.url),
+		textAreaField("URL", "(one per line)", s.url, urlAreaHeight, urlAreaWidth),
 		choiceField("fetchVia", "Fetch via", "(local / proxy / provider)", []string{"local", "proxy", "provider"}, s.fetchVia),
 	}
 
@@ -61,7 +66,7 @@ func computeFields(s formState, providerNames []string) []field {
 		fields = append(fields, choiceField("provider", "Provider", "", names, s.providerName))
 	}
 
-	fields = append(fields, choiceField("extract", "Extract", "(raw / markdown / css fields)", []string{"raw", "markdown", "css fields"}, s.extract))
+	fields = append(fields, choiceField("extract", "Extract", "(raw / markdown / css fields / bare)", []string{"raw", "markdown", "css fields", "bare"}, s.extract))
 
 	if s.extract == "css fields" {
 		for i, pair := range s.cssFields {
@@ -76,6 +81,8 @@ func computeFields(s formState, providerNames []string) []field {
 	fields = append(fields,
 		numberField("concurrency", "Concurrency", s.concurrency, 1),
 		numberField("retries", "Retries", s.retries, 0),
+		field{name: saveActionName, label: "[ Save as " + savedJobFilename + " ]", kind: fieldChoice, options: []string{""}},
+		field{name: runActionName, label: "[ Run ]", kind: fieldChoice, options: []string{""}},
 	)
 
 	return fields
@@ -87,10 +94,21 @@ type scrapeForm struct {
 	cursor        int
 	width, height int
 	providerNames []string
+	status        string
+
+	ctx             context.Context
+	providersDir    string
+	credentialsPath string
 }
 
-func newScrapeForm(providerNames []string) *scrapeForm {
-	f := &scrapeForm{state: newFormState(), providerNames: providerNames}
+func newScrapeForm(providerNames []string, ctx context.Context, providersDir, credentialsPath string) *scrapeForm {
+	f := &scrapeForm{
+		state:           newFormState(),
+		providerNames:   providerNames,
+		ctx:             ctx,
+		providersDir:    providersDir,
+		credentialsPath: credentialsPath,
+	}
 	f.rebuild()
 	return f
 }
@@ -182,12 +200,26 @@ func (f *scrapeForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "esc":
 			return f, popScreen()
-		case "up":
+		case "up", "down":
+			if f.cursor < len(f.fields) && f.fields[f.cursor].capturesVerticalNav(msg.String()) {
+				current := f.fields[f.cursor]
+				updated, changed := current.update(msg)
+				f.fields[f.cursor] = updated
+				if changed && current.isStructural() {
+					f.syncStateFromFields()
+					f.rebuild()
+				}
+				return f, nil
+			}
 			f.syncStateFromFields()
-			f.cursor = (f.cursor - 1 + len(f.fields)) % len(f.fields)
+			if msg.String() == "up" {
+				f.cursor = (f.cursor - 1 + len(f.fields)) % len(f.fields)
+			} else {
+				f.cursor = (f.cursor + 1) % len(f.fields)
+			}
 			f.refocus()
 			return f, nil
-		case "down", "tab":
+		case "tab":
 			f.syncStateFromFields()
 			f.cursor = (f.cursor + 1) % len(f.fields)
 			f.refocus()
@@ -203,11 +235,28 @@ func (f *scrapeForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return f, nil
 		}
 
-		if f.cursor < len(f.fields) && f.fields[f.cursor].name == addFieldName && msg.String() == "enter" {
-			f.syncStateFromFields()
-			f.state.cssFields = append(f.state.cssFields, cssFieldPair{})
-			f.rebuild()
-			return f, nil
+		if f.cursor < len(f.fields) && msg.String() == "enter" {
+			switch f.fields[f.cursor].name {
+			case addFieldName:
+				f.syncStateFromFields()
+				f.state.cssFields = append(f.state.cssFields, cssFieldPair{})
+				f.rebuild()
+				return f, nil
+			case saveActionName:
+				f.syncStateFromFields()
+				f.status = doSave(f.state)
+				return f, nil
+			case runActionName:
+				f.syncStateFromFields()
+				total := len(urlList(f.state))
+				if total == 0 {
+					f.status = "✗ no URLs to scrape"
+					return f, nil
+				}
+				progress := newRunProgress(total)
+				runCmd := startRun(f.ctx, f.state, f.providersDir, f.credentialsPath, progress)
+				return f, tea.Batch(pushScreen(newRunningScreen(f, progress)), runCmd)
+			}
 		}
 
 		if f.cursor < len(f.fields) {
@@ -225,5 +274,5 @@ func (f *scrapeForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (f *scrapeForm) View() string {
-	return renderForm(f.width, f.height, f.fields, f.cursor)
+	return renderForm(f.width, f.height, f.fields, f.cursor, f.status)
 }

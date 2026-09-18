@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/pobear/pobear/pkg/fault"
+	"github.com/pobear/pobear/pkg/jobresult"
 	"github.com/pobear/pobear/pkg/jobspec"
 	"github.com/pobear/pobear/services/core/internal/job/workers"
 	"github.com/pobear/pobear/services/core/internal/job/workers/crawl"
@@ -560,6 +561,49 @@ func TestCrawlTalliesFailuresAndTheirKinds(t *testing.T) {
 		if v == "https://a.test/grandchild" {
 			t.Fatal("grandchild visited, but its parent failed and should never have contributed links to the frontier")
 		}
+	}
+}
+
+func TestCrawlPopulatesItemsForSuccessesFailuresAndSkips(t *testing.T) {
+	scrape := &fakeScrapeWorker{
+		children: map[string][]string{
+			"https://a.test": {"https://a.test/child", "https://other.test/page"},
+		},
+		fails: map[string]fakeScrapeFailure{
+			"https://a.test/child": {kind: fault.Timeout, err: errors.New("timed out")},
+		},
+	}
+	c := crawl.NewCrawl(scrape, nil, nil)
+
+	spec := &jobspec.Spec{Source: jobspec.Source{Crawl: &jobspec.CrawlSource{
+		Seeds: []string{"https://a.test"}, Depth: 1, MaxPages: 100, Scope: "same-host", Robots: "ignore",
+	}}}
+	got, err := c.Run(context.Background(), spec)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(got.Items) != 3 {
+		t.Fatalf("Items = %v, want 3 entries (seed, child, skipped other-host link)", got.Items)
+	}
+
+	byURL := map[string]jobresult.Item{}
+	for _, item := range got.Items {
+		byURL[item.URL] = item
+	}
+
+	seed, ok := byURL["https://a.test"]
+	if !ok || seed.Outcome != jobresult.Succeeded {
+		t.Fatalf("Items[https://a.test] = %+v, want Outcome=ItemSucceeded", seed)
+	}
+
+	child, ok := byURL["https://a.test/child"]
+	if !ok || child.Outcome != jobresult.Failed || child.Kind != fault.Timeout || child.Err != "timed out" {
+		t.Fatalf("Items[https://a.test/child] = %+v, want Outcome=ItemFailed Kind=Timeout Err=\"timed out\"", child)
+	}
+
+	other, ok := byURL["https://other.test/page"]
+	if !ok || other.Outcome != jobresult.Skipped || other.Err == "" {
+		t.Fatalf("Items[https://other.test/page] = %+v, want Outcome=ItemSkipped with a non-empty reason", other)
 	}
 }
 

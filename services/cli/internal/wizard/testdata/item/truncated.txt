@@ -1,0 +1,32 @@
+width=100 height=30 wrap=0 kind=long
+---
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+ ┌─ Item ────────────────────────────────────────────────────────────────── esc: back to results ─┐ 
+ │{                                                                                               │ 
+ │  "body": "lorem ipsum dolor sit amet lorem ipsum dolor sit amet lorem ipsum dolor sit amet lor…│ 
+ │  "status": 200,                                                                                │ 
+ │  "url": "https://a.test"                                                                       │ 
+ │}                                                                                               │ 
+ └────────────────────────────────────────────────────────────────────────────────────────────────┘ 
+ ↑/↓ scroll   w write to file   t wrap   esc back                                                   
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    
+                                                                                                    

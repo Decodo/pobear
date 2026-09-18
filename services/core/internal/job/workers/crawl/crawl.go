@@ -11,6 +11,7 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 
 	"github.com/pobear/pobear/pkg/fault"
+	"github.com/pobear/pobear/pkg/jobresult"
 	"github.com/pobear/pobear/pkg/jobspec"
 	"github.com/pobear/pobear/services/core/internal/fetch/tiers"
 	"github.com/pobear/pobear/services/core/internal/job/pool"
@@ -29,14 +30,7 @@ type SitemapFetcher interface {
 	URLs(ctx context.Context, origin string) ([]string, error)
 }
 
-type Result struct {
-	Succeeded   int
-	Failed      int
-	Skipped     int
-	Kinds       []fault.Kind
-	Errors      []string
-	SkippedURLs []string
-}
+type Result = jobresult.Result
 
 type Crawl struct {
 	scrape  ScrapeWorker
@@ -76,6 +70,7 @@ func (c *Crawl) Run(ctx context.Context, spec *jobspec.Spec) (Result, error) {
 			mu.Lock()
 			result.Skipped++
 			result.SkippedURLs = append(result.SkippedURLs, fault.FormatFailure(entry.url, "", errors.New(reason)))
+			result.Items = append(result.Items, jobresult.Item{URL: entry.url, Outcome: jobresult.Skipped, Err: reason})
 			mu.Unlock()
 			return
 		}
@@ -83,8 +78,10 @@ func (c *Crawl) Run(ctx context.Context, spec *jobspec.Spec) (Result, error) {
 		mu.Lock()
 		overBudget := dispatched >= cs.MaxPages
 		if overBudget {
+			const budgetReason = "over --max-pages budget"
 			result.Skipped++
-			result.SkippedURLs = append(result.SkippedURLs, fault.FormatFailure(entry.url, "", errors.New("over --max-pages budget")))
+			result.SkippedURLs = append(result.SkippedURLs, fault.FormatFailure(entry.url, "", errors.New(budgetReason)))
+			result.Items = append(result.Items, jobresult.Item{URL: entry.url, Outcome: jobresult.Skipped, Err: budgetReason})
 		} else {
 			dispatched++
 		}
@@ -112,12 +109,15 @@ func (c *Crawl) Run(ctx context.Context, spec *jobspec.Spec) (Result, error) {
 		if err != nil || kind != "" {
 			mu.Lock()
 			result.Failed++
+			errMsg := ""
 			if kind != "" {
 				result.Kinds = append(result.Kinds, kind)
 			}
 			if err != nil {
+				errMsg = err.Error()
 				result.Errors = append(result.Errors, fault.FormatFailure(entry.url, kind, err))
 			}
+			result.Items = append(result.Items, jobresult.Item{URL: entry.url, Outcome: jobresult.Failed, Kind: kind, Err: errMsg})
 			mu.Unlock()
 			return
 		}
@@ -132,6 +132,7 @@ func (c *Crawl) Run(ctx context.Context, spec *jobspec.Spec) (Result, error) {
 
 		mu.Lock()
 		result.Succeeded++
+		result.Items = append(result.Items, jobresult.Item{URL: entry.url, Outcome: jobresult.Succeeded})
 		mu.Unlock()
 
 		if entry.depth >= cs.Depth {

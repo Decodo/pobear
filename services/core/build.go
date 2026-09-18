@@ -81,15 +81,7 @@ func (credentialsLoader) Load(path, providerName, credentialName string) (string
 type crawlAdapter struct{ crawl *crawl.Crawl }
 
 func (a crawlAdapter) Run(ctx context.Context, spec *jobspec.Spec) (job.Result, error) {
-	result, err := a.crawl.Run(ctx, spec)
-	return job.Result{
-		Succeeded:   result.Succeeded,
-		Failed:      result.Failed,
-		Skipped:     result.Skipped,
-		Kinds:       result.Kinds,
-		Errors:      result.Errors,
-		SkippedURLs: result.SkippedURLs,
-	}, err
+	return a.crawl.Run(ctx, spec)
 }
 
 func (e *liveExecutor) createSinker(spec *jobspec.Spec) *sink.Sinker {

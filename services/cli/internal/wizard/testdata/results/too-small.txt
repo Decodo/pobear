@@ -1,0 +1,10 @@
+width=40 height=8 cursor=0 rows=2 status=0
+---
+                                        
+         pobear needs a bigger          
+          terminal (min 36x8).          
+                                        
+             Resize, or run             
+          pobear scrape/crawl           
+         directly instead. (q)          
+                                        

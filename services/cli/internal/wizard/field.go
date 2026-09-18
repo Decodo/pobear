@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -15,6 +16,7 @@ const (
 	fieldText fieldKind = iota
 	fieldChoice
 	fieldNumber
+	fieldTextArea
 )
 
 type field struct {
@@ -26,6 +28,9 @@ type field struct {
 	input     textinput.Model
 	numberMin int
 
+	textarea           textarea.Model
+	textareaMaxVisible int
+
 	options []string
 	choice  int
 }
@@ -35,6 +40,31 @@ func textField(name, label, hint, value string) field {
 	ti.Prompt = ""
 	ti.SetValue(value)
 	return field{name: name, label: label, hint: hint, kind: fieldText, input: ti}
+}
+
+func textAreaField(label, hint, value string, maxVisible, width int) field { //nolint:unparam // general constructor; only the URL field uses it today
+	ta := textarea.New()
+	ta.Prompt = ""
+	ta.ShowLineNumbers = false
+	ta.CharLimit = 0
+	ta.MaxHeight = 0
+	ta.Placeholder = hint
+	ta.SetWidth(width)
+	ta.SetValue(value)
+	f := field{name: "url", label: label, kind: fieldTextArea, textarea: ta, textareaMaxVisible: maxVisible}
+	f.resizeTextArea()
+	return f
+}
+
+func (f *field) resizeTextArea() {
+	h := f.textarea.LineCount()
+	if h < 1 {
+		h = 1
+	}
+	if h > f.textareaMaxVisible {
+		h = f.textareaMaxVisible
+	}
+	f.textarea.SetHeight(h)
 }
 
 func numberField(name, label, value string, min int) field {
@@ -56,21 +86,33 @@ func choiceField(name, label, hint string, options []string, current string) fie
 }
 
 func (f field) value() string {
-	if f.kind == fieldChoice {
+	switch f.kind {
+	case fieldChoice:
 		return f.options[f.choice]
+	case fieldTextArea:
+		return f.textarea.Value()
+	default:
+		return f.input.Value()
 	}
-	return f.input.Value()
 }
 
 func (f field) focus() field {
-	if f.kind != fieldChoice {
+	switch f.kind {
+	case fieldChoice:
+	case fieldTextArea:
+		f.textarea.Focus()
+	default:
 		f.input.Focus()
 	}
 	return f
 }
 
 func (f field) blur() field {
-	if f.kind != fieldChoice {
+	switch f.kind {
+	case fieldChoice:
+	case fieldTextArea:
+		f.textarea.Blur()
+	default:
 		f.input.Blur()
 	}
 	return f
@@ -78,6 +120,16 @@ func (f field) blur() field {
 
 func (f field) isStructural() bool {
 	return f.kind == fieldChoice
+}
+
+func (f field) capturesVerticalNav(dir string) bool {
+	if f.kind != fieldTextArea {
+		return false
+	}
+	if dir == "up" {
+		return f.textarea.Line() > 0
+	}
+	return f.textarea.Line() < f.textarea.LineCount()-1
 }
 
 func (f field) update(msg tea.Msg) (field, bool) {
@@ -113,6 +165,14 @@ func (f field) update(msg tea.Msg) (field, bool) {
 		_ = cmd
 		return f, true
 
+	case fieldTextArea:
+		f.textarea.SetHeight(f.textareaMaxVisible)
+		var cmd tea.Cmd
+		f.textarea, cmd = f.textarea.Update(msg)
+		_ = cmd
+		f.resizeTextArea()
+		return f, true
+
 	default:
 		var cmd tea.Cmd
 		f.input, cmd = f.input.Update(msg)
@@ -134,7 +194,11 @@ func (f *field) bumpNumber(delta int) {
 	f.input.CursorEnd()
 }
 
-func (f field) render(cursor bool, labelWidth, valueWidth int) string {
+func (f field) render(cursor bool, valueWidth int) string {
+	if f.kind == fieldTextArea {
+		return f.renderTextArea(cursor, valueWidth)
+	}
+
 	marker := " "
 	if cursor {
 		marker = "›"
@@ -144,7 +208,7 @@ func (f field) render(cursor bool, labelWidth, valueWidth int) string {
 		value = f.input.View()
 	}
 	value = padRightPlain(value, valueWidth)
-	label := padRightPlain(f.label, labelWidth)
+	label := padRightPlain(f.label, formLabelWidth)
 
 	line := marker + " " + label + " " + value
 	if f.hint != "" {
@@ -153,10 +217,23 @@ func (f field) render(cursor bool, labelWidth, valueWidth int) string {
 	return line
 }
 
-func padRightPlain(s string, width int) string {
-	n := lipgloss.Width(s)
-	if n >= width {
-		return s
+func (f field) renderTextArea(cursor bool, valueWidth int) string {
+	marker := " "
+	if cursor {
+		marker = "›"
 	}
-	return s + strings.Repeat(" ", width-n)
+	label := padRightPlain(f.label, formLabelWidth)
+	indent := strings.Repeat(" ", lipgloss.Width(marker+" "+label+" "))
+
+	valueLines := strings.Split(f.textarea.View(), "\n")
+	rows := make([]string, len(valueLines))
+	for i, vl := range valueLines {
+		vl = padRightPlain(vl, valueWidth)
+		if i == 0 {
+			rows[i] = marker + " " + label + " " + vl
+		} else {
+			rows[i] = indent + vl
+		}
+	}
+	return strings.Join(rows, "\n")
 }
