@@ -34,3 +34,9 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "$tag"
           git push origin "$tag"
+
+  release:
+    needs: canary
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release.yml
