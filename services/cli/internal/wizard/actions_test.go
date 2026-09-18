@@ -303,6 +303,27 @@ func TestBuildResultRowsCollapsesMultilineErrorsToOneLine(t *testing.T) {
 	}
 }
 
+func TestBuildResultRowsSortsSkippedItemsToTheBottom(t *testing.T) {
+	items := []jobresult.Item{
+		{URL: "https://a.test", Outcome: jobresult.Skipped, Err: "over budget"},
+		{URL: "https://b.test", Outcome: jobresult.Succeeded},
+		{URL: "https://c.test", Outcome: jobresult.Failed, Err: "boom"},
+		{URL: "https://d.test", Outcome: jobresult.Skipped, Err: "over budget"},
+		{URL: "https://e.test", Outcome: jobresult.Succeeded},
+	}
+
+	rows := buildResultRows(items, nil)
+	want := []string{"https://b.test", "https://c.test", "https://e.test", "https://a.test", "https://d.test"}
+	if len(rows) != len(want) {
+		t.Fatalf("rows = %v, want %d rows", rows, len(want))
+	}
+	for i, url := range want {
+		if rows[i].url != url {
+			t.Errorf("rows[%d].url = %q, want %q (non-skipped first, skipped stable-sorted to the bottom)", i, rows[i].url, url)
+		}
+	}
+}
+
 func TestDoSaveWritesJobFile(t *testing.T) {
 	t.Chdir(t.TempDir())
 
@@ -346,7 +367,7 @@ func TestCheckProviderCredentialCatchesMissingCredential(t *testing.T) {
 	dir := writeManifest(t, "decodo", flatOptionsManifest)
 	credPath := filepath.Join(t.TempDir(), "credentials")
 
-	got := checkProviderCredential(s, dir, credPath)
+	got := checkProviderCredential(s.fetchConfig, dir, credPath)
 	if !strings.HasPrefix(got, "✗") {
 		t.Fatalf("checkProviderCredential = %q, want a failure message", got)
 	}
@@ -366,14 +387,14 @@ func TestCheckProviderCredentialPassesWhenCredentialPresent(t *testing.T) {
 		t.Fatalf("write credentials: %v", err)
 	}
 
-	if got := checkProviderCredential(s, dir, credPath); got != "" {
+	if got := checkProviderCredential(s.fetchConfig, dir, credPath); got != "" {
 		t.Fatalf("checkProviderCredential = %q, want empty (credential present)", got)
 	}
 }
 
 func TestCheckProviderCredentialSkippedForNonProviderFetch(t *testing.T) {
 	s := newFormState()
-	if got := checkProviderCredential(s, t.TempDir(), ""); got != "" {
+	if got := checkProviderCredential(s.fetchConfig, t.TempDir(), ""); got != "" {
 		t.Fatalf("checkProviderCredential for a non-provider fetch = %q, want empty", got)
 	}
 }

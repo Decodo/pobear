@@ -2,99 +2,54 @@ package wizard
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"sync/atomic"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"gopkg.in/yaml.v3"
-
 	"github.com/pobear/pobear/pkg/jobresult"
 	"github.com/pobear/pobear/pkg/jobspec"
-	"github.com/pobear/pobear/services/cli/internal/command"
-	"github.com/pobear/pobear/services/cli/internal/jobgen"
 	"github.com/pobear/pobear/services/cli/internal/providerator"
-	"github.com/pobear/pobear/services/core"
 )
 
 const savedJobFilename = "job.yaml"
 
-func buildJobSpec(state formState, providersDir string) (*jobspec.Spec, error) {
-	concurrency, _ := strconv.Atoi(state.concurrency)
-	retries, _ := strconv.Atoi(state.retries)
-
-	profile, proxy, providerName, templateName := state.profile, "", "", ""
-	var options map[string]any
-	switch state.fetchVia {
-	case "proxy":
-		proxy = state.proxyURL
-	case "provider":
-		profile = ""
-		providerName = state.providerName
-		var err error
-		templateName, options, err = resolveProviderOptions(state, providersDir)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	in := jobgen.Input{
-		URLs:        urlList(state),
-		FetchUse:    state.fetchVia,
-		Proxy:       proxy,
-		Provider:    providerName,
-		Template:    templateName,
-		Options:     options,
-		Profile:     profile,
-		Timeout:     "30s",
-		Stages:      buildStages(state),
-		Concurrency: &concurrency,
-		Retries:     &retries,
-		SinkUse:     "stdout",
-	}
-	return jobgen.Build(in)
-}
-
-func resolveProviderOptions(state formState, providersDir string) (templateName string, options map[string]any, err error) {
+func resolveProviderOptions(fc fetchConfig, providersDir string) (templateName string, options map[string]any, err error) {
 	manifests, err := providerator.New(providersDir).Load()
 	if err != nil {
 		return "", nil, err
 	}
-	m, ok := providerator.Lookup(manifests, state.providerName)
+	m, ok := providerator.Lookup(manifests, fc.providerName)
 	if !ok {
-		return "", nil, fmt.Errorf("unknown provider %q", state.providerName)
+		return "", nil, fmt.Errorf("unknown provider %q", fc.providerName)
 	}
 
-	templateName = effectiveTemplateName(m, state.templateName)
+	templateName = effectiveTemplateName(m, fc.templateName)
 	declared, err := providerator.ResolveTemplate(m, templateName)
 	if err != nil {
 		return "", nil, err
 	}
-	options, err = providerator.ValidateOptions(declared, state.providerOptions)
+	options, err = providerator.ValidateOptions(declared, fc.providerOptions)
 	if err != nil {
 		return "", nil, err
 	}
 	return templateName, options, nil
 }
 
-func checkProviderCredential(state formState, providersDir, credentialsPath string) string {
-	if state.fetchVia != "provider" {
+func checkProviderCredential(fc fetchConfig, providersDir, credentialsPath string) string {
+	if fc.fetchVia != "provider" {
 		return ""
 	}
 	manifests, err := providerator.New(providersDir).Load()
 	if err != nil {
 		return "✗ " + err.Error()
 	}
-	m, ok := providerator.Lookup(manifests, state.providerName)
+	m, ok := providerator.Lookup(manifests, fc.providerName)
 	if !ok {
-		return fmt.Sprintf("✗ unknown provider %q", state.providerName)
+		return fmt.Sprintf("✗ unknown provider %q", fc.providerName)
 	}
 	hasCred, err := providerator.CheckCredential(m, credentialsPath)
 	if err != nil {
@@ -106,24 +61,13 @@ func checkProviderCredential(state formState, providersDir, credentialsPath stri
 	return ""
 }
 
-func urlList(state formState) []string {
-	lines := strings.Split(state.url, "\n")
-	urls := make([]string, 0, len(lines))
-	for _, line := range lines {
-		if line = strings.TrimSpace(line); line != "" {
-			urls = append(urls, line)
-		}
-	}
-	return urls
-}
-
-func buildStages(state formState) []jobspec.Stage {
-	switch state.extract {
+func buildStages(c extractConfig) []jobspec.Stage {
+	switch c.extract {
 	case "raw", "markdown":
-		return []jobspec.Stage{{Use: state.extract}}
+		return []jobspec.Stage{{Use: c.extract}}
 	case "css fields":
 		fields := map[string]string{}
-		for _, pair := range state.cssFields {
+		for _, pair := range c.cssFields {
 			if pair.name == "" || pair.selector == "" {
 				continue
 			}
@@ -133,21 +77,6 @@ func buildStages(state formState) []jobspec.Stage {
 	default:
 		return nil
 	}
-}
-
-func doSave(state formState, providersDir string) string {
-	spec, err := buildJobSpec(state, providersDir)
-	if err != nil {
-		return "✗ " + err.Error()
-	}
-	data, err := yaml.Marshal(spec)
-	if err != nil {
-		return "✗ " + err.Error()
-	}
-	if err := os.WriteFile(savedJobFilename, data, 0o600); err != nil {
-		return "✗ " + err.Error()
-	}
-	return "✓ saved to " + savedJobFilename
 }
 
 type resultRow struct {
@@ -247,6 +176,9 @@ func buildResultRows(items []jobresult.Item, sinkItems map[string]sinkItem) []re
 		row.raw = raw
 		rows[i] = row
 	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		return rows[i].status != "skip" && rows[j].status == "skip"
+	})
 	return rows
 }
 
@@ -268,44 +200,6 @@ func (p *runProgress) percent() float64 {
 		pct = 1
 	}
 	return pct
-}
-
-func doRun(ctx context.Context, state formState, providersDir, credentialsPath string, progress *runProgress) (string, []resultRow) {
-	spec, err := buildJobSpec(state, providersDir)
-	if err != nil {
-		return "✗ " + err.Error(), nil
-	}
-	data, err := yaml.Marshal(spec)
-	if err != nil {
-		return "✗ " + err.Error(), nil
-	}
-
-	var captured bytes.Buffer
-	var out io.Writer = &captured
-	if progress != nil {
-		out = &countingWriter{out: &captured, counter: &progress.completed}
-	}
-
-	runner := command.NewJobRunner(core.New(providersDir, credentialsPath, out))
-	result, _, err := runner.Run(ctx, data, jobspec.ModePlain)
-	if err != nil {
-		return "✗ " + err.Error(), nil
-	}
-
-	rows := buildResultRows(result.Items, parseSinkItems(captured.Bytes()))
-
-	msg := fmt.Sprintf("fetched %d, errors %d, skipped %d", result.Succeeded, result.Failed, result.Skipped)
-	if result.Failed > 0 {
-		return "✗ " + msg, rows
-	}
-	return "✓ " + msg, rows
-}
-
-func startRun(ctx context.Context, state formState, providersDir, credentialsPath string, progress *runProgress) tea.Cmd {
-	return func() tea.Msg {
-		status, rows := doRun(ctx, state, providersDir, credentialsPath, progress)
-		return runFinishedMsg{status: status, rows: rows}
-	}
 }
 
 const resultsDirName = "results"

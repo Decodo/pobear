@@ -71,8 +71,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "down", "j":
 			m.cursor = (m.cursor + 1) % len(menuItems)
 		case "enter":
-			if menuItems[m.cursor] == "Scrape a page" {
+			switch menuItems[m.cursor] {
+			case "Scrape a page":
 				form := newScrapeForm(m.providerManifests, m.ctx, m.providersDir, m.credentialsPath)
+				return m, pushScreen(form)
+			case "Crawl a site":
+				form := newCrawlForm(m.providerManifests, m.ctx, m.providersDir, m.credentialsPath)
 				return m, pushScreen(form)
 			}
 		}

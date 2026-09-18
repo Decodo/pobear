@@ -113,7 +113,7 @@ func TestFormScreenshotScenarios(t *testing.T) {
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			width, height, cursor, state, want := readFormScreenshot(t, path)
 			fields := computeFields(state, manifestsWithNames("acme", "decodo"))
-			got := ansi.Strip(renderForm(width, height, fields, cursor, ""))
+			got := ansi.Strip(renderForm(width, height, "Scrape", fields, cursor, ""))
 
 			if *updateScreenshots {
 				writeFormScreenshot(t, path, width, height, cursor, state, got)
@@ -172,6 +172,57 @@ func writeFormScreenshot(t *testing.T, path string, width, height, cursor int, s
 	t.Helper()
 	header := fmt.Sprintf("width=%d height=%d cursor=%d fetchVia=%s extract=%s cssFields=%s",
 		width, height, cursor, state.fetchVia, strings.ReplaceAll(state.extract, " ", "-"), encodeCSSFields(state.cssFields))
+	writeScreenshotFile(t, path, header, view)
+}
+
+func TestCrawlFormScreenshotScenarios(t *testing.T) {
+	paths, err := filepath.Glob("testdata/crawl-form/*.txt")
+	if err != nil {
+		t.Fatalf("globbing testdata/crawl-form: %v", err)
+	}
+	if len(paths) == 0 {
+		t.Fatal("no screenshot files found under testdata/crawl-form")
+	}
+
+	for _, path := range paths {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			width, height, cursor, state, want := readCrawlFormScreenshot(t, path)
+			fields := computeCrawlFields(state, manifestsWithNames("acme", "decodo"))
+			got := ansi.Strip(renderForm(width, height, "Crawl", fields, cursor, ""))
+
+			if *updateScreenshots {
+				writeCrawlFormScreenshot(t, path, width, height, cursor, state, got)
+				return
+			}
+			if got != want {
+				t.Errorf("renderForm doesn't match %s (run with -update to regenerate)\n--- want ---\n%s\n--- got ---\n%s", path, want, got)
+			}
+		})
+	}
+}
+
+func readCrawlFormScreenshot(t *testing.T, path string) (width, height, cursor int, state crawlFormState, view string) {
+	t.Helper()
+	tokens, body := readScreenshotFile(t, path)
+
+	state = newCrawlFormState()
+	width = mustAtoi(t, path, tokens, "width")
+	height = mustAtoi(t, path, tokens, "height")
+	cursor = mustAtoi(t, path, tokens, "cursor")
+
+	if v, ok := tokens["fetchVia"]; ok {
+		state.fetchVia = v
+	}
+	if v, ok := tokens["providerName"]; ok {
+		state.providerName = v
+	}
+	return width, height, cursor, state, body
+}
+
+func writeCrawlFormScreenshot(t *testing.T, path string, width, height, cursor int, state crawlFormState, view string) {
+	t.Helper()
+	header := fmt.Sprintf("width=%d height=%d cursor=%d fetchVia=%s providerName=%s",
+		width, height, cursor, state.fetchVia, state.providerName)
 	writeScreenshotFile(t, path, header, view)
 }
 
