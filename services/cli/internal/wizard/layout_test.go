@@ -7,8 +7,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func assertNeverExceedsSize(t *testing.T, minH, maxH, stepH, minW, maxW, stepW int, view func(w, h int) string) {
+func assertNeverExceedsSize(t *testing.T, minH, maxH, stepH, minW, stepW int, view func(w, h int) string) {
 	t.Helper()
+	const maxW = 160
 	for h := minH; h <= maxH; h += stepH {
 		for w := minW; w <= maxW; w += stepW {
 			lines := strings.Split(view(w, h), "\n")

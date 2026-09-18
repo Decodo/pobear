@@ -15,7 +15,7 @@ const (
 	providerDetailBackHint     = "esc: back to providers"
 	providerDetailFooterHint   = "↑/↓ scroll   esc back"
 	providerDetailWidthMargin  = 4
-	providerDetailOverheadRows = 4
+	providerDetailOverheadRows = 3
 )
 
 func formatProviderOptionLine(o provider.Option) string {

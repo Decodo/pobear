@@ -67,6 +67,20 @@ func TestProviderDetailScreenScrolls(t *testing.T) {
 	}
 }
 
+func TestProviderDetailScreenNeverExceedsRequestedSize(t *testing.T) {
+	opts := make([]provider.Option, 60)
+	for i := range opts {
+		opts[i] = provider.Option{Name: string(rune('a'+i%26)) + string(rune('0'+i/26)), Type: "string"}
+	}
+	m := &provider.Manifest{Name: "acme", Endpoint: "https://acme.example.com/scrape", Options: opts}
+
+	assertNeverExceedsSize(t, unsupportedMinH, 40, 3, unsupportedMinW, 15, func(w, h int) string {
+		s := newProviderDetailScreen(m)
+		s.width, s.height = w, h
+		return s.View()
+	})
+}
+
 func TestProviderDetailScreenEscPopsScreen(t *testing.T) {
 	s := newProviderDetailScreen(&provider.Manifest{Name: "acme"})
 	_, cmd := s.Update(tea.KeyMsg{Type: tea.KeyEsc})

@@ -15,11 +15,11 @@ const (
 	resultsStatusWidth  = 8
 	resultsURLWidth     = 36
 	resultsRowOverhead  = 6
-	resultsOverheadRows = 7
+	resultsOverheadRows = 5
 	resultsMinVisible   = 3
 	resultsWidthMargin  = 4
 	resultsMinWidth     = resultsStatusWidth + resultsURLWidth + 3 + resultsWidthMargin
-	resultsMinHeight    = resultsOverheadRows + resultsMinVisible
+	resultsMinHeight    = resultsOverheadRows + resultsMinVisible + scrollIndicatorRows
 )
 
 type resultsScreen struct {

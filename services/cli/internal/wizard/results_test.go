@@ -131,7 +131,7 @@ func TestResultsScreenNeverExceedsRequestedSize(t *testing.T) {
 	}
 	s := newResultsScreen(rows, "✓ fetched 36, errors 0, skipped 0")
 
-	assertNeverExceedsSize(t, resultsMinHeight, 40, 3, resultsMinWidth, 160, 10, func(w, h int) string {
+	assertNeverExceedsSize(t, resultsMinHeight, 40, 3, resultsMinWidth, 10, func(w, h int) string {
 		s.width, s.height = w, h
 		s.clampScroll()
 		return s.View()

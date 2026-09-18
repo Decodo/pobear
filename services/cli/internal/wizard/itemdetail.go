@@ -13,7 +13,7 @@ const (
 	itemDetailBackHint     = "esc: back to results"
 	itemDetailFooterHint   = "↑/↓ scroll   w write to file   t wrap   esc back"
 	itemDetailWidthMargin  = 4
-	itemDetailOverheadRows = 5
+	itemDetailOverheadRows = 3
 )
 
 type itemDetailScreen struct {

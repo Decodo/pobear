@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/pobear/pobear/pkg/provider"
 )
 
 const acmeManifest = `
@@ -279,6 +281,21 @@ func TestProvidersScreenAuthEmptySecretIsRejected(t *testing.T) {
 	if _, err := os.Stat(credPath); !os.IsNotExist(err) {
 		t.Fatalf("credentials file should not exist after an empty submit, stat err = %v", err)
 	}
+}
+
+func TestProvidersScreenNeverExceedsRequestedSize(t *testing.T) {
+	entries := make([]providerListEntry, 60)
+	for i := range entries {
+		name := string(rune('a'+i%26)) + string(rune('0'+i/26))
+		entries[i] = providerListEntry{manifest: &provider.Manifest{Name: name, Endpoint: "https://" + name + ".example.com/scrape"}}
+	}
+	s := &providersScreen{entries: entries}
+
+	assertNeverExceedsSize(t, providersMinHeight, 40, 3, providersMinWidth, 15, func(w, h int) string {
+		s.width, s.height = w, h
+		s.clampScroll()
+		return s.View()
+	})
 }
 
 func TestProvidersScreenEscPopsScreen(t *testing.T) {

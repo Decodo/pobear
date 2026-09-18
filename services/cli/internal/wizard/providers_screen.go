@@ -22,11 +22,11 @@ const (
 	providersEntryHint    = "enter: save   esc: cancel"
 	providersNameWidth    = 13
 	providersRowOverhead  = 8
-	providersOverheadRows = 7
+	providersOverheadRows = 3
 	providersMinVisible   = 3
 	providersWidthMargin  = 4
 	providersMinWidth     = providersNameWidth + 30 + providersWidthMargin
-	providersMinHeight    = providersOverheadRows + providersMinVisible
+	providersMinHeight    = providersOverheadRows + providersMinVisible + scrollIndicatorRows
 )
 
 type providerListEntry struct {
