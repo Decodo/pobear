@@ -5,6 +5,7 @@ width=80 height=28 cursor=0
                                                                                 
                                                                                 
                                                                                 
+                                                                                
                                   __         __                                 
                                  (  \_______/  )                                
                                  /   •     •   \                                
@@ -17,7 +18,6 @@ width=80 height=28 cursor=0
               │   › Scrape a page                                │              
               │     Crawl a site                                 │              
               │     Manage providers                             │              
-              │     Manage credentials                           │              
               │     Quit                                         │              
               │                                                  │              
               └──────────────────────────────────────────────────┘              

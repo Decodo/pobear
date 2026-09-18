@@ -11,7 +11,6 @@ var menuItems = []string{
 	"Scrape a page",
 	"Crawl a site",
 	"Manage providers",
-	"Manage credentials",
 	"Quit",
 }
 

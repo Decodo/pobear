@@ -71,13 +71,15 @@ func (w *countingWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-func visibleCount(height, overhead int, hasStatus bool, minVisible, total int) int {
+const visibleCountFloor = 3
+
+func visibleCount(height, overhead int, hasStatus bool, total int) int {
 	if hasStatus {
 		overhead += 2
 	}
 	v := height - overhead
-	if v < minVisible {
-		v = minVisible
+	if v < visibleCountFloor {
+		v = visibleCountFloor
 	}
 	if v > total {
 		v = total

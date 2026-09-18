@@ -610,7 +610,6 @@ of exact wording or layout.
 │   › Scrape a page                                  │
 │     Crawl a site                                   │
 │     Manage providers                               │
-│     Manage credentials                             │
 │     Quit                                           │
 │                                                    │
 └────────────────────────────────────────────────────┘
@@ -667,7 +666,7 @@ section for how a templated provider like the real Decodo manifest looks instead
 Both `Provider` and `Template` (below) support typing to jump straight to a match,
 not just cycling one at a time with the arrow keys — useful once either list grows
 past a handful of entries. If `Provider` has no stored credential, pressing `enter`
-on `[ Run ]` shows an error naming the provider and pointing at `Manage credentials`
+on `[ Run ]` shows an error naming the provider and pointing at `Manage providers`
 (or `pobear auth <name>`) instead of starting the run — `Save` never checks, since
 writing a spec to disk doesn't call the provider at all. Changing `Provider` to a
 different one re-reads that provider's manifest and swaps the field list below it
@@ -752,6 +751,28 @@ other field, since every field stays editable at every point.
 │   [ Test ]   [ Save as job.yaml ]   [ Run ]                                          │
 │                                                                                      │
 └──────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Manage providers
+
+Lists every loaded manifest — embedded and on-disk merged — with whether a
+credential is stored for each (the `✓`/`✗` before the name). `enter` drills
+into a manifest's full schema (same information as `pobear providers <name>`,
+scrollable); `a` opens a masked input to set or replace that provider's
+credential, saving and overwriting immediately on submit, the same as
+`pobear auth <name>` does today — there's no separate confirm step; `d`
+deletes an on-disk manifest after a `y`/`n` confirmation. A provider that's
+only available via the embedded copy (nothing on disk with that name) can't
+be deleted from here — there's no file to remove.
+
+```
+┌─ Manage providers ─────────────────────────────────────────────────────────────────┐
+│                                                                                    │
+│  › ✓ decodo    https://scraper-api.decodo.com/v2/scrape                            │
+│    ✗ acme      https://acme.example.com/scrape                                     │
+│                                                                                    │
+└────────────────────────────────────────────────────────────────────────────────────┘
+  ↑/↓ move   enter view   a auth   d delete   esc back
 ```
 
 ### Field reference

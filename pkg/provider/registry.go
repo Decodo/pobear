@@ -2,6 +2,7 @@ package provider
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,7 +22,11 @@ func ValidateUnique(manifests []*Manifest) error {
 }
 
 func LoadDir(dir string) ([]*Manifest, error) {
-	entries, err := os.ReadDir(dir) //nolint:gosec // dir is the caller-supplied providers directory, not user-controlled input
+	return LoadFS(os.DirFS(dir))
+}
+
+func LoadFS(fsys fs.FS) ([]*Manifest, error) {
+	entries, err := fs.ReadDir(fsys, ".")
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -39,15 +44,14 @@ func LoadDir(dir string) ([]*Manifest, error) {
 			continue
 		}
 
-		path := filepath.Join(dir, entry.Name())
-		data, err := os.ReadFile(path) //nolint:gosec // path is built from a caller-supplied directory listing, not user-controlled input
+		data, err := fs.ReadFile(fsys, entry.Name())
 		if err != nil {
 			return nil, err
 		}
 
 		manifest, err := Parse(data)
 		if err != nil {
-			return nil, fmt.Errorf("%s: %w", path, err)
+			return nil, fmt.Errorf("%s: %w", entry.Name(), err)
 		}
 		manifests = append(manifests, manifest)
 	}

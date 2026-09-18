@@ -46,7 +46,7 @@ func (s *resultsScreen) innerWidth() int {
 }
 
 func (s *resultsScreen) visibleRows() int {
-	return visibleCount(s.height, resultsOverheadRows, s.status != "", resultsMinVisible, len(s.rows))
+	return visibleCount(s.height, resultsOverheadRows, s.status != "", len(s.rows))
 }
 
 func (s *resultsScreen) maxOffset() int {

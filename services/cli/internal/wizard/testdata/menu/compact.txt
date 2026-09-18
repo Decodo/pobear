@@ -2,12 +2,12 @@ width=40 height=15 cursor=1
 ---
                                         
                                         
+                                        
   ┌─ pobear ─────────────────────────┐  
   │                                  │  
   │     Scrape a page                │  
   │   › Crawl a site                 │  
   │     Manage providers             │  
-  │     Manage credentials           │  
   │     Quit                         │  
   │                                  │  
   └──────────────────────────────────┘  

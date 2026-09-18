@@ -93,17 +93,35 @@ func TestUpdateEnterOnCrawlPushesForm(t *testing.T) {
 	}
 }
 
-func TestUpdateEnterOnOtherItemsDoesNothingYet(t *testing.T) {
+func TestUpdateEnterOnManageProvidersPushesScreen(t *testing.T) {
 	m := newModel(nil, context.Background(), "", "")
 	m.cursor = 2
 
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("expected enter on \"Manage providers\" to return a pushScreen command, got nil")
+	}
+	msg := cmd()
+	push, ok := msg.(pushScreenMsg)
+	if !ok {
+		t.Fatalf("expected a pushScreenMsg, got %T", msg)
+	}
+	if _, ok := push.screen.(*providersScreen); !ok {
+		t.Fatalf("expected the pushed screen to be *providersScreen, got %T", push.screen)
+	}
+}
+
+func TestUpdateEnterOnQuitDoesNothingYet(t *testing.T) {
+	m := newModel(nil, context.Background(), "", "")
+	m.cursor = 3
+
 	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	got := updated.(model)
-	if got.cursor != 2 {
+	if got.cursor != 3 {
 		t.Fatalf("expected enter to leave the cursor untouched, got %d", got.cursor)
 	}
 	if cmd != nil {
-		t.Fatalf("expected enter to do nothing (\"Manage providers\" isn't wired up yet), got a command %v", cmd)
+		t.Fatalf("expected enter on \"Quit\" to do nothing (only the 'q' key quits), got a command %v", cmd)
 	}
 }
 

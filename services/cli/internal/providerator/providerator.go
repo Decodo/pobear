@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/pobear/pobear/pkg/provider"
+	"github.com/pobear/pobear/providers"
 )
 
 type Providerator struct {
@@ -18,14 +19,43 @@ func New(dir string) *Providerator {
 }
 
 func (p *Providerator) Load() ([]*provider.Manifest, error) {
-	manifests, err := provider.LoadDir(p.Dir)
+	embedded, err := provider.LoadFS(providers.FS)
 	if err != nil {
 		return nil, err
 	}
-	if err := provider.ValidateUnique(manifests); err != nil {
+	if err := provider.ValidateUnique(embedded); err != nil {
 		return nil, err
 	}
-	return manifests, nil
+
+	disk, err := provider.LoadDir(p.Dir)
+	if err != nil {
+		return nil, err
+	}
+	if err := provider.ValidateUnique(disk); err != nil {
+		return nil, err
+	}
+
+	return mergeManifests(embedded, disk), nil
+}
+
+func mergeManifests(embedded, disk []*provider.Manifest) []*provider.Manifest {
+	byName := make(map[string]*provider.Manifest, len(embedded)+len(disk))
+	order := make([]string, 0, len(embedded)+len(disk))
+	for _, m := range embedded {
+		byName[m.Name] = m
+		order = append(order, m.Name)
+	}
+	for _, m := range disk {
+		if _, exists := byName[m.Name]; !exists {
+			order = append(order, m.Name)
+		}
+		byName[m.Name] = m
+	}
+	merged := make([]*provider.Manifest, len(order))
+	for i, name := range order {
+		merged[i] = byName[name]
+	}
+	return merged
 }
 
 func Lookup(manifests []*provider.Manifest, name string) (*provider.Manifest, bool) {
