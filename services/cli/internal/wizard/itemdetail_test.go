@@ -20,6 +20,40 @@ func TestItemDetailScreenShowsPrettifiedJSON(t *testing.T) {
 	}
 }
 
+func TestItemDetailScreenShowsPlainBodyWhenBare(t *testing.T) {
+	row := resultRow{
+		url:  "https://a.test",
+		bare: true,
+		body: "<html><body>hello</body></html>",
+		raw:  map[string]any{"url": "https://a.test", "status": 200, "body": "<html><body>hello</body></html>"},
+	}
+	s := newItemDetailScreen(row)
+	s.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+
+	view := s.View()
+	if !strings.Contains(view, "<html><body>hello</body></html>") {
+		t.Fatalf("View() = %q, want the plain body with no envelope", view)
+	}
+	if strings.Contains(view, `"status"`) || strings.Contains(view, `"url"`) {
+		t.Fatalf("View() = %q, want no envelope fields shown for a bare item", view)
+	}
+}
+
+func TestItemDetailScreenShowsEnvelopeWhenNotBare(t *testing.T) {
+	row := resultRow{
+		url:  "https://a.test",
+		bare: false,
+		body: "hello",
+		raw:  map[string]any{"url": "https://a.test", "status": 200, "body": "hello"},
+	}
+	s := newItemDetailScreen(row)
+	s.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+
+	if !strings.Contains(s.View(), `"status": 200`) {
+		t.Fatalf("View() = %q, want the full envelope shown when not bare", s.View())
+	}
+}
+
 func TestItemDetailScreenEscPopsBackToResults(t *testing.T) {
 	s := newItemDetailScreen(resultRow{url: "https://a.test", raw: map[string]any{"url": "https://a.test"}})
 	_, cmd := s.Update(tea.KeyMsg{Type: tea.KeyEscape})

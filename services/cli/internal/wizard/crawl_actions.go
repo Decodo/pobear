@@ -103,7 +103,7 @@ func doCrawlRun(ctx context.Context, state crawlFormState, providersDir, credent
 		return "✗ " + err.Error(), nil
 	}
 
-	rows := buildResultRows(result.Items, parseSinkItems(captured.Bytes()))
+	rows := buildResultRows(result.Items, parseSinkItems(captured.Bytes()), state.extract == "bare")
 
 	msg := fmt.Sprintf("fetched %d, errors %d, skipped %d", result.Succeeded, result.Failed, result.Skipped)
 	if result.Failed > 0 {

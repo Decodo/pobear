@@ -168,7 +168,7 @@ moving `_Auto` to a newer version isn't automatically reflected anywhere else.
 | Field | Type | Default | Rule |
 |---|---|---|---|
 | `concurrency` | `int` | `8` | `> 0` |
-| `rps` | `int` | `0` (scrape CLI) / `2` (crawl CLI); `0` in a bare spec | `0` = unlimited; negative rejected; caps total requests/sec across every host combined, not per host |
+| `rps` | `int` | `0` (scrape CLI) / `16` (crawl CLI); `0` in a bare spec | `0` = unlimited; negative rejected; caps total requests/sec across every host combined, not per host |
 | `retries` | `int` | `3` | `>= 1` (the first attempt counts) |
 | `backoff` | enum | `exponential` (CLI default) | only `exponential` is currently a valid value — anything else rejected, not silently substituted |
 | `pluginConcurrency` | `int` | `0` | `__rpc` mode only; ignored elsewhere |

@@ -269,7 +269,7 @@ func TestBuildResultRowsFallsBackToBodyPreviewWhenNoDataExtracted(t *testing.T) 
 		"https://a.test": {URL: "https://a.test", Status: 200, Body: "<html>\n<body>hello</body>\n</html>"},
 	}
 
-	rows := buildResultRows(items, sinkItems)
+	rows := buildResultRows(items, sinkItems, false)
 	if len(rows) != 1 {
 		t.Fatalf("rows = %v, want 1", rows)
 	}
@@ -284,11 +284,29 @@ func TestBuildResultRowsFallsBackToBodyPreviewWhenNoDataExtracted(t *testing.T) 
 	}
 }
 
+func TestBuildResultRowsCarriesBareAndBodyForItemDetail(t *testing.T) {
+	items := []jobresult.Item{{URL: "https://a.test", Outcome: jobresult.Succeeded}}
+	sinkItems := map[string]sinkItem{
+		"https://a.test": {URL: "https://a.test", Status: 200, Body: "<html>hi</html>"},
+	}
+
+	rows := buildResultRows(items, sinkItems, true)
+	if len(rows) != 1 {
+		t.Fatalf("rows = %v, want 1", rows)
+	}
+	if !rows[0].bare {
+		t.Fatalf("rows[0].bare = %v, want true", rows[0].bare)
+	}
+	if rows[0].body != "<html>hi</html>" {
+		t.Fatalf("rows[0].body = %q, want the raw fetched body", rows[0].body)
+	}
+}
+
 func TestBuildResultRowsCollapsesMultilineErrorsToOneLine(t *testing.T) {
 	multiline := "connection failed:\nsome cause\nanother cause"
 	items := []jobresult.Item{{URL: "https://a.test", Outcome: jobresult.Failed, Err: multiline}}
 
-	rows := buildResultRows(items, nil)
+	rows := buildResultRows(items, nil, false)
 	if len(rows) != 1 {
 		t.Fatalf("rows = %v, want 1", rows)
 	}
@@ -312,7 +330,7 @@ func TestBuildResultRowsSortsSkippedItemsToTheBottom(t *testing.T) {
 		{URL: "https://e.test", Outcome: jobresult.Succeeded},
 	}
 
-	rows := buildResultRows(items, nil)
+	rows := buildResultRows(items, nil, false)
 	want := []string{"https://b.test", "https://c.test", "https://e.test", "https://a.test", "https://d.test"}
 	if len(rows) != len(want) {
 		t.Fatalf("rows = %v, want %d rows", rows, len(want))

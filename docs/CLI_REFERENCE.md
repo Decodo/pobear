@@ -374,10 +374,10 @@ Everything `scrape` has, plus:
 | `-s, --scope same-host\|same-domain\|any` | `same-host` | |
 | `-i, --include <glob>` | — | repeatable |
 | `--exclude <glob>` | — | repeatable; wins over include |
-| `--sitemap` | off | also seed from `/sitemap.xml` |
+| `--sitemap` | **on** | also seed from `/sitemap.xml`; pass `--sitemap=false` to turn off |
 | `--ignore-robots` | off | `robots.txt` is respected by default |
 | `--no-redirects` | off | treat a `3xx` response as a dead end instead of following it |
-| `--rps <n>` | **2** | (different default from `scrape`) |
+| `--rps <n>` | **16** | (different default from `scrape`) |
 
 `--timeout` (above, inherited from `scrape`) caps one fetch; `--max-duration` caps the
 whole crawl — a crawl can have thousands of individually-fast fetches and still run
@@ -387,20 +387,20 @@ long past the point you wanted it to stop.
 $ pobear crawl https://example.com --depth 2 --print-spec
 {
   "version": 1,
-  "source": { "crawl": { "seeds": ["https://example.com"], "depth": 2 } },
+  "source": { "crawl": { "seeds": ["https://example.com"], "depth": 2, "sitemap": true } },
   "fetch": { "use": "local" },
-  "limits": { "rps": 2 }
+  "limits": { "rps": 16 }
 }
 ```
 
-`limits.rps` is printed even though `2` is `crawl`'s own default, because a bare
-spec defaults `rps` to `0`. "Omitted" means "`pobear run` would apply this same
-value anyway", so any field where `crawl`'s CLI default differs from the spec
-default is written out — otherwise piping the spec into `run` would silently
-produce a different job.
+`limits.rps` and `source.crawl.sitemap` are printed even though `16` and `true` are
+`crawl`'s own defaults, because a bare spec defaults `rps` to `0` and `sitemap` to
+`false`. "Omitted" means "`pobear run` would apply this same value anyway", so any
+field where `crawl`'s CLI default differs from the spec default is written out —
+otherwise piping the spec into `run` would silently produce a different job.
 
 `--print-spec-verbose` shows the same job with every default filled in, including
-the ones `crawl` sets differently than `scrape` (`limits.rps: 2` here, not `0`):
+the ones `crawl` sets differently than `scrape` (`limits.rps: 16` here, not `0`):
 
 ```
 $ pobear crawl https://example.com --depth 2 --print-spec-verbose
@@ -408,9 +408,9 @@ $ pobear crawl https://example.com --depth 2 --print-spec-verbose
   "version": 1,
   "source": { "crawl": { "seeds": ["https://example.com"], "depth": 2,
     "maxPages": 100, "maxDuration": "", "scope": "same-host", "include": [], "exclude": [],
-    "sitemap": false, "robots": "respect" } },
+    "sitemap": true, "robots": "respect" } },
   "fetch": { "use": "local", "profile": "chrome", "timeout": "30s", "noRedirects": false },
-  "limits": { "concurrency": 8, "rps": 2, "retries": 3, "backoff": "exponential", "pluginConcurrency": 0, "pluginTimeout": "30s" },
+  "limits": { "concurrency": 8, "rps": 16, "retries": 3, "backoff": "exponential", "pluginConcurrency": 0, "pluginTimeout": "30s" },
   "stages": [],
   "sink": { "use": "stdout" }
 }
@@ -599,7 +599,7 @@ of exact wording or layout.
   newly-relevant fields appear, defaults change to match. The form always reflects
   a single valid job spec for the current field values — there's no state where
   the visible fields don't correspond to something the spec would actually accept.
-- Actions (`Test`, `Save`, `Run`) sit at the bottom of every form and act on the
+- Actions (`Save`, `Run`) sit at the bottom of every form and act on the
   spec as currently filled in.
 
 ### Main menu
@@ -618,50 +618,63 @@ of exact wording or layout.
 
 ### Scrape — form screen, initial state
 
+The `URL` field is a small text area, not a single line — paste or type one URL
+per line to scrape several pages in one run. `Extract` defaults to `bare` (no
+extraction stage; the scraped page is returned as-is, same as CLI's default
+`--extract ""`).
+
 ```
 ┌─ Scrape ───────────────────────────────────────────────────────── esc: back to menu ─┐
 │                                                                                      │
-│      URL           https://example.com                                               │
+│      URL           (one per line)                                                    │
+│                                                                                      │
 │   › Fetch via     local       (local / proxy / provider)                             │
 │      Profile       chrome      (TLS fingerprint)                                     │
-│      Extract       markdown    (raw / markdown / fields)                             │
+│      Extract       bare        (bare / raw / markdown / css fields)                  │
 │      Concurrency   8                                                                 │
 │      Retries       3                                                                 │
 │                                                                                      │
-│   [ Test ]   [ Save as job.yaml ]   [ Run ]                                          │
+│   [ Save as job.yaml ]   [ Run ]                                                     │
 │                                                                                      │
 └──────────────────────────────────────────────────────────────────────────────────────┘
-  ↑/↓ move   enter edit   esc back   ctrl+t test   ctrl+r run
+  ↑/↓ move   enter edit   esc back
 ```
 
 ### Changing "Fetch via" reacts across the form
 
 Moving "Fetch via" from `local` to `provider`: `Profile` (a local/proxy-only TLS
 setting) disappears, and `Provider` plus whatever fields **that provider's manifest
-declares** (`PROVIDER_REFERENCE.md` §6) appear in its place. Decodo declares `render`
-and `geo`, so those are what show up below — a provider with a `device` option
-instead would show `Device`, not `Render`/`Geo`. The form isn't hardcoded to any
-provider's fields; it reads them the same way `--opt` validation does.
+declares** (`PROVIDER_REFERENCE.md` §6) appear in its place. Decodo's `universal`
+template declares `headless`, `proxy_pool`, `geo`, `locale`, and `device_type`, so
+those are what show up below — a provider with a `device` option instead would show
+`Device`, not those. The form isn't hardcoded to any provider's fields; it reads
+them the same way `--opt` validation does.
 
 ```
 ┌─ Scrape ───────────────────────────────────────────────────────── esc: back to menu ─┐
 │                                                                                      │
-│      URL           https://example.com                                               │
+│      URL           (one per line)                                                    │
+│                                                                                      │
 │      Fetch via     provider    (local / proxy / provider)                            │
 │   › Provider      decodo       (type to search)                                      │
-│      Render        off         (decodo option)                                       │
-│      Geo           —           (decodo option)                                       │
-│      Extract       markdown    (raw / markdown / fields)                             │
+│      Headless      html        (universal option)                                    │
+│      Proxy pool    premium     (universal option)                                    │
+│      Geo           —           (universal option)                                    │
+│      Locale         —           (universal option)                                   │
+│      Device type    —           (universal option)                                   │
+│      Extract       bare        (bare / raw / markdown / css fields)                  │
 │      Concurrency   8                                                                 │
 │      Retries       3                                                                 │
 │                                                                                      │
-│   [ Test ]   [ Save as job.yaml ]   [ Run ]                                          │
+│   [ Save as job.yaml ]   [ Run ]                                                     │
 │                                                                                      │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-(This example is a provider with flat `options:`, no `templates:` — see the next
-section for how a templated provider like the real Decodo manifest looks instead.)
+(The real Decodo manifest declares four templates, so `Provider` here is
+immediately followed by a `Template` field — see the next section. A provider
+with flat `options:` and no `templates:` would show its option fields directly
+under `Provider`, with no `Template` field at all.)
 
 Both `Provider` and `Template` (below) support typing to jump straight to a match,
 not just cycling one at a time with the arrow keys — useful once either list grows
@@ -684,18 +697,21 @@ four (`universal`, marked default, plus `google`/`bing`/`amazon`):
 ```
 ┌─ Scrape ───────────────────────────────────────────────────────── esc: back to menu ─┐
 │                                                                                      │
-│      URL           https://example.com                                               │
+│      URL           (one per line)                                                    │
+│                                                                                      │
 │      Fetch via     provider    (local / proxy / provider)                            │
 │      Provider      decodo      (type to search)                                      │
 │   › Template      universal    (type to search)                                      │
 │      Headless      html        (universal option)                                    │
 │      Proxy pool    premium     (universal option)                                    │
 │      Geo           —           (universal option)                                    │
-│      Extract       markdown    (raw / markdown / fields)                             │
+│      Locale         —           (universal option)                                   │
+│      Device type    —           (universal option)                                   │
+│      Extract       bare        (bare / raw / markdown / css fields)                  │
 │      Concurrency   8                                                                 │
 │      Retries       3                                                                 │
 │                                                                                      │
-│   [ Test ]   [ Save as job.yaml ]   [ Run ]                                          │
+│   [ Save as job.yaml ]   [ Run ]                                                     │
 │                                                                                      │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -706,49 +722,37 @@ template, the `Template` field never appears at all — there's nothing to choos
 
 ### Changing "Extract" reacts the same way
 
-Moving `Extract` to `fields` replaces the single-line field with an editable list:
+Moving `Extract` to `css fields` replaces the single-line field with an editable
+list; `bare` and `raw` return the fetched body untouched (`bare` strips the
+result envelope in item detail too, `raw` keeps it), and `markdown` adds a
+markdown-conversion stage with no further fields:
 
 ```
-│   Extract     › fields                   (raw / markdown / fields)                   │
+│   Extract     › css fields               (bare / raw / markdown / css fields)        │
 │     title         h1                                                                 │
 │     price         .price@data-value                                                  │
 │     + add field                                                                      │
 ```
-
-### Test runs in place, on whatever the form currently says
-
-```
-→ Testing...
-  ✗ Blocked (403) — looks like a bot check, not a real 403.
-    "Fetch via" is still "local" — try switching it to "provider" and testing again.
-
-  ✓ 200 OK in 891ms   (after switching Fetch via → provider, Provider → decodo)
-    {"title":"Example Domain","price":null}
-
-  ⚠ "price" didn't match anything on the test page — check the selector, or this
-    may be normal if the field isn't on every page.
-```
-
-There's no separate "blocked path" — a block is just a `Test` result. The form
-suggests the fix; the user applies it themselves the same way they'd change any
-other field, since every field stays editable at every point.
 
 ### Crawl — same form model, different fields and defaults
 
 ```
 ┌─ Crawl ────────────────────────────────────────────────────────── esc: back to menu ─┐
 │                                                                                      │
-│      Starting URL    https://news.example.com                                        │
+│      Starting URL                                                                    │
 │      Fetch via       local       (local / proxy / provider)                          │
-│      Profile         chrome                                                          │
-│      Depth           2           (0 = seeds only)                                    │
-│   › Scope           same-host   (same-host / same-domain / any)                      │
-│      Extract         markdown                                                        │
-│      Per-host rps    2           (default differs from Scrape)                       │
+│      Profile         chrome      (TLS fingerprint)                                   │
+│   › Depth           1           (0 = seeds only)                                    │
+│      Max pages       100         (stop after this many pages)                        │
+│      Scope           same-host   (same-host / same-domain / any)                     │
+│      Sitemap         true        (also seed from /sitemap.xml)                       │
+│      Robots          respect     (respect / ignore robots.txt)                       │
+│      Extract         bare        (bare / raw / markdown / css fields)                │
+│      Per-host rps    16          (0 = unlimited; default differs from Scrape)        │
 │      Concurrency     8                                                               │
 │      Retries         3                                                               │
 │                                                                                      │
-│   [ Test ]   [ Save as job.yaml ]   [ Run ]                                          │
+│   [ Save as job.yaml ]   [ Run ]                                                     │
 │                                                                                      │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -787,8 +791,13 @@ be deleted from here — there's no file to remove.
 | Profile | `fetch.profile` (local/proxy only) |
 | Provider | `fetch.name` |
 | Template (multi-template providers only) | `fetch.template` |
-| provider-declared fields (e.g. Render / Geo) | `fetch.options.<name>` (provider only, per-manifest, per-template) |
-| Extract | a stage in the pipeline (`markdown` / `css`) |
+| provider-declared fields (e.g. Headless / Geo) | `fetch.options.<name>` (provider only, per-manifest, per-template) |
+| Extract (`bare`/`raw`) | no stage added; `bare` also strips the envelope in item detail (CLI equivalent: `--bare`) |
+| Extract (`markdown`/`css fields`) | a stage in the pipeline (`markdown` / `css`) |
+| Max pages (crawl only) | `source.crawl.maxPages` |
+| Sitemap (crawl only) | `source.crawl.sitemap` |
+| Robots (crawl only) | `source.crawl.robots` (`respect` / `ignore`) |
+| Per-host rps (crawl only) | `limits.rps` |
 
 ---
 

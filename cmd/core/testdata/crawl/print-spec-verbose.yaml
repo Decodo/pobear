@@ -13,7 +13,7 @@ stdout: |
           "scope": "same-host",
           "include": [],
           "exclude": [],
-          "sitemap": false,
+          "sitemap": true,
           "robots": "respect"
         }
       },
@@ -25,7 +25,7 @@ stdout: |
       },
       "limits": {
         "concurrency": 8,
-        "rps": 2,
+        "rps": 16,
         "retries": 3,
         "backoff": "exponential",
         "pluginConcurrency": 0,

@@ -80,10 +80,7 @@ func visibleCountRaw(height, overhead int, hasStatus bool, total int) int {
 	if hasStatus {
 		overhead += 2
 	}
-	v := height - overhead
-	if v < visibleCountFloor {
-		v = visibleCountFloor
-	}
+	v := max(height-overhead, visibleCountFloor)
 	if v > total {
 		v = total
 	}

@@ -102,7 +102,7 @@ func doRun(ctx context.Context, state formState, providersDir, credentialsPath s
 		return "✗ " + err.Error(), nil
 	}
 
-	rows := buildResultRows(result.Items, parseSinkItems(captured.Bytes()))
+	rows := buildResultRows(result.Items, parseSinkItems(captured.Bytes()), state.extract == "bare")
 
 	msg := fmt.Sprintf("fetched %d, errors %d, skipped %d", result.Succeeded, result.Failed, result.Skipped)
 	if result.Failed > 0 {

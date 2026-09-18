@@ -33,7 +33,7 @@ func TestComputeCrawlFieldsDefaultValues(t *testing.T) {
 
 	cases := map[string]string{
 		"depth": "1", "maxPages": "100", "scope": "same-host",
-		"sitemap": "false", "robots": "respect", "rps": "2",
+		"sitemap": "true", "robots": "respect", "rps": "16",
 	}
 	for name, want := range cases {
 		fld, ok := findField(fields, name)

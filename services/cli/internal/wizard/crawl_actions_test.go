@@ -34,8 +34,8 @@ func TestBuildCrawlJobSpecLocal(t *testing.T) {
 	if spec.Source.Crawl.Scope != "same-host" {
 		t.Errorf("Source.Crawl.Scope = %q, want \"same-host\" (the default)", spec.Source.Crawl.Scope)
 	}
-	if spec.Source.Crawl.Sitemap {
-		t.Error("Source.Crawl.Sitemap = true, want false (the default)")
+	if !spec.Source.Crawl.Sitemap {
+		t.Error("Source.Crawl.Sitemap = false, want true (the default)")
 	}
 	if spec.Source.Crawl.Robots != "respect" {
 		t.Errorf("Source.Crawl.Robots = %q, want \"respect\" (the default)", spec.Source.Crawl.Robots)
@@ -43,8 +43,8 @@ func TestBuildCrawlJobSpecLocal(t *testing.T) {
 	if spec.Fetch.Use != "local" {
 		t.Errorf("Fetch.Use = %q, want \"local\"", spec.Fetch.Use)
 	}
-	if spec.Limits.RPS != 2 {
-		t.Errorf("Limits.RPS = %d, want 2 (crawl's default differs from scrape's)", spec.Limits.RPS)
+	if spec.Limits.RPS != 16 {
+		t.Errorf("Limits.RPS = %d, want 16 (crawl's default differs from scrape's)", spec.Limits.RPS)
 	}
 	if len(spec.Stages) != 0 {
 		t.Errorf("Stages = %v, want none for the default \"bare\" extract mode", spec.Stages)

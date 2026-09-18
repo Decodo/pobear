@@ -27,8 +27,13 @@ type itemDetailScreen struct {
 
 func newItemDetailScreen(row resultRow) *itemDetailScreen {
 	text := row.url
-	if data, err := itemJSON(row); err == nil {
-		text = string(data)
+	switch {
+	case row.bare && row.body != "":
+		text = row.body
+	default:
+		if data, err := itemJSON(row); err == nil {
+			text = string(data)
+		}
 	}
 	return &itemDetailScreen{row: row, lines: strings.Split(text, "\n")}
 }

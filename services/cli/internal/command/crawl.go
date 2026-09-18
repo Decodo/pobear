@@ -49,7 +49,7 @@ func (c *Crawl) Run(ctx context.Context, args []string, stdin io.Reader, stdout,
 			return nil
 		},
 	}
-	registerCommonFlags(cmd, &f, 2)
+	registerCommonFlags(cmd, &f, 16)
 	flags := cmd.Flags()
 	flags.IntVarP(&depth, "depth", "d", 1, "link-following depth; 0 = seeds only")
 	flags.IntVar(&maxPages, "max-pages", 100, "stop after fetching this many pages")
@@ -57,7 +57,7 @@ func (c *Crawl) Run(ctx context.Context, args []string, stdin io.Reader, stdout,
 	flags.StringVarP(&scope, "scope", "s", "same-host", "same-host, same-domain, or any")
 	flags.StringArrayVarP(&include, "include", "i", nil, "only follow links matching this glob (repeatable)")
 	flags.StringArrayVar(&exclude, "exclude", nil, "never follow links matching this glob (repeatable); wins over --include")
-	flags.BoolVar(&sitemap, "sitemap", false, "also seed from /sitemap.xml")
+	flags.BoolVar(&sitemap, "sitemap", true, "also seed from /sitemap.xml")
 	flags.BoolVar(&ignoreRobots, "ignore-robots", false, "robots.txt is respected by default")
 	flags.BoolVar(&noRedirects, "no-redirects", false, "treat a 3xx response as a dead end instead of following it")
 	wireProviderHelp(cmd, c.Providers, &f.provider)

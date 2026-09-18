@@ -29,11 +29,11 @@ func newCrawlFormState() crawlFormState {
 		depth:         "1",
 		maxPages:      "100",
 		scope:         "same-host",
-		sitemap:       "false",
+		sitemap:       "true",
 		robots:        "respect",
 		fetchConfig:   newFetchConfig(),
 		extractConfig: newExtractConfig(),
-		rps:           "2",
+		rps:           "16",
 		concurrency:   "8",
 		retries:       "3",
 	}
