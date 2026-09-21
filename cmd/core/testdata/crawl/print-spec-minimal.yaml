@@ -6,14 +6,15 @@ stdout: |
         "crawl": {
           "seeds": [
             "{{base}}/x"
-          ]
+          ],
+          "sitemap": true
         }
       },
       "fetch": {
         "use": "local"
       },
       "limits": {
-        "rps": 2
+        "rps": 16
       }
     }
 stderr: ""

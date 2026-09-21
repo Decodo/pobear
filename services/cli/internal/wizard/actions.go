@@ -84,6 +84,8 @@ type resultRow struct {
 	status string
 	detail string
 	raw    map[string]any
+	bare   bool
+	body   string
 }
 
 type sinkItem struct {
@@ -136,10 +138,10 @@ func bodyPreview(body string) string {
 	return preview
 }
 
-func buildResultRows(items []jobresult.Item, sinkItems map[string]sinkItem) []resultRow {
+func buildResultRows(items []jobresult.Item, sinkItems map[string]sinkItem, bare bool) []resultRow {
 	rows := make([]resultRow, len(items))
 	for i, item := range items {
-		row := resultRow{url: item.URL}
+		row := resultRow{url: item.URL, bare: bare}
 		raw := map[string]any{"url": item.URL}
 		switch item.Outcome {
 		case jobresult.Succeeded:
@@ -151,6 +153,7 @@ func buildResultRows(items []jobresult.Item, sinkItems map[string]sinkItem) []re
 				if row.detail == "" {
 					row.detail = bodyPreview(si.Body)
 				}
+				row.body = si.Body
 				raw["finalUrl"] = si.FinalURL
 				raw["status"] = si.Status
 				raw["depth"] = si.Depth
