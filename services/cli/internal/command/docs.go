@@ -103,7 +103,7 @@ func (d *Docs) payload() docPayload {
 		Output: docOutput{
 			Stdout: "one NDJSON object per fetched item",
 			Stderr: "the `fetched N, errors N, skipped N` summary, and one detail line per failed URL",
-			Item:   []string{"url", "finalUrl", "parentUrl", "status", "body", "depth", "data"},
+			Item:   []string{"url", "finalUrl", "parentUrl", "status", "body", "depth", "data", "tier"},
 		},
 		Contracts: []docContract{
 			{

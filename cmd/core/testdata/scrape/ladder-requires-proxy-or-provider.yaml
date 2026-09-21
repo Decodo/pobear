@@ -1,0 +1,5 @@
+args: scrape {{base}}/x --ladder
+stdout: ""
+stderr: |
+    pobear: --ladder requires --proxy and/or --provider to be set
+exit: 3

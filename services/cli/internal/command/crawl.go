@@ -76,12 +76,9 @@ func crawlRun(ctx context.Context, runner JobRunner, providers *providerator.Pro
 		return 0, cerr
 	}
 
-	fetchUse := "local"
-	switch {
-	case f.provider != "":
-		fetchUse = "provider"
-	case f.proxy != "":
-		fetchUse = "proxy"
+	fetchUse, cerr := resolveFetchUse(f)
+	if cerr != nil {
+		return 0, cerr
 	}
 
 	opts := mergeOptions(f.render, f.geo, f.opts)
@@ -107,7 +104,7 @@ func crawlRun(ctx context.Context, runner JobRunner, providers *providerator.Pro
 	}
 
 	resolvedIn := jobgen.Input{
-		URLs: []string{target}, Crawl: crawlIn, FetchUse: fetchUse, Proxy: f.proxy, Provider: f.provider, Template: f.template,
+		URLs: []string{target}, Crawl: crawlIn, FetchUse: fetchUse, Ladder: f.ladder, Proxy: f.proxy, Provider: f.provider, Template: f.template,
 		Profile: profile, Options: fetchOptions, Timeout: f.timeout, NoRedirects: noRedirects, Stages: stages,
 		Concurrency: &f.concurrency, RPS: &f.rps, Retries: &f.retries, SinkUse: sinkUse, SinkPath: sinkPath,
 	}
