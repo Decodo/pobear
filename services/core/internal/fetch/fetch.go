@@ -3,6 +3,7 @@ package fetch
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/pobear/pobear/pkg/fault"
@@ -37,21 +38,41 @@ func NewFetcher(ts map[string]Tier, concurrency, retries int, backoff func(attem
 }
 
 func (f *Fetcher) Fetch(ctx context.Context, cfg jobspec.Fetch, url string) (*tiers.Result, fault.Kind, error) {
-	tier, ok := f.tiers[cfg.Use]
-	if !ok {
-		return nil, "", ErrUnknownTier
-	}
-
 	release, err := f.acquire(ctx)
 	if err != nil {
 		return nil, "", err
 	}
 	defer release()
 
+	var result *tiers.Result
+	var kind fault.Kind
+
+	for _, tierName := range ladderFor(cfg) {
+		tier, ok := f.tiers[tierName]
+		if !ok {
+			return nil, "", ErrUnknownTier
+		}
+
+		result, kind, err = f.fetchTierWithRetries(ctx, tier, cfg, url)
+		if result != nil {
+			result.Tier = tierName
+		}
+		if err == nil && kind == "" {
+			return result, kind, nil
+		}
+		if !escalates(kind) {
+			return result, kind, err
+		}
+	}
+	return result, kind, err
+}
+
+func (f *Fetcher) fetchTierWithRetries(ctx context.Context, tier Tier, cfg jobspec.Fetch, url string) (*tiers.Result, fault.Kind, error) {
 	retries := max(f.retries, 1)
 
 	var result *tiers.Result
 	var kind fault.Kind
+	var err error
 
 	for attempt := 1; attempt <= retries; attempt++ {
 		if f.throttle != nil {
@@ -74,6 +95,43 @@ func (f *Fetcher) Fetch(ctx context.Context, cfg jobspec.Fetch, url string) (*ti
 	}
 
 	return result, kind, err
+}
+
+func ladderFor(cfg jobspec.Fetch) []string {
+	if !cfg.Ladder {
+		return []string{cfg.Use}
+	}
+	start := slices.Index(jobspec.FetchTierOrder, cfg.Use)
+	if start < 0 {
+		return []string{cfg.Use}
+	}
+	var ladder []string
+	for _, t := range jobspec.FetchTierOrder[start:] {
+		if configured(cfg, t) {
+			ladder = append(ladder, t)
+		}
+	}
+	return ladder
+}
+
+func configured(cfg jobspec.Fetch, tier string) bool {
+	if tier == cfg.Use {
+		return true
+	}
+	switch tier {
+	case "local":
+		return true
+	case "proxy":
+		return cfg.Proxy != ""
+	case "provider":
+		return cfg.Name != ""
+	default:
+		return false
+	}
+}
+
+func escalates(k fault.Kind) bool {
+	return k == fault.Blocked || k == fault.RateLimit
 }
 
 func (f *Fetcher) acquire(ctx context.Context) (release func(), err error) {

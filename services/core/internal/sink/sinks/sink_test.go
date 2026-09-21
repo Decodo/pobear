@@ -124,7 +124,7 @@ func TestItemJSONFieldsAreStable(t *testing.T) {
 		t.Fatalf("unmarshalling an item: %v", err)
 	}
 
-	want := []string{"url", "finalUrl", "parentUrl", "status", "body", "depth", "data"}
+	want := []string{"url", "finalUrl", "parentUrl", "status", "body", "depth", "data", "tier"}
 	if len(got) != len(want) {
 		t.Fatalf("item has %d fields %v, want %d %v", len(got), keysOf(got), len(want), want)
 	}

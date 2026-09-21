@@ -284,3 +284,18 @@ func TestScrapeGateIsNotConsultedWhenThereWasNoRedirect(t *testing.T) {
 		t.Errorf("sink writes = %d, want 1", sinker.calls)
 	}
 }
+
+func TestScrapeRunCopiesResultTierIntoTheSinkItem(t *testing.T) {
+	fetcher := &fakeFetcher{result: &tiers.Result{Status: 200, Tier: "proxy"}}
+	sinker := &fakeSinker{}
+	s := workers.NewScrape(fetcher, &fakeStager{data: map[string]any{}}, sinker, &fakeLinkExtractor{})
+
+	_, _, kind, err := s.Run(context.Background(), &jobspec.Spec{}, "https://a.test", "", 0, nil)
+
+	if err != nil || kind != "" {
+		t.Fatalf("Run() kind = %q, err = %v, want a clean success", kind, err)
+	}
+	if sinker.gotItem.Tier != "proxy" {
+		t.Fatalf("sink item Tier = %q, want %q", sinker.gotItem.Tier, "proxy")
+	}
+}

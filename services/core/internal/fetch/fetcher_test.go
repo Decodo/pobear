@@ -300,3 +300,110 @@ func TestFetchWithNilThrottleNeverWaits(t *testing.T) {
 		t.Fatalf("expected no error with a nil throttle, got %v", err)
 	}
 }
+
+func TestFetchSetsResultTierToTheConfiguredUseTier(t *testing.T) {
+	local := &fakeTier{results: []fakeTierResult{{result: &tiers.Result{Status: 200}}}}
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": local}, 0, 1, noBackoff, nil)
+
+	result, kind, err := f.Fetch(context.Background(), jobspec.Fetch{Use: "local"}, "https://a.test")
+
+	if err != nil || kind != "" {
+		t.Fatalf("Fetch() = %v, %q, %v, want a clean success", result, kind, err)
+	}
+	if result.Tier != "local" {
+		t.Fatalf("result.Tier = %q, want %q", result.Tier, "local")
+	}
+}
+
+func TestFetchClimbsTheLadderOnBlocked(t *testing.T) {
+	local := &fakeTier{results: []fakeTierResult{{fault: fault.Blocked, err: errors.New("blocked")}}}
+	proxy := &fakeTier{results: []fakeTierResult{{result: &tiers.Result{Status: 200}}}}
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": local, "proxy": proxy}, 0, 1, noBackoff, nil)
+
+	cfg := jobspec.Fetch{Use: "local", Ladder: true, Proxy: "http://p.test"}
+	result, kind, err := f.Fetch(context.Background(), cfg, "https://a.test")
+
+	if err != nil || kind != "" {
+		t.Fatalf("Fetch() = %v, %q, %v, want success after climbing to proxy", result, kind, err)
+	}
+	if result.Tier != "proxy" {
+		t.Fatalf("result.Tier = %q, want %q", result.Tier, "proxy")
+	}
+	if local.calls != 1 || proxy.calls != 1 {
+		t.Fatalf("local calls = %d, proxy calls = %d, want 1 and 1", local.calls, proxy.calls)
+	}
+}
+
+func TestFetchStopsOnNonEscalatingFaultKind(t *testing.T) {
+	local := &fakeTier{results: []fakeTierResult{{fault: fault.Auth, err: errors.New("bad credential")}}}
+	proxy := &fakeTier{results: []fakeTierResult{{result: &tiers.Result{Status: 200}}}}
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": local, "proxy": proxy}, 0, 1, noBackoff, nil)
+
+	cfg := jobspec.Fetch{Use: "local", Ladder: true, Proxy: "http://p.test"}
+	_, kind, err := f.Fetch(context.Background(), cfg, "https://a.test")
+
+	if kind != fault.Auth || err == nil {
+		t.Fatalf("Fetch() kind = %q, err = %v, want fault.Auth and a non-nil error, no escalation", kind, err)
+	}
+	if proxy.calls != 0 {
+		t.Fatalf("proxy.calls = %d, want 0 -- fault.Auth must never escalate", proxy.calls)
+	}
+}
+
+func TestFetchEachRungGetsItsOwnFullRetryBudget(t *testing.T) {
+	local := &fakeTier{results: []fakeTierResult{
+		{fault: fault.Blocked, err: errors.New("1")},
+		{fault: fault.Blocked, err: errors.New("2")},
+		{fault: fault.Blocked, err: errors.New("3")},
+	}}
+	proxy := &fakeTier{results: []fakeTierResult{{result: &tiers.Result{Status: 200}}}}
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": local, "proxy": proxy}, 0, 3, noBackoff, nil)
+
+	cfg := jobspec.Fetch{Use: "local", Ladder: true, Proxy: "http://p.test"}
+	_, _, err := f.Fetch(context.Background(), cfg, "https://a.test")
+
+	if err != nil {
+		t.Fatalf("Fetch(): %v", err)
+	}
+	if local.calls != 3 {
+		t.Fatalf("local.calls = %d, want 3 -- retries=3 should give local its own full budget before escalating", local.calls)
+	}
+	if proxy.calls != 1 {
+		t.Fatalf("proxy.calls = %d, want 1", proxy.calls)
+	}
+}
+
+func TestFetchLadderNeverDropsTheStartingTier(t *testing.T) {
+	proxy := &fakeTier{results: []fakeTierResult{{result: &tiers.Result{Status: 200}}}}
+	provider := &fakeTier{results: []fakeTierResult{{err: errors.New("provider should never be called")}}}
+	f := fetch.NewFetcher(map[string]fetch.Tier{"proxy": proxy, "provider": provider}, 0, 1, noBackoff, nil)
+
+	cfg := jobspec.Fetch{Use: "proxy", Ladder: true, Name: "someProvider"}
+	result, kind, err := f.Fetch(context.Background(), cfg, "https://a.test")
+
+	if err != nil || kind != "" {
+		t.Fatalf("Fetch() = %v, %q, %v, want success from the starting tier", result, kind, err)
+	}
+	if proxy.calls != 1 {
+		t.Fatalf("proxy.calls = %d, want 1 -- the starting tier must never be dropped by the presence check", proxy.calls)
+	}
+	if provider.calls != 0 {
+		t.Fatalf("provider.calls = %d, want 0", provider.calls)
+	}
+}
+
+func TestFetchWithoutLadderRunsExactlyTheOldSingleTierPath(t *testing.T) {
+	local := &fakeTier{results: []fakeTierResult{{fault: fault.Blocked, err: errors.New("blocked")}}}
+	proxy := &fakeTier{results: []fakeTierResult{{result: &tiers.Result{Status: 200}}}}
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": local, "proxy": proxy}, 0, 1, noBackoff, nil)
+
+	cfg := jobspec.Fetch{Use: "local", Proxy: "http://p.test"}
+	_, kind, err := f.Fetch(context.Background(), cfg, "https://a.test")
+
+	if kind != fault.Blocked || err == nil {
+		t.Fatalf("Fetch() kind = %q, err = %v, want fault.Blocked returned directly -- Ladder is false, must never escalate", kind, err)
+	}
+	if proxy.calls != 0 {
+		t.Fatalf("proxy.calls = %d, want 0 -- Ladder is false", proxy.calls)
+	}
+}
