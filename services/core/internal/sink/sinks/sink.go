@@ -9,4 +9,5 @@ type Item struct {
 	Body      string              `json:"body" yaml:"body"`
 	Depth     int                 `json:"depth" yaml:"depth"`
 	Data      map[string]any      `json:"data,omitempty" yaml:"data,omitempty"`
+	Tier      string              `json:"tier" yaml:"tier"`
 }
