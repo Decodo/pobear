@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local, ladder: true}
+wantErr: true
+wantField: fetch.ladder
+wantMessage: "`fetch.ladder: true` requires a tier above `fetch.use: local` to be configured (proxy and/or provider)"

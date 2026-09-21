@@ -13,7 +13,7 @@ func parseFetch(root map[string]any) (Fetch, *ValidationError) {
 	if !ok {
 		return Fetch{}, utils.Errorf("fetch", "`fetch` is required")
 	}
-	m, err := utils.AsMapping(raw, "fetch", "use", "name", "template", "proxy", "profile", "options", "timeout", "noRedirects", "headers")
+	m, err := utils.AsMapping(raw, "fetch", "use", "name", "template", "proxy", "profile", "options", "timeout", "noRedirects", "headers", "ladder")
 	if err != nil {
 		return Fetch{}, err
 	}
@@ -27,23 +27,36 @@ func parseFetch(root map[string]any) (Fetch, *ValidationError) {
 		return Fetch{}, err
 	}
 
-	fetch := Fetch{Use: use}
+	ladder, err := utils.GetBool(m, "ladder", "fetch.ladder", false)
+	if err != nil {
+		return Fetch{}, err
+	}
 
-	if fetch.Name, err = tierScopedString(m, "name", "fetch.name", use, "provider"); err != nil {
+	fetch := Fetch{Use: use, Ladder: ladder}
+
+	if fetch.Name, err = tierScopedString(m, "name", "fetch.name", use, "provider", ladder); err != nil {
 		return Fetch{}, err
 	}
-	if fetch.Template, err = tierScopedString(m, "template", "fetch.template", use, "provider"); err != nil {
+	if fetch.Template, err = tierScopedString(m, "template", "fetch.template", use, "provider", ladder); err != nil {
 		return Fetch{}, err
 	}
-	if fetch.Proxy, err = tierScopedString(m, "proxy", "fetch.proxy", use, "proxy"); err != nil {
+	if fetch.Proxy, err = tierScopedString(m, "proxy", "fetch.proxy", use, "proxy", ladder); err != nil {
 		return Fetch{}, err
 	}
 
 	if err := parseFetchProfile(m, use, &fetch); err != nil {
 		return Fetch{}, err
 	}
-	if err := parseFetchOptions(m, use, &fetch); err != nil {
+	if err := parseFetchOptions(m, use, ladder, &fetch); err != nil {
 		return Fetch{}, err
+	}
+
+	if ladder {
+		hasHigherTier := (use == "local" && (fetch.Proxy != "" || fetch.Name != "")) ||
+			(use == "proxy" && fetch.Name != "")
+		if !hasHigherTier {
+			return Fetch{}, utils.Errorf("fetch.ladder", "`fetch.ladder: true` requires a tier above `fetch.use: %s` to be configured (proxy and/or provider)", use)
+		}
 	}
 
 	timeout := utils.GetString(m, "timeout", "30s")
@@ -82,9 +95,9 @@ func parseFetchProfile(m map[string]any, use string, fetch *Fetch) *ValidationEr
 	return nil
 }
 
-func parseFetchOptions(m map[string]any, use string, fetch *Fetch) *ValidationError {
+func parseFetchOptions(m map[string]any, use string, ladder bool, fetch *Fetch) *ValidationError {
 	_, present := m["options"]
-	if err := requireTier(present, "fetch.options", use, "provider"); err != nil {
+	if err := requireTierAtOrAbove(present, "fetch.options", use, "provider", ladder); err != nil {
 		return err
 	}
 	switch {
@@ -133,9 +146,9 @@ func requireTier(present bool, field, use string, allowedTiers ...string) *Valid
 	return utils.Errorf(field, "`%s` requires %s, got %q", field, strings.Join(parts, " or "), use)
 }
 
-func tierScopedString(m map[string]any, key, field, use string, allowedTiers ...string) (string, *ValidationError) {
+func tierScopedString(m map[string]any, key, field, use, ownTier string, ladder bool) (string, *ValidationError) {
 	raw, present := m[key]
-	if err := requireTier(present, field, use, allowedTiers...); err != nil {
+	if err := requireTierAtOrAbove(present, field, use, ownTier, ladder); err != nil {
 		return "", err
 	}
 	if !present {
@@ -143,4 +156,20 @@ func tierScopedString(m map[string]any, key, field, use string, allowedTiers ...
 	}
 	s, _ := raw.(string)
 	return s, nil
+}
+
+func requireTierAtOrAbove(present bool, field, use, ownTier string, ladder bool) *ValidationError {
+	if !present {
+		return nil
+	}
+	if !ladder {
+		if use == ownTier {
+			return nil
+		}
+		return utils.Errorf(field, "`%s` requires `fetch.use: %s`, got %q", field, ownTier, use)
+	}
+	if slices.Index(FetchTierOrder, ownTier) >= slices.Index(FetchTierOrder, use) {
+		return nil
+	}
+	return utils.Errorf(field, "`%s`'s tier (%s) is below `fetch.use` (%s) -- with `fetch.ladder: true`, a configured tier must be at or above `fetch.use`", field, ownTier, use)
 }
