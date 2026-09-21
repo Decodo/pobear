@@ -1,4 +1,4 @@
-width=100 height=30 cursor=0 rows=2 status=0
+width=100 height=30 cursor=0 rows=2 status=0 escalate=0
 ---
                                                                                                     
                                                                                                     

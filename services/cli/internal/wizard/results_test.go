@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/pobear/pobear/pkg/fault"
 )
 
 func TestResultsScreenEscPopsBackToForm(t *testing.T) {
@@ -136,6 +138,58 @@ func TestResultsScreenNeverExceedsRequestedSize(t *testing.T) {
 		s.clampScroll()
 		return s.View()
 	})
+}
+
+func TestResultsScreenNeverExceedsRequestedSizeWithTip(t *testing.T) {
+	rows := make([]resultRow, 36)
+	for i := range rows {
+		rows[i] = resultRow{url: "https://a.test/" + string(rune('a'+i%26)), status: "✗", detail: "some error detail text", kind: fault.Blocked}
+	}
+	s := newResultsScreen(rows, "✗ fetched 0, errors 36, skipped 0")
+
+	assertNeverExceedsSize(t, resultsMinHeight, 40, 3, resultsMinWidth, 10, func(w, h int) string {
+		s.width, s.height = w, h
+		s.clampScroll()
+		return s.View()
+	})
+}
+
+func TestHasEscalatableFailureDetectsBlockedAndRateLimit(t *testing.T) {
+	tests := []struct {
+		name string
+		rows []resultRow
+		want bool
+	}{
+		{"no rows", nil, false},
+		{"all succeeded", []resultRow{{status: "✓ 200"}}, false},
+		{"failed but not escalatable", []resultRow{{status: "✗", kind: fault.Network}}, false},
+		{"blocked", []resultRow{{status: "✗", kind: fault.Blocked}}, true},
+		{"rate limited", []resultRow{{status: "✗", kind: fault.RateLimit}}, true},
+		{"mixed, one blocked", []resultRow{{status: "✓ 200"}, {status: "✗", kind: fault.Blocked}}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := hasEscalatableFailure(tt.rows); got != tt.want {
+				t.Errorf("hasEscalatableFailure(%v) = %v, want %v", tt.rows, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResultsScreenShowsEscalationTipOnlyWhenBlockedOrRateLimited(t *testing.T) {
+	blocked := []resultRow{{url: "https://a.test", status: "✗", detail: "blocked", kind: fault.Blocked}}
+	s := newResultsScreen(blocked, "✗ fetched 0, errors 1, skipped 0")
+	s.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	if view := s.View(); !strings.Contains(view, "Tip:") {
+		t.Fatalf("View() with a blocked failure = %q, want it to contain an escalation tip", view)
+	}
+
+	clean := []resultRow{{url: "https://a.test", status: "✓ 200"}}
+	s2 := newResultsScreen(clean, "✓ fetched 1, errors 0, skipped 0")
+	s2.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	if view := s2.View(); strings.Contains(view, "Tip:") {
+		t.Fatalf("View() with no escalatable failure = %q, want no tip", view)
+	}
 }
 
 func TestResultsScreenBoxWidthIsCappedOnWideTerminals(t *testing.T) {

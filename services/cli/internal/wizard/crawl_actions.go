@@ -24,13 +24,20 @@ func buildCrawlJobSpec(state crawlFormState, providersDir string) (*jobspec.Spec
 	depth, _ := strconv.Atoi(state.depth)
 	maxPages, _ := strconv.Atoi(state.maxPages)
 
-	profile, proxy, providerName, templateName := state.profile, "", "", ""
+	fetchUse, ladder := resolveFetchUseAndLadder(state.fetchConfig)
+	if fetchUse == "" {
+		return nil, fmt.Errorf("configure at least one of Local/Proxy/Provider")
+	}
+
+	profile, proxy, providerName, templateName := "", "", "", ""
 	var options map[string]any
-	switch state.fetchVia {
-	case "proxy":
+	if state.localConfigured || state.proxyURL != "" {
+		profile = state.profile
+	}
+	if state.proxyURL != "" {
 		proxy = state.proxyURL
-	case "provider":
-		profile = ""
+	}
+	if state.providerName != "" {
 		providerName = state.providerName
 		var err error
 		templateName, options, err = resolveProviderOptions(state.fetchConfig, providersDir)
@@ -50,7 +57,8 @@ func buildCrawlJobSpec(state crawlFormState, providersDir string) (*jobspec.Spec
 	in := jobgen.Input{
 		URLs:        []string{state.startingURL},
 		Crawl:       crawlIn,
-		FetchUse:    state.fetchVia,
+		FetchUse:    fetchUse,
+		Ladder:      ladder,
 		Proxy:       proxy,
 		Provider:    providerName,
 		Template:    templateName,

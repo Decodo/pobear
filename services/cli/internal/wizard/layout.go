@@ -261,7 +261,7 @@ func placeWithBear(box, footerHint string, width, height int, topOnly bool) stri
 	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, block)
 }
 
-func renderForm(width, height int, title string, fields []field, cursor int, status string) string {
+func renderForm(width, height int, title string, fields []field, cursor int, status string, backHint string) string {
 	lines := make([]string, len(fields))
 	for i, f := range fields {
 		lines[i] = f.render(i == cursor, formValueWidth)
@@ -270,6 +270,6 @@ func renderForm(width, height int, title string, fields []field, cursor int, sta
 		lines = append(lines, "", status)
 	}
 	body := strings.Join(lines, "\n")
-	box := frameBox(formInnerWidth, title, formBackHint, body, true)
+	box := frameBox(formInnerWidth, title, backHint, body, true)
 	return placeWithBear(box, formFooterHint, width, height, false)
 }

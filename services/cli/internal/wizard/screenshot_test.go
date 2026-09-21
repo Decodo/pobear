@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/pobear/pobear/pkg/fault"
 )
 
 var updateScreenshots = flag.Bool("update", false, "regenerate testdata screenshots from the current render output")
@@ -112,8 +114,8 @@ func TestFormScreenshotScenarios(t *testing.T) {
 	for _, path := range paths {
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			width, height, cursor, state, want := readFormScreenshot(t, path)
-			fields := computeFields(state, manifestsWithNames("acme", "decodo"))
-			got := ansi.Strip(renderForm(width, height, "Scrape", fields, cursor, ""))
+			fields := computeFields(state)
+			got := ansi.Strip(renderForm(width, height, "Scrape", fields, cursor, "", formBackHint))
 
 			if *updateScreenshots {
 				writeFormScreenshot(t, path, width, height, cursor, state, got)
@@ -135,8 +137,14 @@ func readFormScreenshot(t *testing.T, path string) (width, height, cursor int, s
 	height = mustAtoi(t, path, tokens, "height")
 	cursor = mustAtoi(t, path, tokens, "cursor")
 
-	if v, ok := tokens["fetchVia"]; ok {
-		state.fetchVia = v
+	if tokens["localConfigured"] == "1" {
+		state.localConfigured = true
+	}
+	if v, ok := tokens["proxyURL"]; ok {
+		state.proxyURL = v
+	}
+	if v, ok := tokens["providerName"]; ok {
+		state.providerName = v
 	}
 	if v, ok := tokens["extract"]; ok {
 		state.extract = strings.ReplaceAll(v, "-", " ")
@@ -170,8 +178,12 @@ func encodeCSSFields(pairs []cssFieldPair) string {
 
 func writeFormScreenshot(t *testing.T, path string, width, height, cursor int, state formState, view string) {
 	t.Helper()
-	header := fmt.Sprintf("width=%d height=%d cursor=%d fetchVia=%s extract=%s cssFields=%s",
-		width, height, cursor, state.fetchVia, strings.ReplaceAll(state.extract, " ", "-"), encodeCSSFields(state.cssFields))
+	localConfigured := "0"
+	if state.localConfigured {
+		localConfigured = "1"
+	}
+	header := fmt.Sprintf("width=%d height=%d cursor=%d localConfigured=%s proxyURL=%s providerName=%s extract=%s cssFields=%s",
+		width, height, cursor, localConfigured, state.proxyURL, state.providerName, strings.ReplaceAll(state.extract, " ", "-"), encodeCSSFields(state.cssFields))
 	writeScreenshotFile(t, path, header, view)
 }
 
@@ -187,8 +199,8 @@ func TestCrawlFormScreenshotScenarios(t *testing.T) {
 	for _, path := range paths {
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			width, height, cursor, state, want := readCrawlFormScreenshot(t, path)
-			fields := computeCrawlFields(state, manifestsWithNames("acme", "decodo"))
-			got := ansi.Strip(renderForm(width, height, "Crawl", fields, cursor, ""))
+			fields := computeCrawlFields(state)
+			got := ansi.Strip(renderForm(width, height, "Crawl", fields, cursor, "", formBackHint))
 
 			if *updateScreenshots {
 				writeCrawlFormScreenshot(t, path, width, height, cursor, state, got)
@@ -210,8 +222,11 @@ func readCrawlFormScreenshot(t *testing.T, path string) (width, height, cursor i
 	height = mustAtoi(t, path, tokens, "height")
 	cursor = mustAtoi(t, path, tokens, "cursor")
 
-	if v, ok := tokens["fetchVia"]; ok {
-		state.fetchVia = v
+	if tokens["localConfigured"] == "1" {
+		state.localConfigured = true
+	}
+	if v, ok := tokens["proxyURL"]; ok {
+		state.proxyURL = v
 	}
 	if v, ok := tokens["providerName"]; ok {
 		state.providerName = v
@@ -221,8 +236,12 @@ func readCrawlFormScreenshot(t *testing.T, path string) (width, height, cursor i
 
 func writeCrawlFormScreenshot(t *testing.T, path string, width, height, cursor int, state crawlFormState, view string) {
 	t.Helper()
-	header := fmt.Sprintf("width=%d height=%d cursor=%d fetchVia=%s providerName=%s",
-		width, height, cursor, state.fetchVia, state.providerName)
+	localConfigured := "0"
+	if state.localConfigured {
+		localConfigured = "1"
+	}
+	header := fmt.Sprintf("width=%d height=%d cursor=%d localConfigured=%s proxyURL=%s providerName=%s",
+		width, height, cursor, localConfigured, state.proxyURL, state.providerName)
 	writeScreenshotFile(t, path, header, view)
 }
 
@@ -282,6 +301,17 @@ func sampleResultRows(n int) []resultRow {
 	return rows
 }
 
+func sampleEscalatableResultRows(n int) []resultRow {
+	rows := sampleResultRows(n)
+	rows[0] = resultRow{
+		url:    rows[0].url,
+		status: "✗",
+		detail: "blocked by target site",
+		kind:   fault.Blocked,
+	}
+	return rows
+}
+
 func TestResultsScreenshotScenarios(t *testing.T) {
 	paths, err := filepath.Glob("testdata/results/*.txt")
 	if err != nil {
@@ -293,10 +323,16 @@ func TestResultsScreenshotScenarios(t *testing.T) {
 
 	for _, path := range paths {
 		t.Run(filepath.Base(path), func(t *testing.T) {
-			width, height, cursor, rows, withStatus, want := readResultsScreenshot(t, path)
+			width, height, cursor, rows, withStatus, escalate, want := readResultsScreenshot(t, path)
+			resultRows := sampleResultRows(rows)
+			summary := fmt.Sprintf("✓ fetched %d, errors 0, skipped 0", rows)
+			if escalate {
+				resultRows = sampleEscalatableResultRows(rows)
+				summary = fmt.Sprintf("✗ fetched %d, errors 1, skipped 0", rows-1)
+			}
 			s := &resultsScreen{
-				rows:    sampleResultRows(rows),
-				summary: fmt.Sprintf("✓ fetched %d, errors 0, skipped 0", rows),
+				rows:    resultRows,
+				summary: summary,
 				cursor:  cursor,
 			}
 			if withStatus {
@@ -307,7 +343,7 @@ func TestResultsScreenshotScenarios(t *testing.T) {
 			got := ansi.Strip(s.View())
 
 			if *updateScreenshots {
-				writeResultsScreenshot(t, path, width, height, cursor, rows, withStatus, got)
+				writeResultsScreenshot(t, path, width, height, cursor, rows, withStatus, escalate, got)
 				return
 			}
 			if got != want {
@@ -317,7 +353,7 @@ func TestResultsScreenshotScenarios(t *testing.T) {
 	}
 }
 
-func readResultsScreenshot(t *testing.T, path string) (width, height, cursor, rows int, withStatus bool, view string) {
+func readResultsScreenshot(t *testing.T, path string) (width, height, cursor, rows int, withStatus, escalate bool, view string) {
 	t.Helper()
 	tokens, body := readScreenshotFile(t, path)
 	width = mustAtoi(t, path, tokens, "width")
@@ -325,16 +361,21 @@ func readResultsScreenshot(t *testing.T, path string) (width, height, cursor, ro
 	cursor = mustAtoi(t, path, tokens, "cursor")
 	rows = mustAtoi(t, path, tokens, "rows")
 	withStatus = tokens["status"] == "1"
-	return width, height, cursor, rows, withStatus, body
+	escalate = tokens["escalate"] == "1"
+	return width, height, cursor, rows, withStatus, escalate, body
 }
 
-func writeResultsScreenshot(t *testing.T, path string, width, height, cursor, rows int, withStatus bool, view string) {
+func writeResultsScreenshot(t *testing.T, path string, width, height, cursor, rows int, withStatus, escalate bool, view string) {
 	t.Helper()
 	statusTok := "0"
 	if withStatus {
 		statusTok = "1"
 	}
-	header := fmt.Sprintf("width=%d height=%d cursor=%d rows=%d status=%s", width, height, cursor, rows, statusTok)
+	escalateTok := "0"
+	if escalate {
+		escalateTok = "1"
+	}
+	header := fmt.Sprintf("width=%d height=%d cursor=%d rows=%d status=%s escalate=%s", width, height, cursor, rows, statusTok, escalateTok)
 	writeScreenshotFile(t, path, header, view)
 }
 
