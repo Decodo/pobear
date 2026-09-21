@@ -3,14 +3,14 @@ width=140 height=14 cursor=0
                                                                                                                                             
                                                                                                                                             
                                  ┌─ pobear ─────────────────────────────────────────┐                                                       
-                                 │                                                  │                                                       
-                                 │   › Scrape a page                                │       __         __                                   
-                                 │     Crawl a site                                 │      (  \_______/  )                                  
-                                 │     Manage providers                             │      /   •     •   \                                  
-                                 │     Manage credentials                           │     |      (ᴥ)      |                                 
+                                 │                                                  │       __         __                                   
+                                 │   › Scrape a page                                │      (  \_______/  )                                  
+                                 │     Crawl a site                                 │      /   •     •   \                                  
+                                 │     Manage providers                             │     |      (ᴥ)      |                                 
                                  │     Quit                                         │      \   <°)))><   /                                  
                                  │                                                  │       \____/_\____/                                   
                                  └──────────────────────────────────────────────────┘                                                       
                                  ↑/↓ move   enter select   q quit                                                                           
+                                                                                                                                            
                                                                                                                                             
                                                                                                                                             

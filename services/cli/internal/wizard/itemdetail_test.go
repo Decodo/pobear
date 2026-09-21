@@ -54,7 +54,7 @@ func TestItemDetailScreenNeverExceedsRequestedSize(t *testing.T) {
 	}
 	row := resultRow{url: "https://a.test", raw: data}
 
-	assertNeverExceedsSize(t, 10, 40, 3, unsupportedMinW, 160, 15, func(w, h int) string {
+	assertNeverExceedsSize(t, 10, 40, 3, unsupportedMinW, 15, func(w, h int) string {
 		s := newItemDetailScreen(row)
 		s.Update(tea.WindowSizeMsg{Width: w, Height: h})
 		return s.View()
@@ -114,7 +114,7 @@ func TestItemDetailScreenWrapNeverExceedsRequestedSize(t *testing.T) {
 	s := newItemDetailScreen(row)
 	s.wrap = true
 
-	assertNeverExceedsSize(t, 10, 30, 5, unsupportedMinW, 160, 15, func(w, h int) string {
+	assertNeverExceedsSize(t, 10, 30, 5, unsupportedMinW, 15, func(w, h int) string {
 		s.Update(tea.WindowSizeMsg{Width: w, Height: h})
 		return s.View()
 	})

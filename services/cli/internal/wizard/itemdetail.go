@@ -13,8 +13,7 @@ const (
 	itemDetailBackHint     = "esc: back to results"
 	itemDetailFooterHint   = "↑/↓ scroll   w write to file   t wrap   esc back"
 	itemDetailWidthMargin  = 4
-	itemDetailOverheadRows = 5
-	itemDetailMinVisible   = 3
+	itemDetailOverheadRows = 3
 )
 
 type itemDetailScreen struct {
@@ -53,7 +52,7 @@ func (s *itemDetailScreen) displayLines() []string {
 }
 
 func (s *itemDetailScreen) visibleLines() int {
-	return visibleCount(s.height, itemDetailOverheadRows, s.status != "", itemDetailMinVisible, len(s.displayLines()))
+	return visibleCount(s.height, itemDetailOverheadRows, s.status != "", len(s.displayLines()))
 }
 
 func (s *itemDetailScreen) maxOffset() int {

@@ -11,7 +11,6 @@ var menuItems = []string{
 	"Scrape a page",
 	"Crawl a site",
 	"Manage providers",
-	"Manage credentials",
 	"Quit",
 }
 
@@ -65,10 +64,18 @@ func classify(width, height int) layoutKind {
 
 func topBorderLine(innerWidth int, title, hint string) string {
 	const prefix, midSuffix = "─ ", " "
+	fixedWidth := lipgloss.Width(prefix) + lipgloss.Width(midSuffix) + 2 // "┌" + "┐"
+	budget := max(0, innerWidth-fixedWidth)
+
 	right := ""
 	if hint != "" {
-		right = " " + hint + " ─"
+		candidate := " " + hint + " ─"
+		if lipgloss.Width(title)+lipgloss.Width(candidate) <= budget {
+			right = candidate
+		}
 	}
+	title = truncatePlain(title, max(0, budget-lipgloss.Width(right)))
+
 	fill := max(0, innerWidth-lipgloss.Width(prefix+title+midSuffix)-lipgloss.Width(right))
 	return borderStyle.Render("┌"+prefix) +
 		titleStyle.Render(title) +

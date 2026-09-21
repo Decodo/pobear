@@ -71,18 +71,31 @@ func (w *countingWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-func visibleCount(height, overhead int, hasStatus bool, minVisible, total int) int {
+const (
+	visibleCountFloor   = 3
+	scrollIndicatorRows = 2
+)
+
+func visibleCountRaw(height, overhead int, hasStatus bool, total int) int {
 	if hasStatus {
 		overhead += 2
 	}
 	v := height - overhead
-	if v < minVisible {
-		v = minVisible
+	if v < visibleCountFloor {
+		v = visibleCountFloor
 	}
 	if v > total {
 		v = total
 	}
 	return v
+}
+
+func visibleCount(height, overhead int, hasStatus bool, total int) int {
+	visible := visibleCountRaw(height, overhead, hasStatus, total)
+	if total <= visible {
+		return visible
+	}
+	return visibleCountRaw(height, overhead+scrollIndicatorRows, hasStatus, total)
 }
 
 func maxScrollOffset(total, visible int) int {

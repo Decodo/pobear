@@ -31,7 +31,7 @@ func TestAuthUnknownProviderErrors(t *testing.T) {
 	}
 }
 
-func TestAuthNoNameArgWithNoProvidersInstalled(t *testing.T) {
+func TestAuthNoNameArgWithNoProvidersInstalledOnDiskStillListsEmbedded(t *testing.T) {
 	args := cliArgs("auth")
 
 	cmd := &command.Auth{
@@ -45,9 +45,12 @@ func TestAuthNoNameArgWithNoProvidersInstalled(t *testing.T) {
 	if got != 3 {
 		t.Fatalf("Run() = %d, want 3 (missing provider name)", got)
 	}
-	want := "pobear: auth requires a provider name (no providers installed)\n\nUsage:\n  pobear auth <provider> [flags]\n"
+	want := "pobear: you need to specify one of the available providers:\n"
 	if !hasPrefix(stderr.String(), want) {
 		t.Fatalf("stderr = %q, want prefix %q", stderr.String(), want)
+	}
+	if !strings.Contains(stderr.String(), "decodo") {
+		t.Fatalf("stderr = %q, want it to mention decodo (embedded, available with no providers directory)", stderr.String())
 	}
 }
 

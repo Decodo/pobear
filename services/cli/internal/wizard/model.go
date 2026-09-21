@@ -78,6 +78,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "Crawl a site":
 				form := newCrawlForm(m.providerManifests, m.ctx, m.providersDir, m.credentialsPath)
 				return m, pushScreen(form)
+			case "Manage providers":
+				return m, pushScreen(newProvidersScreen(m.providersDir, m.credentialsPath))
 			}
 		}
 		return m, nil

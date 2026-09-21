@@ -5,13 +5,14 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pobear/pobear/services/cli/internal/command"
 	"github.com/pobear/pobear/services/cli/internal/providerator"
 )
 
-func TestProvidersNoInstalledManifests(t *testing.T) {
+func TestProvidersWithNoDiskManifestsStillListsEmbedded(t *testing.T) {
 	args := cliArgs("providers")
 
 	cmd := &command.Providers{Providers: providerator.New(t.TempDir())}
@@ -22,8 +23,11 @@ func TestProvidersNoInstalledManifests(t *testing.T) {
 	if got != 0 {
 		t.Fatalf("Run() = %d, want 0", got)
 	}
-	if want := "no providers installed\n"; stderr.String() != want {
-		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
+	if stderr.String() != "" {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "decodo") {
+		t.Fatalf("stdout = %q, want it to mention decodo (embedded, available with no providers directory)", stdout.String())
 	}
 }
 

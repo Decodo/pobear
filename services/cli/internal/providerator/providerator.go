@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/pobear/pobear/pkg/provider"
+	"github.com/pobear/pobear/providers"
 )
 
 type Providerator struct {
@@ -18,14 +19,7 @@ func New(dir string) *Providerator {
 }
 
 func (p *Providerator) Load() ([]*provider.Manifest, error) {
-	manifests, err := provider.LoadDir(p.Dir)
-	if err != nil {
-		return nil, err
-	}
-	if err := provider.ValidateUnique(manifests); err != nil {
-		return nil, err
-	}
-	return manifests, nil
+	return provider.LoadMerged(providers.FS, p.Dir)
 }
 
 func Lookup(manifests []*provider.Manifest, name string) (*provider.Manifest, bool) {

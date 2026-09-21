@@ -9,27 +9,51 @@ import (
 	"github.com/pobear/pobear/services/cli/internal/providerator"
 )
 
-func TestLoadEmptyDirIsNotAnError(t *testing.T) {
+func TestLoadEmptyDirStillReturnsEmbeddedManifests(t *testing.T) {
 	p := providerator.New(t.TempDir())
 
 	got, err := p.Load()
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if len(got) != 0 {
-		t.Fatalf("Load() = %v, want empty", got)
+	if _, ok := providerator.Lookup(got, "decodo"); !ok {
+		t.Fatalf("Load() = %v, want the embedded decodo manifest even with an empty providers directory", got)
 	}
 }
 
-func TestLoadMissingDirIsNotAnError(t *testing.T) {
+func TestLoadMissingDirStillReturnsEmbeddedManifests(t *testing.T) {
 	p := providerator.New(filepath.Join(t.TempDir(), "does-not-exist"))
 
 	got, err := p.Load()
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if len(got) != 0 {
-		t.Fatalf("Load() = %v, want empty", got)
+	if _, ok := providerator.Lookup(got, "decodo"); !ok {
+		t.Fatalf("Load() = %v, want the embedded decodo manifest even with a missing providers directory", got)
+	}
+}
+
+func TestLoadDiskManifestOverridesEmbeddedOfSameName(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "decodo.yaml"), `
+name: decodo
+endpoint: https://custom.example.com/scrape
+auth: {type: bearer, credential: token}
+request: {body: {url: "{{ .URL }}"}}
+response: {body: "$.html"}
+`)
+	p := providerator.New(dir)
+
+	got, err := p.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	m, ok := providerator.Lookup(got, "decodo")
+	if !ok {
+		t.Fatal("Load() has no decodo manifest")
+	}
+	if m.Endpoint != "https://custom.example.com/scrape" {
+		t.Fatalf("decodo.Endpoint = %q, want the on-disk override, not the embedded default", m.Endpoint)
 	}
 }
 

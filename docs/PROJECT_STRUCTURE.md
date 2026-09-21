@@ -96,7 +96,7 @@
       /streamer
         streamer.go                // streamer: the reverse direction — streams results back over the wire, and carries `plugin`-stage callbacks (only usable in __rpc mode, per JOB_SPEC_REFERENCE §6)
 
-/providers                       // installed provider manifests (YAML), default $POBEAR_PROVIDERS_DIR — see PROVIDER_REFERENCE.md §13
+/providers                       // provider manifests (YAML) embedded into the binary via go:embed, also the default $POBEAR_PROVIDERS_DIR when running from a checkout — see PROVIDER_REFERENCE.md §13
 
 /sdk                              // "SDK bindings" in the diagram — per-language client libraries, calling into services/rpc's communicator
   /python                          // e.g. spawns `pobear __rpc` and talks to it over the wire protocol

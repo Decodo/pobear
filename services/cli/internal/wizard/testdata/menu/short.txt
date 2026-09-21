@@ -1,11 +1,11 @@
 width=80 height=11 cursor=0
 ---
                                                                                 
+                                                                                
               ┌─ pobear ─────────────────────────────────────────┐              
               │   › Scrape a page                                │              
               │     Crawl a site                                 │              
               │     Manage providers                             │              
-              │     Manage credentials                           │              
               │     Quit                                         │              
               └──────────────────────────────────────────────────┘              
               ↑/↓ move   enter select   q quit                                  

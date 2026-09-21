@@ -16,15 +16,15 @@ width=140 height=40 cursor=3
                                                                                                                                             
                                                                                                                                             
                                  ┌─ pobear ─────────────────────────────────────────┐                                                       
-                                 │                                                  │                                                       
-                                 │     Scrape a page                                │       __         __                                   
-                                 │     Crawl a site                                 │      (  \_______/  )                                  
-                                 │     Manage providers                             │      /   •     •   \                                  
-                                 │   › Manage credentials                           │     |      (ᴥ)      |                                 
-                                 │     Quit                                         │      \   <°)))><   /                                  
+                                 │                                                  │       __         __                                   
+                                 │     Scrape a page                                │      (  \_______/  )                                  
+                                 │     Crawl a site                                 │      /   •     •   \                                  
+                                 │     Manage providers                             │     |      (ᴥ)      |                                 
+                                 │   › Quit                                         │      \   <°)))><   /                                  
                                  │                                                  │       \____/_\____/                                   
                                  └──────────────────────────────────────────────────┘                                                       
                                  ↑/↓ move   enter select   q quit                                                                           
+                                                                                                                                            
                                                                                                                                             
                                                                                                                                             
                                                                                                                                             

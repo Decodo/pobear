@@ -339,6 +339,10 @@ manifest and the field — it never partially loads.
 
 ## 13. Installing and using one
 
+Decodo ships embedded in the `pobear` binary itself — it's available with no
+setup beyond `pobear auth decodo`. Any other provider is installed by dropping
+its manifest where pobear looks for one:
+
 ```bash
 # 1. Drop the file where pobear looks for manifests
 cp acme.yaml providers/                    # or $POBEAR_PROVIDERS_DIR
@@ -352,6 +356,15 @@ pobear auth acme
 # 4. Use it
 pobear scrape https://example.com --provider acme --opt device=mobile
 ```
+
+`pobear providers` always lists the embedded manifests too, merged with
+whatever's in `$POBEAR_PROVIDERS_DIR` — a manifest on disk with the same
+`name` overrides the embedded one, so a customized `decodo.yaml` can still
+replace the bundled definition if needed. The wizard's `Manage providers`
+menu item covers the same ground interactively — browse what's loaded, view
+a manifest's full schema, remove an on-disk one (the embedded copy, if any,
+stays available after removing an override), and set or replace a stored
+credential.
 
 ---
 
