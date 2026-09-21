@@ -19,43 +19,7 @@ func New(dir string) *Providerator {
 }
 
 func (p *Providerator) Load() ([]*provider.Manifest, error) {
-	embedded, err := provider.LoadFS(providers.FS)
-	if err != nil {
-		return nil, err
-	}
-	if err := provider.ValidateUnique(embedded); err != nil {
-		return nil, err
-	}
-
-	disk, err := provider.LoadDir(p.Dir)
-	if err != nil {
-		return nil, err
-	}
-	if err := provider.ValidateUnique(disk); err != nil {
-		return nil, err
-	}
-
-	return mergeManifests(embedded, disk), nil
-}
-
-func mergeManifests(embedded, disk []*provider.Manifest) []*provider.Manifest {
-	byName := make(map[string]*provider.Manifest, len(embedded)+len(disk))
-	order := make([]string, 0, len(embedded)+len(disk))
-	for _, m := range embedded {
-		byName[m.Name] = m
-		order = append(order, m.Name)
-	}
-	for _, m := range disk {
-		if _, exists := byName[m.Name]; !exists {
-			order = append(order, m.Name)
-		}
-		byName[m.Name] = m
-	}
-	merged := make([]*provider.Manifest, len(order))
-	for i, name := range order {
-		merged[i] = byName[name]
-	}
-	return merged
+	return provider.LoadMerged(providers.FS, p.Dir)
 }
 
 func Lookup(manifests []*provider.Manifest, name string) (*provider.Manifest, bool) {

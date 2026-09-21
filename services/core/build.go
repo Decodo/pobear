@@ -8,6 +8,7 @@ import (
 	"github.com/pobear/pobear/pkg/credentials"
 	"github.com/pobear/pobear/pkg/jobspec"
 	"github.com/pobear/pobear/pkg/provider"
+	"github.com/pobear/pobear/providers"
 	"github.com/pobear/pobear/services/core/internal/fetch"
 	"github.com/pobear/pobear/services/core/internal/fetch/tiers"
 	"github.com/pobear/pobear/services/core/internal/job"
@@ -38,7 +39,7 @@ type liveExecutor struct {
 }
 
 func (e *liveExecutor) Run(ctx context.Context, spec *jobspec.Spec) (job.Result, error) {
-	manifests, err := provider.LoadDir(e.providersDir)
+	manifests, err := provider.LoadMerged(providers.FS, e.providersDir)
 	if err != nil {
 		return job.Result{}, err
 	}
