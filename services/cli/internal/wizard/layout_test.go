@@ -76,7 +76,7 @@ func TestRenderMenuEveryNonUnsupportedSizeProducesExactCanvas(t *testing.T) {
 }
 
 func TestRenderFormNeverExceedsRequestedSize(t *testing.T) {
-	fields := computeFields(newFormState(), nil)
+	fields := computeFields(newFormState())
 
 	renderedLines := 0
 	for i, f := range fields {
@@ -85,7 +85,7 @@ func TestRenderFormNeverExceedsRequestedSize(t *testing.T) {
 	minHeight := renderedLines + 4 + footerRows
 	for h := minHeight; h <= 40; h++ {
 		for w := 60; w <= 160; w += 5 {
-			out := renderForm(w, h, "Scrape", fields, 0, "")
+			out := renderForm(w, h, "Scrape", fields, 0, "", formBackHint)
 			lines := strings.Split(out, "\n")
 			if len(lines) != h {
 				t.Fatalf("renderForm(%d,%d): got %d lines, want exactly %d", w, h, len(lines), h)

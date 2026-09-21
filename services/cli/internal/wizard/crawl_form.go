@@ -39,9 +39,9 @@ func newCrawlFormState() crawlFormState {
 	}
 }
 
-func computeCrawlFields(s crawlFormState, manifests []*provider.Manifest) []field {
+func computeCrawlFields(s crawlFormState) []field {
 	fields := []field{textField("startingURL", "Starting URL", "", s.startingURL)}
-	fields = append(fields, fetchFields(s.fetchConfig, manifests)...)
+	fields = append(fields, fetchTierRows(s.fetchConfig)...)
 	fields = append(fields,
 		numberField("depth", "Depth", "(0 = seeds only)", s.depth, 0, nil),
 		numberField("maxPages", "Max pages", "(stop after this many pages)", s.maxPages, 1, nil),
@@ -95,7 +95,7 @@ func (f *crawlForm) rebuild() {
 		focusedName = f.fields[f.cursor].name
 	}
 
-	f.fields = computeCrawlFields(f.state, f.providerManifests)
+	f.fields = computeCrawlFields(f.state)
 
 	newCursor := 0
 	for i, fld := range f.fields {
@@ -125,13 +125,10 @@ func (f *crawlForm) syncStateFromFields() {
 		switch {
 		case fld.name == "startingURL":
 			f.state.startingURL = fld.value()
-		case fld.name == "fetchVia":
-			f.state.fetchVia = fld.value()
 		case fld.name == "profile":
 			f.state.profile = fld.value()
 		case fld.name == "proxyURL":
 			f.state.proxyURL = fld.value()
-		case fld.name == "provider" || fld.name == "template":
 		case strings.HasPrefix(fld.name, "opt."):
 			if skipOptions {
 				continue
@@ -222,6 +219,15 @@ func (f *crawlForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if f.cursor < len(f.fields) && msg.String() == "enter" {
 			switch f.fields[f.cursor].name {
+			case "localTier":
+				f.syncStateFromFields()
+				return f, pushScreen(newTierScreen("local", &f.state.fetchConfig, f.providerManifests, f.rebuild))
+			case "proxyTier":
+				f.syncStateFromFields()
+				return f, pushScreen(newTierScreen("proxy", &f.state.fetchConfig, f.providerManifests, f.rebuild))
+			case "providerTier":
+				f.syncStateFromFields()
+				return f, pushScreen(newTierScreen("provider", &f.state.fetchConfig, f.providerManifests, f.rebuild))
 			case addFieldName:
 				f.syncStateFromFields()
 				f.state.cssFields = append(f.state.cssFields, cssFieldPair{})
@@ -235,6 +241,10 @@ func (f *crawlForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				f.syncStateFromFields()
 				if strings.TrimSpace(f.state.startingURL) == "" {
 					f.status = "✗ no starting URL to crawl"
+					return f, nil
+				}
+				if use, _ := resolveFetchUseAndLadder(f.state.fetchConfig); use == "" {
+					f.status = "✗ configure at least one of Local/Proxy/Provider"
 					return f, nil
 				}
 				if msg := checkProviderCredential(f.state.fetchConfig, f.providersDir, f.credentialsPath); msg != "" {
@@ -266,5 +276,5 @@ func (f *crawlForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (f *crawlForm) View() string {
-	return renderForm(f.width, f.height, "Crawl", f.fields, f.cursor, f.status)
+	return renderForm(f.width, f.height, "Crawl", f.fields, f.cursor, f.status, formBackHint)
 }

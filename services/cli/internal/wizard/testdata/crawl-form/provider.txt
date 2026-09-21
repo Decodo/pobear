@@ -1,6 +1,5 @@
-width=100 height=30 cursor=1 fetchVia=provider providerName=decodo
+width=100 height=30 cursor=3 localConfigured=0 proxyURL= providerName=decodo
 ---
-                                                                                                    
                                                                                                     
                                             __         __                                           
                                            (  \_______/  )                                          
@@ -12,8 +11,9 @@ width=100 height=30 cursor=1 fetchVia=provider providerName=decodo
        ┌─ Crawl ──────────────────────────────────────────────────────── esc: back to menu ─┐       
        │                                                                                    │       
        │  Starting URL                                                                      │       
-       │› Fetch via      provider       (local / proxy / provider)                          │       
-       │  Provider       decodo         (type to search)                                    │       
+       │  Local          — not set      (enter to configure)                                │       
+       │  Proxy          — not set      (enter to configure)                                │       
+       │› Provider       ✓ decodo       (enter to configure)                                │       
        │  Depth          1              (0 = seeds only)                                    │       
        │  Max pages      100            (stop after this many pages)                        │       
        │  Scope          same-host      (same-host / same-domain / any)                     │       

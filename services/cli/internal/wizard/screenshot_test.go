@@ -112,8 +112,8 @@ func TestFormScreenshotScenarios(t *testing.T) {
 	for _, path := range paths {
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			width, height, cursor, state, want := readFormScreenshot(t, path)
-			fields := computeFields(state, manifestsWithNames("acme", "decodo"))
-			got := ansi.Strip(renderForm(width, height, "Scrape", fields, cursor, ""))
+			fields := computeFields(state)
+			got := ansi.Strip(renderForm(width, height, "Scrape", fields, cursor, "", formBackHint))
 
 			if *updateScreenshots {
 				writeFormScreenshot(t, path, width, height, cursor, state, got)
@@ -135,8 +135,14 @@ func readFormScreenshot(t *testing.T, path string) (width, height, cursor int, s
 	height = mustAtoi(t, path, tokens, "height")
 	cursor = mustAtoi(t, path, tokens, "cursor")
 
-	if v, ok := tokens["fetchVia"]; ok {
-		state.fetchVia = v
+	if tokens["localConfigured"] == "1" {
+		state.localConfigured = true
+	}
+	if v, ok := tokens["proxyURL"]; ok {
+		state.proxyURL = v
+	}
+	if v, ok := tokens["providerName"]; ok {
+		state.providerName = v
 	}
 	if v, ok := tokens["extract"]; ok {
 		state.extract = strings.ReplaceAll(v, "-", " ")
@@ -170,8 +176,12 @@ func encodeCSSFields(pairs []cssFieldPair) string {
 
 func writeFormScreenshot(t *testing.T, path string, width, height, cursor int, state formState, view string) {
 	t.Helper()
-	header := fmt.Sprintf("width=%d height=%d cursor=%d fetchVia=%s extract=%s cssFields=%s",
-		width, height, cursor, state.fetchVia, strings.ReplaceAll(state.extract, " ", "-"), encodeCSSFields(state.cssFields))
+	localConfigured := "0"
+	if state.localConfigured {
+		localConfigured = "1"
+	}
+	header := fmt.Sprintf("width=%d height=%d cursor=%d localConfigured=%s proxyURL=%s providerName=%s extract=%s cssFields=%s",
+		width, height, cursor, localConfigured, state.proxyURL, state.providerName, strings.ReplaceAll(state.extract, " ", "-"), encodeCSSFields(state.cssFields))
 	writeScreenshotFile(t, path, header, view)
 }
 
@@ -187,8 +197,8 @@ func TestCrawlFormScreenshotScenarios(t *testing.T) {
 	for _, path := range paths {
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			width, height, cursor, state, want := readCrawlFormScreenshot(t, path)
-			fields := computeCrawlFields(state, manifestsWithNames("acme", "decodo"))
-			got := ansi.Strip(renderForm(width, height, "Crawl", fields, cursor, ""))
+			fields := computeCrawlFields(state)
+			got := ansi.Strip(renderForm(width, height, "Crawl", fields, cursor, "", formBackHint))
 
 			if *updateScreenshots {
 				writeCrawlFormScreenshot(t, path, width, height, cursor, state, got)
@@ -210,8 +220,11 @@ func readCrawlFormScreenshot(t *testing.T, path string) (width, height, cursor i
 	height = mustAtoi(t, path, tokens, "height")
 	cursor = mustAtoi(t, path, tokens, "cursor")
 
-	if v, ok := tokens["fetchVia"]; ok {
-		state.fetchVia = v
+	if tokens["localConfigured"] == "1" {
+		state.localConfigured = true
+	}
+	if v, ok := tokens["proxyURL"]; ok {
+		state.proxyURL = v
 	}
 	if v, ok := tokens["providerName"]; ok {
 		state.providerName = v
@@ -221,8 +234,12 @@ func readCrawlFormScreenshot(t *testing.T, path string) (width, height, cursor i
 
 func writeCrawlFormScreenshot(t *testing.T, path string, width, height, cursor int, state crawlFormState, view string) {
 	t.Helper()
-	header := fmt.Sprintf("width=%d height=%d cursor=%d fetchVia=%s providerName=%s",
-		width, height, cursor, state.fetchVia, state.providerName)
+	localConfigured := "0"
+	if state.localConfigured {
+		localConfigured = "1"
+	}
+	header := fmt.Sprintf("width=%d height=%d cursor=%d localConfigured=%s proxyURL=%s providerName=%s",
+		width, height, cursor, localConfigured, state.proxyURL, state.providerName)
 	writeScreenshotFile(t, path, header, view)
 }
 

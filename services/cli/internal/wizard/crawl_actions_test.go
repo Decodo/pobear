@@ -14,6 +14,7 @@ import (
 func TestBuildCrawlJobSpecLocal(t *testing.T) {
 	s := newCrawlFormState()
 	s.startingURL = "https://example.com"
+	s.localConfigured = true
 
 	spec, err := buildCrawlJobSpec(s, "")
 	if err != nil {
@@ -54,6 +55,7 @@ func TestBuildCrawlJobSpecLocal(t *testing.T) {
 func TestBuildCrawlJobSpecSitemapAndRobots(t *testing.T) {
 	s := newCrawlFormState()
 	s.startingURL = "https://example.com"
+	s.localConfigured = true
 	s.sitemap = "true"
 	s.robots = "ignore"
 
@@ -72,7 +74,6 @@ func TestBuildCrawlJobSpecSitemapAndRobots(t *testing.T) {
 func TestBuildCrawlJobSpecProviderIncludesResolvedOptions(t *testing.T) {
 	s := newCrawlFormState()
 	s.startingURL = "https://example.com"
-	s.fetchVia = "provider"
 	s.providerName = "decodo"
 	s.providerOptions = map[string]string{"headless": "png", "geo": "us"}
 
@@ -94,7 +95,6 @@ func TestBuildCrawlJobSpecProviderIncludesResolvedOptions(t *testing.T) {
 func TestBuildCrawlJobSpecUnknownProviderErrors(t *testing.T) {
 	s := newCrawlFormState()
 	s.startingURL = "https://example.com"
-	s.fetchVia = "provider"
 	s.providerName = "nope"
 
 	if _, err := buildCrawlJobSpec(s, t.TempDir()); err == nil {
@@ -107,6 +107,7 @@ func TestDoCrawlSaveWritesJobFile(t *testing.T) {
 
 	s := newCrawlFormState()
 	s.startingURL = "https://example.com"
+	s.localConfigured = true
 
 	status := doCrawlSave(s, "")
 	if !strings.HasPrefix(status, "✓") {
@@ -142,6 +143,7 @@ func TestDoCrawlRunAgainstLocalServer(t *testing.T) {
 
 	s := newCrawlFormState()
 	s.startingURL = srv.URL
+	s.localConfigured = true
 	s.depth = "0"
 	s.extract = "raw"
 

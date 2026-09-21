@@ -14,7 +14,7 @@ type cssFieldPair struct {
 }
 
 type fetchConfig struct {
-	fetchVia        string
+	localConfigured bool
 	profile         string
 	proxyURL        string
 	providerName    string
@@ -24,7 +24,7 @@ type fetchConfig struct {
 }
 
 func newFetchConfig() fetchConfig {
-	return fetchConfig{fetchVia: "local", profile: "chrome"}
+	return fetchConfig{profile: "chrome"}
 }
 
 type extractConfig struct {
@@ -46,21 +46,61 @@ func cssFieldName(i int, part string) string {
 	return "css." + part + "." + strconv.Itoa(i)
 }
 
-func fetchFields(c fetchConfig, manifests []*provider.Manifest) []field {
-	fields := []field{choiceField("fetchVia", "Fetch via", "(local / proxy / provider)", []string{"local", "proxy", "provider"}, c.fetchVia)}
+func localTierFields(c fetchConfig) []field {
+	return []field{choiceField("profile", "Profile", "(TLS fingerprint)", []string{"chrome", "firefox", "safari"}, c.profile)}
+}
 
-	switch c.fetchVia {
-	case "local":
-		fields = append(fields, choiceField("profile", "Profile", "(TLS fingerprint)", []string{"chrome", "firefox", "safari"}, c.profile))
-	case "proxy":
-		fields = append(fields,
-			textField("proxyURL", "Proxy URL", "", c.proxyURL),
-			choiceField("profile", "Profile", "(TLS fingerprint)", []string{"chrome", "firefox", "safari"}, c.profile),
-		)
-	case "provider":
-		fields = append(fields, providerAndOptionFields(c, manifests)...)
+func proxyTierFields(c fetchConfig) []field {
+	return []field{
+		textField("proxyURL", "Proxy URL", "", c.proxyURL),
+		choiceField("profile", "Profile", "(TLS fingerprint)", []string{"chrome", "firefox", "safari"}, c.profile),
 	}
-	return fields
+}
+
+func providerTierFields(c fetchConfig, manifests []*provider.Manifest) []field {
+	return providerAndOptionFields(c, manifests)
+}
+
+func tierRowField(name, label string, configured bool, summary string) field {
+	value := "— not set"
+	if configured {
+		value = "✓ " + summary
+	}
+	return field{name: name, label: label, hint: "(enter to configure)", kind: fieldChoice, options: []string{value}, choice: 0}
+}
+
+func fetchTierRows(c fetchConfig) []field {
+	providerSummary := c.providerName
+	if providerSummary != "" && c.templateName != "" {
+		providerSummary += " / " + c.templateName
+	}
+	return []field{
+		tierRowField("localTier", "Local", c.localConfigured, c.profile),
+		tierRowField("proxyTier", "Proxy", c.proxyURL != "", c.proxyURL),
+		tierRowField("providerTier", "Provider", c.providerName != "", providerSummary),
+	}
+}
+
+func ladderTiers(c fetchConfig) []string {
+	var tiers []string
+	if c.localConfigured {
+		tiers = append(tiers, "local")
+	}
+	if c.proxyURL != "" {
+		tiers = append(tiers, "proxy")
+	}
+	if c.providerName != "" {
+		tiers = append(tiers, "provider")
+	}
+	return tiers
+}
+
+func resolveFetchUseAndLadder(c fetchConfig) (use string, ladder bool) {
+	tiers := ladderTiers(c)
+	if len(tiers) == 0 {
+		return "", false
+	}
+	return tiers[0], len(tiers) > 1
 }
 
 func extractFields(c extractConfig) []field {
@@ -102,6 +142,8 @@ func providerAndOptionFields(c fetchConfig, manifests []*provider.Manifest) []fi
 	displayNames := names
 	if len(displayNames) == 0 {
 		displayNames = []string{"(none configured)"}
+	} else {
+		displayNames = append([]string{""}, names...)
 	}
 	fields := []field{choiceField("provider", "Provider", "(type to search)", displayNames, c.providerName)}
 

@@ -1,4 +1,4 @@
-width=160 height=20 cursor=0 fetchVia=local extract=markdown cssFields=
+width=160 height=20 cursor=0 localConfigured=0 proxyURL= providerName= extract=markdown cssFields=
 ---
                                                                                                                                                                 
                                                                                                                                                                 
@@ -6,8 +6,9 @@ width=160 height=20 cursor=0 fetchVia=local extract=markdown cssFields=
                           ┌─ Scrape ─────────────────────────────────────────────────────── esc: back to menu ─┐                                                
                           │                                                                                    │                                                
                           │› URL            (one per line)                                                     │                                                
-                          │  Fetch via      local          (local / proxy / provider)                          │       __         __                            
-                          │  Profile        chrome         (TLS fingerprint)                                   │      (  \_______/  )                           
+                          │  Local          — not set      (enter to configure)                                │                                                
+                          │  Proxy          — not set      (enter to configure)                                │       __         __                            
+                          │  Provider       — not set      (enter to configure)                                │      (  \_______/  )                           
                           │  Extract        markdown       (bare / raw / markdown / css fields)                │      /   •     •   \                           
                           │  Concurrency    8                                                                  │     |      (ᴥ)      |                          
                           │  Retries        3                                                                  │      \   <°)))><   /                           
@@ -16,7 +17,6 @@ width=160 height=20 cursor=0 fetchVia=local extract=markdown cssFields=
                           │                                                                                    │                                                
                           └────────────────────────────────────────────────────────────────────────────────────┘                                                
                           ↑/↓ move   enter edit   esc back                                                                                                      
-                                                                                                                                                                
                                                                                                                                                                 
                                                                                                                                                                 
                                                                                                                                                                 

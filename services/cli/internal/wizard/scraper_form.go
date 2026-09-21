@@ -26,9 +26,9 @@ func newFormState() formState {
 	}
 }
 
-func computeFields(s formState, manifests []*provider.Manifest) []field {
+func computeFields(s formState) []field {
 	fields := []field{textAreaField("URL", "(one per line)", s.url, urlAreaHeight, urlAreaWidth)}
-	fields = append(fields, fetchFields(s.fetchConfig, manifests)...)
+	fields = append(fields, fetchTierRows(s.fetchConfig)...)
 	fields = append(fields, extractFields(s.extractConfig)...)
 
 	fields = append(fields,
@@ -72,7 +72,7 @@ func (f *scrapeForm) rebuild() {
 		focusedName = f.fields[f.cursor].name
 	}
 
-	f.fields = computeFields(f.state, f.providerManifests)
+	f.fields = computeFields(f.state)
 
 	newCursor := 0
 	for i, fld := range f.fields {
@@ -106,13 +106,10 @@ func (f *scrapeForm) syncStateFromFields() {
 		switch {
 		case fld.name == "url":
 			f.state.url = fld.value()
-		case fld.name == "fetchVia":
-			f.state.fetchVia = fld.value()
 		case fld.name == "profile":
 			f.state.profile = fld.value()
 		case fld.name == "proxyURL":
 			f.state.proxyURL = fld.value()
-		case fld.name == "provider" || fld.name == "template":
 		case strings.HasPrefix(fld.name, "opt."):
 			if skipOptions {
 				continue
@@ -191,6 +188,15 @@ func (f *scrapeForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if f.cursor < len(f.fields) && msg.String() == "enter" {
 			switch f.fields[f.cursor].name {
+			case "localTier":
+				f.syncStateFromFields()
+				return f, pushScreen(newTierScreen("local", &f.state.fetchConfig, f.providerManifests, f.rebuild))
+			case "proxyTier":
+				f.syncStateFromFields()
+				return f, pushScreen(newTierScreen("proxy", &f.state.fetchConfig, f.providerManifests, f.rebuild))
+			case "providerTier":
+				f.syncStateFromFields()
+				return f, pushScreen(newTierScreen("provider", &f.state.fetchConfig, f.providerManifests, f.rebuild))
 			case addFieldName:
 				f.syncStateFromFields()
 				f.state.cssFields = append(f.state.cssFields, cssFieldPair{})
@@ -205,6 +211,10 @@ func (f *scrapeForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				total := len(urlList(f.state))
 				if total == 0 {
 					f.status = "✗ no URLs to scrape"
+					return f, nil
+				}
+				if use, _ := resolveFetchUseAndLadder(f.state.fetchConfig); use == "" {
+					f.status = "✗ configure at least one of Local/Proxy/Provider"
 					return f, nil
 				}
 				if msg := checkProviderCredential(f.state.fetchConfig, f.providersDir, f.credentialsPath); msg != "" {
@@ -236,5 +246,5 @@ func (f *scrapeForm) setStatus(s string) {
 }
 
 func (f *scrapeForm) View() string {
-	return renderForm(f.width, f.height, "Scrape", f.fields, f.cursor, f.status)
+	return renderForm(f.width, f.height, "Scrape", f.fields, f.cursor, f.status, formBackHint)
 }

@@ -45,8 +45,8 @@ func findField(fields []field, name string) (field, bool) {
 }
 
 func TestComputeFieldsDefaultState(t *testing.T) {
-	fields := computeFields(newFormState(), nil)
-	want := []string{"url", "fetchVia", "profile", "extract", "concurrency", "retries", "saveAction", "runAction"}
+	fields := computeFields(newFormState())
+	want := []string{"url", "localTier", "proxyTier", "providerTier", "extract", "concurrency", "retries", "saveAction", "runAction"}
 	got := fieldNames(fields)
 	if len(got) != len(want) {
 		t.Fatalf("got fields %v, want %v", got, want)
@@ -58,27 +58,77 @@ func TestComputeFieldsDefaultState(t *testing.T) {
 	}
 }
 
-func TestComputeFieldsFetchViaProxyShowsProxyURLAndProfile(t *testing.T) {
-	s := newFormState()
-	s.fetchVia = "proxy"
-	fields := computeFields(s, nil)
-	if !containsName(fields, "proxyURL") {
-		t.Error("expected a \"proxyURL\" field when fetchVia is proxy")
-	}
-	if !containsName(fields, "profile") {
-		t.Error("expected a \"profile\" field when fetchVia is proxy -- fetch.profile is valid for both local and proxy")
+func TestComputeFieldsShowsThreeTierRows(t *testing.T) {
+	fields := computeFields(newFormState())
+	names := fieldNames(fields)
+	for _, want := range []string{"localTier", "proxyTier", "providerTier"} {
+		found := false
+		for _, n := range names {
+			if n == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("computeFields() fields = %v, want %q among them", names, want)
+		}
 	}
 }
 
-func TestComputeFieldsFetchViaProviderShowsProviderNotProfile(t *testing.T) {
-	s := newFormState()
-	s.fetchVia = "provider"
-	fields := computeFields(s, nil)
+func TestComputeFieldsTierRowsStartUnconfigured(t *testing.T) {
+	fields := computeFields(newFormState())
+	for _, name := range []string{"localTier", "proxyTier", "providerTier"} {
+		fld, ok := findField(fields, name)
+		if !ok {
+			t.Fatalf("expected a %q field", name)
+		}
+		if fld.value() != "— not set" {
+			t.Errorf("%s.value() = %q, want %q", name, fld.value(), "— not set")
+		}
+	}
+}
+
+func TestEnterOnLocalTierRowPushesTierScreen(t *testing.T) {
+	f := newScrapeForm(nil, context.Background(), "", "")
+	for i, fld := range f.fields {
+		if fld.name == "localTier" {
+			f.cursor = i
+			break
+		}
+	}
+	f.refocus()
+
+	_, cmd := f.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("expected enter on the localTier row to return a push command")
+	}
+	msg := cmd()
+	push, ok := msg.(pushScreenMsg)
+	if !ok {
+		t.Fatalf("expected a pushScreenMsg, got %T", msg)
+	}
+	if _, ok := push.screen.(*tierScreen); !ok {
+		t.Fatalf("expected the pushed screen to be *tierScreen, got %T", push.screen)
+	}
+}
+
+func TestProxyTierFieldsHasURLAndProfile(t *testing.T) {
+	fields := proxyTierFields(fetchConfig{})
+	if !containsName(fields, "proxyURL") {
+		t.Error("expected a \"proxyURL\" field on the proxy tier")
+	}
+	if !containsName(fields, "profile") {
+		t.Error("expected a \"profile\" field on the proxy tier -- fetch.profile is valid for both local and proxy")
+	}
+}
+
+func TestProviderTierFieldsHasProviderNotProfile(t *testing.T) {
+	fields := providerTierFields(fetchConfig{}, nil)
 	if containsName(fields, "profile") {
-		t.Error("expected no \"profile\" field when fetchVia is provider")
+		t.Error("expected no \"profile\" field on the provider tier")
 	}
 	if !containsName(fields, "provider") {
-		t.Error("expected a \"provider\" field when fetchVia is provider")
+		t.Error("expected a \"provider\" field on the provider tier")
 	}
 }
 
@@ -86,7 +136,7 @@ func TestComputeFieldsExtractFieldsShowsCSSEditor(t *testing.T) {
 	s := newFormState()
 	s.extract = "css fields"
 	s.cssFields = []cssFieldPair{{name: "title", selector: "h1"}}
-	fields := computeFields(s, nil)
+	fields := computeFields(s)
 	if !containsName(fields, "css.name.0") || !containsName(fields, "css.selector.0") {
 		t.Errorf("expected css.name.0/css.selector.0 fields, got %v", fieldNames(fields))
 	}
@@ -104,7 +154,7 @@ func TestComputeFieldsRawOrMarkdownHasNoCSSEditor(t *testing.T) {
 	for _, mode := range []string{"raw", "markdown"} {
 		s := newFormState()
 		s.extract = mode
-		fields := computeFields(s, nil)
+		fields := computeFields(s)
 		if containsName(fields, addFieldName) {
 			t.Errorf("extract=%s: expected no css editor, got %v", mode, fieldNames(fields))
 		}
@@ -112,8 +162,7 @@ func TestComputeFieldsRawOrMarkdownHasNoCSSEditor(t *testing.T) {
 }
 
 func TestComputeFieldsProfileIsAChoiceOfThree(t *testing.T) {
-	s := newFormState()
-	fields := computeFields(s, nil)
+	fields := localTierFields(fetchConfig{})
 	profile, ok := findField(fields, "profile")
 	if !ok {
 		t.Fatal("expected a \"profile\" field")
@@ -134,7 +183,7 @@ func TestComputeFieldsProfileIsAChoiceOfThree(t *testing.T) {
 
 func TestComputeFieldsExtractIsAChoiceOfFourIncludingBare(t *testing.T) {
 	s := newFormState()
-	fields := computeFields(s, nil)
+	fields := computeFields(s)
 	extract, ok := findField(fields, "extract")
 	if !ok {
 		t.Fatal("expected an \"extract\" field")
@@ -163,7 +212,7 @@ func TestBareEasterEggOnlyChangesDisplayNeverTheRealValue(t *testing.T) {
 	bareEasterEgg = true
 	s := newFormState()
 	s.extract = "bare"
-	fields := computeFields(s, nil)
+	fields := computeFields(s)
 	extract, _ := findField(fields, "extract")
 	if extract.value() != "bare" {
 		t.Fatalf("extract.value() with the easter egg active = %q, want the real value \"bare\" unchanged", extract.value())
@@ -179,7 +228,7 @@ func TestBareEasterEggOnlyChangesDisplayNeverTheRealValue(t *testing.T) {
 	}
 
 	bareEasterEgg = false
-	fields = computeFields(s, nil)
+	fields = computeFields(s)
 	extract, _ = findField(fields, "extract")
 	if extract.displayOverride != "" {
 		t.Fatalf("displayOverride with the easter egg inactive = %q, want empty", extract.displayOverride)
@@ -187,7 +236,7 @@ func TestBareEasterEggOnlyChangesDisplayNeverTheRealValue(t *testing.T) {
 
 	bareEasterEgg = true
 	s.extract = "raw"
-	fields = computeFields(s, nil)
+	fields = computeFields(s)
 	extract, _ = findField(fields, "extract")
 	if extract.displayOverride != "" {
 		t.Fatalf("displayOverride for extract=%q with the easter egg active = %q, want empty (only \"bare\" gets the substitution)", s.extract, extract.displayOverride)
@@ -195,9 +244,7 @@ func TestBareEasterEggOnlyChangesDisplayNeverTheRealValue(t *testing.T) {
 }
 
 func TestComputeFieldsProviderIsAChoiceOfKnownProviders(t *testing.T) {
-	s := newFormState()
-	s.fetchVia = "provider"
-	fields := computeFields(s, manifestsWithNames("acme", "decodo"))
+	fields := providerTierFields(fetchConfig{}, manifestsWithNames("acme", "decodo"))
 	provider, ok := findField(fields, "provider")
 	if !ok {
 		t.Fatal("expected a \"provider\" field")
@@ -205,7 +252,7 @@ func TestComputeFieldsProviderIsAChoiceOfKnownProviders(t *testing.T) {
 	if provider.kind != fieldChoice {
 		t.Fatalf("expected provider to be a choice field, got kind %v", provider.kind)
 	}
-	want := []string{"acme", "decodo"}
+	want := []string{"", "acme", "decodo"}
 	if len(provider.options) != len(want) {
 		t.Fatalf("provider options = %v, want %v", provider.options, want)
 	}
@@ -216,10 +263,19 @@ func TestComputeFieldsProviderIsAChoiceOfKnownProviders(t *testing.T) {
 	}
 }
 
+func TestComputeFieldsProviderStartsBlankNotFirstManifest(t *testing.T) {
+	fields := providerTierFields(fetchConfig{}, manifestsWithNames("acme", "decodo"))
+	provider, ok := findField(fields, "provider")
+	if !ok {
+		t.Fatal("expected a \"provider\" field")
+	}
+	if provider.value() != "" {
+		t.Errorf("provider field value = %q, want \"\" (opening the screen must not silently select a provider)", provider.value())
+	}
+}
+
 func TestComputeFieldsProviderWithNoneConfiguredStillRenders(t *testing.T) {
-	s := newFormState()
-	s.fetchVia = "provider"
-	fields := computeFields(s, nil)
+	fields := providerTierFields(fetchConfig{}, nil)
 	provider, ok := findField(fields, "provider")
 	if !ok {
 		t.Fatal("expected a \"provider\" field even with no providers configured")
@@ -250,11 +306,9 @@ func templatedManifestFixture() *provider.Manifest {
 }
 
 func TestComputeFieldsProviderShowsManifestOptionFields(t *testing.T) {
-	s := newFormState()
-	s.fetchVia = "provider"
-	s.providerName = "decodo"
+	c := fetchConfig{providerName: "decodo"}
 
-	fields := computeFields(s, []*provider.Manifest{flatOptionsManifestFixture()})
+	fields := providerTierFields(c, []*provider.Manifest{flatOptionsManifestFixture()})
 	if !containsName(fields, "opt.headless") || !containsName(fields, "opt.geo") {
 		t.Fatalf("expected opt.headless/opt.geo fields, got %v", fieldNames(fields))
 	}
@@ -269,15 +323,13 @@ func TestComputeFieldsProviderShowsManifestOptionFields(t *testing.T) {
 }
 
 func TestComputeFieldsProviderIntOptionFieldShowsHint(t *testing.T) {
-	s := newFormState()
-	s.fetchVia = "provider"
-	s.providerName = "decodo"
+	c := fetchConfig{providerName: "decodo"}
 	m := &provider.Manifest{
 		Name:    "decodo",
 		Options: []provider.Option{{Name: "page_count", Type: "int", Default: 1, Min: intPtr(1), Max: intPtr(10)}},
 	}
 
-	fields := computeFields(s, []*provider.Manifest{m})
+	fields := providerTierFields(c, []*provider.Manifest{m})
 	pageCount, ok := findField(fields, "opt.page_count")
 	if !ok {
 		t.Fatal("expected an \"opt.page_count\" field")
@@ -290,11 +342,9 @@ func TestComputeFieldsProviderIntOptionFieldShowsHint(t *testing.T) {
 func intPtr(n int) *int { return &n }
 
 func TestComputeFieldsProviderWithAmbiguousTemplatesShowsTemplateField(t *testing.T) {
-	s := newFormState()
-	s.fetchVia = "provider"
-	s.providerName = "acme"
+	c := fetchConfig{providerName: "acme"}
 
-	fields := computeFields(s, []*provider.Manifest{templatedManifestFixture()})
+	fields := providerTierFields(c, []*provider.Manifest{templatedManifestFixture()})
 	tmpl, ok := findField(fields, "template")
 	if !ok {
 		t.Fatal("expected a \"template\" field when the manifest has 2+ templates and none is default")
@@ -312,9 +362,7 @@ func TestComputeFieldsProviderWithAmbiguousTemplatesShowsTemplateField(t *testin
 }
 
 func TestComputeFieldsProviderWithDefaultTemplateStillShowsTemplateField(t *testing.T) {
-	s := newFormState()
-	s.fetchVia = "provider"
-	s.providerName = "decodo"
+	c := fetchConfig{providerName: "decodo"}
 	m := &provider.Manifest{
 		Name: "decodo",
 		Templates: []provider.Template{
@@ -323,7 +371,7 @@ func TestComputeFieldsProviderWithDefaultTemplateStillShowsTemplateField(t *test
 		},
 	}
 
-	fields := computeFields(s, []*provider.Manifest{m})
+	fields := providerTierFields(c, []*provider.Manifest{m})
 	tmpl, ok := findField(fields, "template")
 	if !ok {
 		t.Fatal("expected a \"template\" field even though one template is marked default -- the user should still be able to reach the non-default ones")
@@ -337,9 +385,7 @@ func TestComputeFieldsProviderWithDefaultTemplateStillShowsTemplateField(t *test
 }
 
 func TestComputeFieldsProviderWithSingleTemplateHidesTemplateField(t *testing.T) {
-	s := newFormState()
-	s.fetchVia = "provider"
-	s.providerName = "decodo"
+	c := fetchConfig{providerName: "decodo"}
 	m := &provider.Manifest{
 		Name: "decodo",
 		Templates: []provider.Template{
@@ -347,7 +393,7 @@ func TestComputeFieldsProviderWithSingleTemplateHidesTemplateField(t *testing.T)
 		},
 	}
 
-	fields := computeFields(s, []*provider.Manifest{m})
+	fields := providerTierFields(c, []*provider.Manifest{m})
 	if containsName(fields, "template") {
 		t.Error("expected no \"template\" field when there's only one template -- there's nothing to choose")
 	}
@@ -356,7 +402,7 @@ func TestComputeFieldsProviderWithSingleTemplateHidesTemplateField(t *testing.T)
 	}
 }
 
-func TestScrapeFormTypingIntoTemplateSwitchesToNonDefaultOptions(t *testing.T) {
+func TestTierScreenTypingIntoTemplateSwitchesToNonDefaultOptions(t *testing.T) {
 	m := &provider.Manifest{
 		Name: "decodo",
 		Templates: []provider.Template{
@@ -364,61 +410,57 @@ func TestScrapeFormTypingIntoTemplateSwitchesToNonDefaultOptions(t *testing.T) {
 			{Name: "google", Options: []provider.Option{{Name: "page_count", Type: "int"}}},
 		},
 	}
-	f := newScrapeForm([]*provider.Manifest{m}, context.Background(), "", "")
-	f.state.fetchVia = "provider"
-	f.state.providerName = "decodo"
-	f.rebuild()
+	fc := &fetchConfig{providerName: "decodo"}
+	s := newTierScreen("provider", fc, []*provider.Manifest{m}, func() {})
 
-	for i, fld := range f.fields {
+	for i, fld := range s.fields {
 		if fld.name == "template" {
-			f.cursor = i
+			s.cursor = i
 			break
 		}
 	}
-	f.refocus()
+	s.refocus()
 	for _, r := range "goo" {
-		updated, _ := f.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
-		f = updated.(*scrapeForm)
+		s.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
 	}
 
-	if f.state.templateName != "google" {
-		t.Fatalf("templateName after typing \"goo\" = %q, want \"google\"", f.state.templateName)
+	if fc.templateName != "google" {
+		t.Fatalf("templateName after typing \"goo\" = %q, want \"google\"", fc.templateName)
 	}
-	if !containsName(f.fields, "opt.page_count") || containsName(f.fields, "opt.geo") {
-		t.Errorf("expected google's options after switching away from the default, got %v", fieldNames(f.fields))
+	if !containsName(s.fields, "opt.page_count") || containsName(s.fields, "opt.geo") {
+		t.Errorf("expected google's options after switching away from the default, got %v", fieldNames(s.fields))
 	}
 }
 
-func TestScrapeFormChangingProviderResetsTemplateAndOptions(t *testing.T) {
-	f := newScrapeForm([]*provider.Manifest{templatedManifestFixture(), flatOptionsManifestFixture()}, context.Background(), "", "")
-	f.state.fetchVia = "provider"
-	f.state.providerName = "acme"
-	f.state.templateName = "search"
-	f.state.templateQuery = "sea"
-	f.state.providerOptions = map[string]string{"query": "shoes"}
-	f.rebuild()
+func TestTierScreenChangingProviderResetsTemplateAndOptions(t *testing.T) {
+	fc := &fetchConfig{
+		providerName:    "acme",
+		templateName:    "search",
+		templateQuery:   "sea",
+		providerOptions: map[string]string{"query": "shoes"},
+	}
+	s := newTierScreen("provider", fc, []*provider.Manifest{templatedManifestFixture(), flatOptionsManifestFixture()}, func() {})
 
-	for i, fld := range f.fields {
+	for i, fld := range s.fields {
 		if fld.name == "provider" {
-			f.cursor = i
+			s.cursor = i
 			break
 		}
 	}
-	f.refocus()
-	updated, _ := f.Update(tea.KeyMsg{Type: tea.KeyRight})
-	f = updated.(*scrapeForm)
+	s.refocus()
+	s.Update(tea.KeyMsg{Type: tea.KeyRight})
 
-	if f.state.providerName != "decodo" {
-		t.Fatalf("providerName after cycling = %q, want \"decodo\"", f.state.providerName)
+	if fc.providerName != "decodo" {
+		t.Fatalf("providerName after cycling = %q, want \"decodo\"", fc.providerName)
 	}
-	if f.state.templateName != "" {
-		t.Errorf("templateName after switching provider = %q, want reset to \"\"", f.state.templateName)
+	if fc.templateName != "" {
+		t.Errorf("templateName after switching provider = %q, want reset to \"\"", fc.templateName)
 	}
-	if f.state.templateQuery != "" {
-		t.Errorf("templateQuery after switching provider = %q, want reset to \"\"", f.state.templateQuery)
+	if fc.templateQuery != "" {
+		t.Errorf("templateQuery after switching provider = %q, want reset to \"\"", fc.templateQuery)
 	}
-	if len(f.state.providerOptions) != 0 {
-		t.Errorf("providerOptions after switching provider = %v, want reset to empty", f.state.providerOptions)
+	if len(fc.providerOptions) != 0 {
+		t.Errorf("providerOptions after switching provider = %v, want reset to empty", fc.providerOptions)
 	}
 }
 
@@ -490,22 +532,30 @@ func TestScrapeFormEscPopsScreen(t *testing.T) {
 	}
 }
 
-func TestScrapeFormChangingFetchViaKeepsItFocused(t *testing.T) {
+func TestEnterOnProxyTierRowPushesTierScreen(t *testing.T) {
 	f := newScrapeForm(nil, context.Background(), "", "")
 	updated, _ := f.Update(tea.KeyMsg{Type: tea.KeyDown})
 	f = updated.(*scrapeForm)
-	if f.fields[f.cursor].name != "fetchVia" {
-		t.Fatalf("expected cursor on fetchVia, got %q", f.fields[f.cursor].name)
-	}
-
-	updated, _ = f.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	updated, _ = f.Update(tea.KeyMsg{Type: tea.KeyDown})
 	f = updated.(*scrapeForm)
-
-	if f.state.fetchVia != "proxy" {
-		t.Fatalf("expected fetchVia to advance to \"proxy\", got %q", f.state.fetchVia)
+	if f.fields[f.cursor].name != "proxyTier" {
+		t.Fatalf("expected cursor on proxyTier, got %q", f.fields[f.cursor].name)
 	}
-	if f.fields[f.cursor].name != "fetchVia" {
-		t.Fatalf("expected focus to stay on fetchVia after the field list changed, got %q", f.fields[f.cursor].name)
+
+	_, cmd := f.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("expected enter on proxyTier to return a push command")
+	}
+	push, ok := cmd().(pushScreenMsg)
+	if !ok {
+		t.Fatalf("expected a pushScreenMsg, got %T", cmd())
+	}
+	ts, ok := push.screen.(*tierScreen)
+	if !ok {
+		t.Fatalf("expected the pushed screen to be *tierScreen, got %T", push.screen)
+	}
+	if ts.tier != "proxy" {
+		t.Fatalf("pushed tierScreen.tier = %q, want %q", ts.tier, "proxy")
 	}
 }
 
@@ -784,24 +834,21 @@ func TestSearchFieldQueryTextSurvivesARebuild(t *testing.T) {
 			{Name: "google", Options: []provider.Option{{Name: "page_count", Type: "int"}}},
 		},
 	}
-	f := newScrapeForm([]*provider.Manifest{m}, context.Background(), "", "")
-	f.state.fetchVia = "provider"
-	f.state.providerName = "decodo"
-	f.rebuild()
+	fc := &fetchConfig{providerName: "decodo"}
+	s := newTierScreen("provider", fc, []*provider.Manifest{m}, func() {})
 
-	for i, fld := range f.fields {
+	for i, fld := range s.fields {
 		if fld.name == "template" {
-			f.cursor = i
+			s.cursor = i
 			break
 		}
 	}
-	f.refocus()
+	s.refocus()
 	for _, r := range "goo" {
-		updated, _ := f.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
-		f = updated.(*scrapeForm)
+		s.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
 	}
 
-	tmpl, ok := findField(f.fields, "template")
+	tmpl, ok := findField(s.fields, "template")
 	if !ok {
 		t.Fatal("expected a \"template\" field after typing")
 	}

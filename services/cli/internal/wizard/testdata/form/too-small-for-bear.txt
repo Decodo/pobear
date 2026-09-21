@@ -1,10 +1,11 @@
-width=90 height=11 cursor=0 fetchVia=local extract=markdown cssFields=
+width=90 height=11 cursor=0 localConfigured=0 proxyURL= providerName= extract=markdown cssFields=
 ---
   ┌─ Scrape ─────────────────────────────────────────────────────── esc: back to menu ─┐  
   │                                                                                    │  
   │› URL            (one per line)                                                     │  
-  │  Fetch via      local          (local / proxy / provider)                          │  
-  │  Profile        chrome         (TLS fingerprint)                                   │  
+  │  Local          — not set      (enter to configure)                                │  
+  │  Proxy          — not set      (enter to configure)                                │  
+  │  Provider       — not set      (enter to configure)                                │  
   │  Extract        markdown       (bare / raw / markdown / css fields)                │  
   │  Concurrency    8                                                                  │  
   │  Retries        3                                                                  │  
