@@ -143,11 +143,28 @@ supported.
 | `timeout` | duration string | all | `30s` | per-request timeout |
 | `noRedirects` | `bool` | all | `false` | `true` = a `3xx` is the final result; its `Location` is never followed, and in crawl mode never added to the frontier |
 | `headers` | `map[string]string` | all | `{}` | extra request headers, sent as-is |
+| `ladder` | `bool` | all | `false` | escalate to a higher configured tier (proxy, then provider) when a fetch is `blocked` or `rateLimit`; requires a tier above `use` to be configured |
 
 **Rule:** setting a field on a tier that doesn't support it is a validation error
 naming the field and the tier — never a silent no-op. This includes `options`: it
 requires `use: provider`, and every key in it must be declared by `name`'s manifest
 with a compatible type and value.
+
+**`ladder` — escalating through configured tiers when blocked:** the tier
+hierarchy is fixed, `local < proxy < provider`. A tier is "configured" purely by
+whether its own fields are set — `proxy` for the `proxy` tier, `name` for the
+`provider` tier — there's no separate per-tier enable flag; `local` is always
+configured, since it takes no fields of its own. With `ladder: false` (the
+default), `proxy`/`name`/`template`/`options` must exactly match `use` — the rule
+this section documents throughout. With `ladder: true`, that rule relaxes one
+direction only: each of those fields may belong to any tier at or above `use`,
+never below, and `use` must have at least one higher tier configured — `ladder:
+true` with nothing above `use` to climb to is itself rejected. When a fetch comes
+back `blocked` or `rateLimit`, it's retried — with its own full `limits.retries`
+budget — on the next configured tier up, stopping at the first tier that either
+succeeds or fails for a reason escalation doesn't cover; every other fault kind
+is returned as-is, from whichever tier hit it. The envelope's `tier` field (§7)
+reports which tier actually served each URL, whether or not `ladder` ever climbed.
 
 **`profile` only spoofs the TLS ClientHello, nothing else:** it doesn't touch
 `User-Agent` or any other header — a browser-shaped TLS fingerprint paired
@@ -241,6 +258,11 @@ lets it sit alongside other fields (`css`, `markdown`) in the same `data` map.
 |---|---|---|---|
 | `use` | enum: `stdout` \| `ndjson` \| `json` \| `yaml` \| `stream` | `stdout` | anything else rejected |
 | `path` | string | — | **required** when `use` is `ndjson`/`json`/`yaml`; **rejected** when `use` is `stdout`/`stream` |
+
+Every fetched item also carries a top-level `tier` field (`local`, `proxy`, or
+`provider`) — which tier actually served that URL, regardless of `sink.use`. It's
+always present, even on a job that never sets `fetch.ladder`, in which case it's
+just `fetch.use` echoed back on every item.
 
 - `stdout` streams NDJSON to stdout.
 - `ndjson` streams NDJSON to `path` as items complete.

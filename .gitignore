@@ -25,3 +25,6 @@ pobear
 
 # agent worktrees
 /.claude/worktrees/
+
+# superpowers scratch workspace (ledgers, briefs, review packages)
+/.superpowers/
