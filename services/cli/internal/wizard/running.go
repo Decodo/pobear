@@ -26,13 +26,17 @@ func runTick() tea.Cmd {
 	return tea.Tick(runningTickEvery, func(time.Time) tea.Msg { return runTickMsg{} })
 }
 
+type statusSetter interface {
+	setStatus(string)
+}
+
 type runningScreen struct {
-	form          *scrapeForm
+	form          statusSetter
 	progress      *runProgress
 	width, height int
 }
 
-func newRunningScreen(form *scrapeForm, progress *runProgress) *runningScreen {
+func newRunningScreen(form statusSetter, progress *runProgress) *runningScreen {
 	return &runningScreen{form: form, progress: progress}
 }
 
@@ -50,7 +54,7 @@ func (s *runningScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return s, runTick()
 
 	case runFinishedMsg:
-		s.form.status = msg.status
+		s.form.setStatus(msg.status)
 		if len(msg.rows) > 0 {
 			return s, replaceTop(newResultsScreen(msg.rows, msg.status))
 		}

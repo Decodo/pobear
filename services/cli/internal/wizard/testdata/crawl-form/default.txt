@@ -1,0 +1,32 @@
+width=100 height=30 cursor=0 fetchVia=local providerName=
+---
+                                                                                                    
+                                                                                                    
+                                            __         __                                           
+                                           (  \_______/  )                                          
+                                           /   •     •   \                                          
+                                          |      (ᴥ)      |                                         
+                                           \   <°)))><   /                                          
+                                            \____/_\____/                                           
+                                                                                                    
+       ┌─ Crawl ──────────────────────────────────────────────────────── esc: back to menu ─┐       
+       │                                                                                    │       
+       │› Starting URL                                                                      │       
+       │  Fetch via      local          (local / proxy / provider)                          │       
+       │  Profile        chrome         (TLS fingerprint)                                   │       
+       │  Depth          1              (0 = seeds only)                                    │       
+       │  Max pages      100            (stop after this many pages)                        │       
+       │  Scope          same-host      (same-host / same-domain / any)                     │       
+       │  Sitemap        false          (also seed from /sitemap.xml)                       │       
+       │  Robots         respect        (respect / ignore robots.txt)                       │       
+       │  Extract        bare           (bare / raw / markdown / css fields)                │       
+       │  Per-host rps   2              (0 = unlimited)                                     │       
+       │  Concurrency    8                                                                  │       
+       │  Retries        3                                                                  │       
+       │  [ Save as job.yaml ]                                                              │       
+       │  [ Run ]                                                                           │       
+       │                                                                                    │       
+       └────────────────────────────────────────────────────────────────────────────────────┘       
+       ↑/↓ move   enter edit   esc back                                                             
+                                                                                                    
+                                                                                                    
