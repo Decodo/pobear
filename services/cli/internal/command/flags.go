@@ -74,6 +74,7 @@ type commonFlags struct {
 	css              []string
 	out              string
 	bare             bool
+	ladder           bool
 	printSpec        bool
 	printSpecVerbose bool
 	failOnEmpty      bool
@@ -98,12 +99,31 @@ func registerCommonFlags(cmd *cobra.Command, f *commonFlags, defaultRPS int) {
 	flags.StringArrayVar(&f.css, "css", nil, "add a css extraction field as name=selector[@attr] (repeatable)")
 	flags.StringVarP(&f.out, "out", "o", "", "write NDJSON to this file instead of stdout, or one file per target plus an index.json if this names a directory")
 	flags.BoolVarP(&f.bare, "bare", "b", false, "print just the extracted value, no envelope -- requires at most one field from --extract/--css (falls back to the raw fetched body if neither is set)")
+	flags.BoolVar(&f.ladder, "ladder", false, "escalate through configured tiers (local, then proxy, then provider) when blocked or rate-limited")
 	flags.BoolVar(&f.printSpec, "print-spec", false, "print the job spec, don't run it")
 	flags.BoolVar(&f.printSpecVerbose, "print-spec-verbose", false, "like --print-spec, but every field is shown fully resolved")
 	flags.BoolVar(&f.failOnEmpty, "fail-on-empty", false, "exit non-zero when every fetched item extracted nothing")
 	flags.IntVarP(&f.concurrency, "concurrency", "c", 8, "maximum concurrent fetches")
 	flags.IntVarP(&f.retries, "retries", "r", 3, "retries per fetch before giving up")
 	flags.IntVar(&f.rps, "rps", defaultRPS, "requests/sec across every host combined (0 = unlimited)")
+}
+
+func resolveFetchUse(f *commonFlags) (string, *cliError) {
+	if f.proxy != "" && f.provider != "" && !f.ladder {
+		return "", newCLIError(exitcode.UsageError, "both --proxy and --provider are set -- add --ladder to escalate between them, or remove one")
+	}
+	if f.ladder {
+		return "local", nil
+	}
+
+	fetchUse := "local"
+	switch {
+	case f.proxy != "":
+		fetchUse = "proxy"
+	case f.provider != "":
+		fetchUse = "provider"
+	}
+	return fetchUse, nil
 }
 
 func resolveProfile(f *commonFlags, fetchUse string) (string, *cliError) {

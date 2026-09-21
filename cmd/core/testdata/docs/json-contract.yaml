@@ -68,7 +68,8 @@ stdout: |
           "status",
           "body",
           "depth",
-          "data"
+          "data",
+          "tier"
         ]
       },
       "contracts": [

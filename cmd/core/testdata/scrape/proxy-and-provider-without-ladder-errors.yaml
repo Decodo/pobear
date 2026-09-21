@@ -1,0 +1,5 @@
+args: scrape {{base}}/x --proxy http://p.test --provider acme
+stdout: ""
+stderr: |
+    pobear: both --proxy and --provider are set -- add --ladder to escalate between them, or remove one
+exit: 3
