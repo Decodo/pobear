@@ -22,13 +22,20 @@ func buildJobSpec(state formState, providersDir string) (*jobspec.Spec, error) {
 	concurrency, _ := strconv.Atoi(state.concurrency)
 	retries, _ := strconv.Atoi(state.retries)
 
-	profile, proxy, providerName, templateName := state.profile, "", "", ""
+	fetchUse, ladder := resolveFetchUseAndLadder(state.fetchConfig)
+	if fetchUse == "" {
+		return nil, fmt.Errorf("configure at least one of Local/Proxy/Provider")
+	}
+
+	profile, proxy, providerName, templateName := "", "", "", ""
 	var options map[string]any
-	switch state.fetchVia {
-	case "proxy":
+	if state.localConfigured || state.proxyURL != "" {
+		profile = state.profile
+	}
+	if state.proxyURL != "" {
 		proxy = state.proxyURL
-	case "provider":
-		profile = ""
+	}
+	if state.providerName != "" {
 		providerName = state.providerName
 		var err error
 		templateName, options, err = resolveProviderOptions(state.fetchConfig, providersDir)
@@ -39,7 +46,8 @@ func buildJobSpec(state formState, providersDir string) (*jobspec.Spec, error) {
 
 	in := jobgen.Input{
 		URLs:        urlList(state),
-		FetchUse:    state.fetchVia,
+		FetchUse:    fetchUse,
+		Ladder:      ladder,
 		Proxy:       proxy,
 		Provider:    providerName,
 		Template:    templateName,

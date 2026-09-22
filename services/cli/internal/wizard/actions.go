@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/pobear/pobear/pkg/fault"
 	"github.com/pobear/pobear/pkg/jobresult"
 	"github.com/pobear/pobear/pkg/jobspec"
 	"github.com/pobear/pobear/services/cli/internal/providerator"
@@ -40,7 +41,7 @@ func resolveProviderOptions(fc fetchConfig, providersDir string) (templateName s
 }
 
 func checkProviderCredential(fc fetchConfig, providersDir, credentialsPath string) string {
-	if fc.fetchVia != "provider" {
+	if fc.providerName == "" {
 		return ""
 	}
 	manifests, err := providerator.New(providersDir).Load()
@@ -86,6 +87,7 @@ type resultRow struct {
 	raw    map[string]any
 	bare   bool
 	body   string
+	kind   fault.Kind
 }
 
 type sinkItem struct {
@@ -95,6 +97,7 @@ type sinkItem struct {
 	Body     string         `json:"body"`
 	Depth    int            `json:"depth"`
 	Data     map[string]any `json:"data"`
+	Tier     string         `json:"tier"`
 }
 
 func parseSinkItems(buf []byte) map[string]sinkItem {
@@ -153,11 +156,15 @@ func buildResultRows(items []jobresult.Item, sinkItems map[string]sinkItem, bare
 				if row.detail == "" {
 					row.detail = bodyPreview(si.Body)
 				}
+				if si.Tier != "" && row.detail != "" {
+					row.detail = "(" + si.Tier + ") " + row.detail
+				}
 				row.body = si.Body
 				raw["finalUrl"] = si.FinalURL
 				raw["status"] = si.Status
 				raw["depth"] = si.Depth
 				raw["body"] = si.Body
+				raw["tier"] = si.Tier
 				if len(si.Data) > 0 {
 					raw["data"] = si.Data
 				}
@@ -165,6 +172,7 @@ func buildResultRows(items []jobresult.Item, sinkItems map[string]sinkItem, bare
 		case jobresult.Failed:
 			row.status = "✗"
 			row.detail = strings.ReplaceAll(item.Err, "\n", " ")
+			row.kind = item.Kind
 			raw["outcome"] = "failed"
 			raw["error"] = item.Err
 			if item.Kind != "" {

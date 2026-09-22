@@ -10,12 +10,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pobear/pobear/pkg/fault"
 	"github.com/pobear/pobear/pkg/jobresult"
 )
 
 func TestBuildJobSpecLocal(t *testing.T) {
 	s := newFormState()
 	s.url = "https://example.com"
+	s.localConfigured = true
 
 	spec, err := buildJobSpec(s, "")
 	if err != nil {
@@ -41,7 +43,6 @@ func TestBuildJobSpecLocal(t *testing.T) {
 func TestBuildJobSpecProxy(t *testing.T) {
 	s := newFormState()
 	s.url = "https://example.com"
-	s.fetchVia = "proxy"
 	s.proxyURL = "http://proxy.example.com:8080"
 
 	spec, err := buildJobSpec(s, "")
@@ -98,7 +99,6 @@ response: {body: "$.html"}
 func TestBuildJobSpecProviderClearsProfile(t *testing.T) {
 	s := newFormState()
 	s.url = "https://example.com"
-	s.fetchVia = "provider"
 	s.providerName = "decodo"
 
 	spec, err := buildJobSpec(s, writeManifest(t, "decodo", flatOptionsManifest))
@@ -119,7 +119,6 @@ func TestBuildJobSpecProviderClearsProfile(t *testing.T) {
 func TestBuildJobSpecProviderIncludesResolvedOptions(t *testing.T) {
 	s := newFormState()
 	s.url = "https://example.com"
-	s.fetchVia = "provider"
 	s.providerName = "decodo"
 	s.providerOptions = map[string]string{"headless": "png", "geo": "us"}
 
@@ -138,7 +137,6 @@ func TestBuildJobSpecProviderIncludesResolvedOptions(t *testing.T) {
 func TestBuildJobSpecProviderTemplateDefaultsToFirstWhenAmbiguous(t *testing.T) {
 	s := newFormState()
 	s.url = "https://example.com"
-	s.fetchVia = "provider"
 	s.providerName = "acme"
 	s.providerOptions = map[string]string{"domain": "example.com"}
 
@@ -174,7 +172,6 @@ response: {body: "$.html"}
 func TestBuildJobSpecProviderDefaultsToTheMarkedDefaultTemplate(t *testing.T) {
 	s := newFormState()
 	s.url = "https://example.com"
-	s.fetchVia = "provider"
 	s.providerName = "decodo"
 	s.providerOptions = map[string]string{"geo": "us"}
 
@@ -193,7 +190,6 @@ func TestBuildJobSpecProviderDefaultsToTheMarkedDefaultTemplate(t *testing.T) {
 func TestBuildJobSpecProviderHonorsExplicitNonDefaultTemplate(t *testing.T) {
 	s := newFormState()
 	s.url = "https://example.com"
-	s.fetchVia = "provider"
 	s.providerName = "decodo"
 	s.templateName = "google"
 	s.providerOptions = map[string]string{"page_count": "5"}
@@ -213,7 +209,6 @@ func TestBuildJobSpecProviderHonorsExplicitNonDefaultTemplate(t *testing.T) {
 func TestBuildJobSpecProviderUnknownProviderErrors(t *testing.T) {
 	s := newFormState()
 	s.url = "https://example.com"
-	s.fetchVia = "provider"
 	s.providerName = "nope"
 
 	if _, err := buildJobSpec(s, t.TempDir()); err == nil {
@@ -224,6 +219,7 @@ func TestBuildJobSpecProviderUnknownProviderErrors(t *testing.T) {
 func TestBuildJobSpecCSSFieldsFiltersBlankPairs(t *testing.T) {
 	s := newFormState()
 	s.url = "https://example.com"
+	s.localConfigured = true
 	s.extract = "css fields"
 	s.cssFields = []cssFieldPair{
 		{name: "title", selector: "h1"},
@@ -252,6 +248,7 @@ func TestBuildJobSpecCSSFieldsFiltersBlankPairs(t *testing.T) {
 func TestBuildJobSpecBareRunsNoStage(t *testing.T) {
 	s := newFormState()
 	s.url = "https://example.com"
+	s.localConfigured = true
 	s.extract = "bare"
 
 	spec, err := buildJobSpec(s, "")
@@ -260,6 +257,51 @@ func TestBuildJobSpecBareRunsNoStage(t *testing.T) {
 	}
 	if len(spec.Stages) != 0 {
 		t.Fatalf("Stages = %v, want none for bare extract (falls back to the raw fetched body)", spec.Stages)
+	}
+}
+
+func TestBuildJobSpecNoTierConfiguredErrors(t *testing.T) {
+	s := newFormState()
+	s.url = "https://example.com"
+
+	_, err := buildJobSpec(s, "")
+	if err == nil {
+		t.Fatal("buildJobSpec with no tier configured = nil error, want one")
+	}
+}
+
+func TestBuildJobSpecTwoTiersConfiguredSetsLadder(t *testing.T) {
+	s := newFormState()
+	s.url = "https://example.com"
+	s.localConfigured = true
+	s.providerName = "decodo"
+
+	spec, err := buildJobSpec(s, writeManifest(t, "decodo", flatOptionsManifest))
+	if err != nil {
+		t.Fatalf("buildJobSpec: %v", err)
+	}
+	if spec.Fetch.Use != "local" {
+		t.Errorf("Fetch.Use = %q, want %q (the lowest configured tier)", spec.Fetch.Use, "local")
+	}
+	if !spec.Fetch.Ladder {
+		t.Error("Fetch.Ladder = false, want true -- two tiers were configured")
+	}
+}
+
+func TestBuildJobSpecOneTierConfiguredLeavesLadderFalse(t *testing.T) {
+	s := newFormState()
+	s.url = "https://example.com"
+	s.localConfigured = true
+
+	spec, err := buildJobSpec(s, "")
+	if err != nil {
+		t.Fatalf("buildJobSpec: %v", err)
+	}
+	if spec.Fetch.Use != "local" {
+		t.Errorf("Fetch.Use = %q, want %q", spec.Fetch.Use, "local")
+	}
+	if spec.Fetch.Ladder {
+		t.Error("Fetch.Ladder = true, want false -- only one tier was configured")
 	}
 }
 
@@ -302,6 +344,21 @@ func TestBuildResultRowsCarriesBareAndBodyForItemDetail(t *testing.T) {
 	}
 }
 
+func TestBuildResultRowsShowsTierInDetail(t *testing.T) {
+	items := []jobresult.Item{{URL: "https://a.test", Outcome: jobresult.Succeeded}}
+	sinkItems := map[string]sinkItem{
+		"https://a.test": {URL: "https://a.test", Status: 200, Tier: "proxy", Data: map[string]any{"title": "hi"}},
+	}
+
+	rows := buildResultRows(items, sinkItems, false)
+	if !strings.Contains(rows[0].detail, "(proxy)") {
+		t.Fatalf("detail = %q, want it to mention the tier", rows[0].detail)
+	}
+	if rows[0].raw["tier"] != "proxy" {
+		t.Fatalf(`raw["tier"] = %v, want "proxy"`, rows[0].raw["tier"])
+	}
+}
+
 func TestBuildResultRowsCollapsesMultilineErrorsToOneLine(t *testing.T) {
 	multiline := "connection failed:\nsome cause\nanother cause"
 	items := []jobresult.Item{{URL: "https://a.test", Outcome: jobresult.Failed, Err: multiline}}
@@ -318,6 +375,25 @@ func TestBuildResultRowsCollapsesMultilineErrorsToOneLine(t *testing.T) {
 	}
 	if rows[0].raw["error"] != multiline {
 		t.Fatalf(`raw["error"] = %q, want the full multiline error preserved for the JSON detail view`, rows[0].raw["error"])
+	}
+}
+
+func TestBuildResultRowsCarriesFaultKindForFailedItems(t *testing.T) {
+	items := []jobresult.Item{
+		{URL: "https://a.test", Outcome: jobresult.Failed, Err: "blocked", Kind: fault.Blocked},
+		{URL: "https://b.test", Outcome: jobresult.Failed, Err: "rate limited", Kind: fault.RateLimit},
+		{URL: "https://c.test", Outcome: jobresult.Succeeded},
+	}
+
+	rows := buildResultRows(items, nil, false)
+	if rows[0].kind != fault.Blocked {
+		t.Errorf("rows[0].kind = %q, want %q", rows[0].kind, fault.Blocked)
+	}
+	if rows[1].kind != fault.RateLimit {
+		t.Errorf("rows[1].kind = %q, want %q", rows[1].kind, fault.RateLimit)
+	}
+	if rows[2].kind != "" {
+		t.Errorf("rows[2].kind (succeeded item) = %q, want empty", rows[2].kind)
 	}
 }
 
@@ -347,6 +423,7 @@ func TestDoSaveWritesJobFile(t *testing.T) {
 
 	s := newFormState()
 	s.url = "https://example.com"
+	s.localConfigured = true
 
 	status := doSave(s, "")
 	if !strings.HasPrefix(status, "✓") {
@@ -379,7 +456,6 @@ func TestDoSaveReportsBuildErrors(t *testing.T) {
 
 func TestCheckProviderCredentialCatchesMissingCredential(t *testing.T) {
 	s := newFormState()
-	s.fetchVia = "provider"
 	s.providerName = "decodo"
 
 	dir := writeManifest(t, "decodo", flatOptionsManifest)
@@ -396,7 +472,6 @@ func TestCheckProviderCredentialCatchesMissingCredential(t *testing.T) {
 
 func TestCheckProviderCredentialPassesWhenCredentialPresent(t *testing.T) {
 	s := newFormState()
-	s.fetchVia = "provider"
 	s.providerName = "decodo"
 
 	dir := writeManifest(t, "decodo", flatOptionsManifest)
@@ -425,6 +500,7 @@ func TestDoRunAgainstLocalServer(t *testing.T) {
 
 	s := newFormState()
 	s.url = srv.URL
+	s.localConfigured = true
 	s.extract = "raw"
 
 	status, rows := doRun(context.Background(), s, t.TempDir(), filepath.Join(t.TempDir(), "credentials"), nil)
@@ -445,6 +521,7 @@ func TestDoRunAgainstLocalServer(t *testing.T) {
 func TestDoRunReportsFetchFailures(t *testing.T) {
 	s := newFormState()
 	s.url = "http://127.0.0.1:1" // nothing listens here -- should fail fast
+	s.localConfigured = true
 	s.extract = "raw"
 
 	status, rows := doRun(context.Background(), s, t.TempDir(), filepath.Join(t.TempDir(), "credentials"), nil)

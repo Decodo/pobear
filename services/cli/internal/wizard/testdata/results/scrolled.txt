@@ -1,4 +1,4 @@
-width=100 height=12 cursor=10 rows=20 status=0
+width=100 height=12 cursor=10 rows=20 status=0 escalate=0
 ---
        ┌─ Results ────────────────────────────────────────────────────── esc: back to form ─┐       
        │✓ fetched 20, errors 0, skipped 0                                                   │       

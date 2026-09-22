@@ -6,6 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/pobear/pobear/pkg/fault"
 )
 
 const (
@@ -16,10 +18,11 @@ const (
 	resultsURLWidth     = 36
 	resultsRowOverhead  = 6
 	resultsOverheadRows = 5
+	resultsTipRows      = 1
 	resultsMinVisible   = 3
 	resultsWidthMargin  = 4
 	resultsMinWidth     = resultsStatusWidth + resultsURLWidth + 3 + resultsWidthMargin
-	resultsMinHeight    = resultsOverheadRows + resultsMinVisible + scrollIndicatorRows
+	resultsMinHeight    = resultsOverheadRows + resultsTipRows + resultsMinVisible + scrollIndicatorRows
 )
 
 type resultsScreen struct {
@@ -45,8 +48,16 @@ func (s *resultsScreen) innerWidth() int {
 	return w
 }
 
+func (s *resultsScreen) overhead() int {
+	overhead := resultsOverheadRows
+	if hasEscalatableFailure(s.rows) {
+		overhead += resultsTipRows
+	}
+	return overhead
+}
+
 func (s *resultsScreen) visibleRows() int {
-	return visibleCount(s.height, resultsOverheadRows, s.status != "", len(s.rows))
+	return visibleCount(s.height, s.overhead(), s.status != "", len(s.rows))
 }
 
 func (s *resultsScreen) maxOffset() int {
@@ -109,6 +120,15 @@ func (s *resultsScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return s, nil
 }
 
+func hasEscalatableFailure(rows []resultRow) bool {
+	for _, row := range rows {
+		if row.kind == fault.Blocked || row.kind == fault.RateLimit {
+			return true
+		}
+	}
+	return false
+}
+
 func formatResultRow(row resultRow, selected bool, innerWidth int) string {
 	marker := "  "
 	if selected {
@@ -139,7 +159,11 @@ func (s *resultsScreen) View() string {
 		end = len(s.rows)
 	}
 
-	lines := []string{s.summary, ""}
+	lines := []string{s.summary}
+	if hasEscalatableFailure(s.rows) {
+		lines = append(lines, truncatePlain("Tip: blocked or rate-limited? configure a Proxy or Provider tier to auto-escalate past it", innerWidth))
+	}
+	lines = append(lines, "")
 	for i := s.offset; i < end; i++ {
 		lines = append(lines, formatResultRow(s.rows[i], i == s.cursor, innerWidth))
 	}

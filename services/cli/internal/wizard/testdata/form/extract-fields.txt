@@ -1,4 +1,4 @@
-width=100 height=30 cursor=4 fetchVia=local extract=css-fields cssFields=title:h1|price:.price
+width=100 height=30 cursor=5 localConfigured=0 proxyURL= providerName= extract=css-fields cssFields=title:h1|price:.price
 ---
                                                                                                     
                                                                                                     
@@ -12,8 +12,9 @@ width=100 height=30 cursor=4 fetchVia=local extract=css-fields cssFields=title:h
        ┌─ Scrape ─────────────────────────────────────────────────────── esc: back to menu ─┐       
        │                                                                                    │       
        │  URL            (one per line)                                                     │       
-       │  Fetch via      local          (local / proxy / provider)                          │       
-       │  Profile        chrome         (TLS fingerprint)                                   │       
+       │  Local          — not set      (enter to configure)                                │       
+       │  Proxy          — not set      (enter to configure)                                │       
+       │  Provider       — not set      (enter to configure)                                │       
        │  Extract        css fields     (bare / raw / markdown / css fields)                │       
        │›   Field name   title          (ctrl+d remove)                                     │       
        │      Selector   h1                                                                 │       
@@ -27,6 +28,5 @@ width=100 height=30 cursor=4 fetchVia=local extract=css-fields cssFields=title:h
        │                                                                                    │       
        └────────────────────────────────────────────────────────────────────────────────────┘       
        ↑/↓ move   enter edit   esc back                                                             
-                                                                                                    
                                                                                                     
                                                                                                     
