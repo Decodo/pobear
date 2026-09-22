@@ -36,6 +36,7 @@ type Fetch struct {
 	Timeout     string            `yaml:"timeout,omitempty" json:"timeout,omitempty"`
 	NoRedirects bool              `yaml:"noRedirects,omitempty" json:"noRedirects,omitempty"`
 	Headers     map[string]string `yaml:"headers,omitempty" json:"headers,omitempty"`
+	Ladder      bool              `yaml:"ladder,omitempty" json:"ladder,omitempty"`
 }
 
 type Limits struct {
@@ -57,3 +58,5 @@ type Sink struct {
 	Use  string `yaml:"use" json:"use"`
 	Path string `yaml:"path,omitempty" json:"path,omitempty"`
 }
+
+var FetchTierOrder = []string{"local", "proxy", "provider"}

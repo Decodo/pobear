@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: provider, name: acme, ladder: true}
+wantErr: true
+wantField: fetch.ladder
+wantMessage: "`fetch.ladder: true` is meaningless with `fetch.use: provider` -- there is no tier above it to climb to"
