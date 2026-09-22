@@ -1,6 +1,6 @@
 args: scrape {{base}}/page.html --extract raw
 stdout: |
-    {"url":"{{base}}/page.html","finalUrl":"{{base}}/page.html","parentUrl":"","status":200,"body":"<h1>Hello</h1><p>world</p>","depth":0,"data":{"raw":"<h1>Hello</h1><p>world</p>"}}
+    {"url":"{{base}}/page.html","finalUrl":"{{base}}/page.html","parentUrl":"","status":200,"body":"<h1>Hello</h1><p>world</p>","depth":0,"data":{"raw":"<h1>Hello</h1><p>world</p>"},"tier":"local"}
 stderr: |
     fetched 1, errors 0, skipped 0
 exit: 0

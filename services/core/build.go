@@ -106,23 +106,29 @@ func (*liveExecutor) createStager() *stage.Stager {
 	return stager
 }
 
-func (e *liveExecutor) createFetcher(manifests []*provider.Manifest, spec *jobspec.Spec) (*fetch.Fetcher, error) {
-	localClient := http.DefaultClient
-	proxyClient := http.DefaultClient
+func buildFetchClients(fetch jobspec.Fetch) (localClient, proxyClient *http.Client, err error) {
+	localClient = http.DefaultClient
+	if fetch.Profile != "" {
+		localClient, err = tiers.NewFingerprintedClient(fetch.Profile, "")
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 
-	switch spec.Fetch.Use {
-	case "local":
-		client, err := tiers.NewFingerprintedClient(spec.Fetch.Profile, "")
+	proxyClient = http.DefaultClient
+	if (fetch.Proxy != "" || fetch.Use == "proxy") && fetch.Profile != "" {
+		proxyClient, err = tiers.NewFingerprintedClient(fetch.Profile, fetch.Proxy)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		localClient = client
-	case "proxy":
-		client, err := tiers.NewFingerprintedClient(spec.Fetch.Profile, spec.Fetch.Proxy)
-		if err != nil {
-			return nil, err
-		}
-		proxyClient = client
+	}
+	return localClient, proxyClient, nil
+}
+
+func (e *liveExecutor) createFetcher(manifests []*provider.Manifest, spec *jobspec.Spec) (*fetch.Fetcher, error) {
+	localClient, proxyClient, err := buildFetchClients(spec.Fetch)
+	if err != nil {
+		return nil, err
 	}
 
 	tierMap := map[string]fetch.Tier{
