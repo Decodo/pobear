@@ -45,6 +45,7 @@ $ pobear scrape urls.txt --print-spec
 |---|---|---|
 | `--proxy <url>` | — | tier 1 |
 | `--provider <name>` | — | tier 2 |
+| `--ladder` | off | escalate from local through whichever of proxy/provider are configured, if blocked/rate-limited — a no-op with neither set |
 | `--template <name>` | the provider's `default` template, if any | selects one of the provider's declared templates — see below |
 | `--profile chrome\|firefox\|safari` | `chrome` | local/proxy TLS fingerprint; rejected with `--provider` |
 | `--render` | off | sugar for `--opt render=true` |
@@ -74,6 +75,36 @@ little. `crawl`'s own flags follow the same reasoning (below) — notably
 `--ignore-robots` is deliberately never abbreviated, since it disables a
 legal/courtesy default and shouldn't be easy to fat-finger.
 
+### `--ladder` — escalating to a higher tier when blocked
+
+`--proxy`/`--provider` pick which additional tiers are configured; `--ladder` decides
+whether a `[blocked]` or rate-limited fetch climbs from `local` through whichever of
+them are set instead of failing outright (see `JOB_SPEC_REFERENCE.md` §4 for the full
+escalation rule). It always starts at `local` regardless of which of `--proxy`/
+`--provider` are set, so it's also what lets `--proxy` and `--provider` be set
+together at all — without it, that combination is ambiguous (which tier actually
+fetches?) and rejected:
+
+```
+$ pobear scrape https://example.com --proxy http://p.test --provider decodo
+pobear: both --proxy and --provider are set -- add --ladder to escalate between them, or remove one
+$ echo $?
+3
+```
+
+`--ladder` with neither `--proxy` nor `--provider` set is a valid no-op — there's
+nothing above `local` to climb to, so it behaves exactly like not passing `--ladder`
+at all:
+
+```
+$ pobear scrape https://example.com --ladder --print-spec
+{
+  "version": 1,
+  "source": { "urls": ["https://example.com"] },
+  "fetch": { "use": "local", "ladder": true }
+}
+```
+
 ### `--print-spec` vs `--print-spec-verbose` — sane defaults, or every field resolved
 
 `--print-spec` omits any field still sitting at its default — the same "every
@@ -96,7 +127,7 @@ $ pobear scrape https://ip.decodo.com --print-spec-verbose
 {
   "version": 1,
   "source": { "urls": ["https://ip.decodo.com"] },
-  "fetch": { "use": "local", "profile": "chrome", "timeout": "30s", "noRedirects": false },
+  "fetch": { "use": "local", "ladder": false, "profile": "chrome", "timeout": "30s", "noRedirects": false },
   "limits": { "concurrency": 8, "rps": 0, "retries": 3, "backoff": "exponential", "pluginConcurrency": 0, "pluginTimeout": "30s" },
   "stages": [],
   "sink": { "use": "stdout" }
@@ -111,7 +142,7 @@ same document spelled out in full.
 $ pobear scrape https://example.com --extract markdown
 {"url":"https://example.com","finalUrl":"https://example.com","parentUrl":"","status":200,
  "body":"<!doctype html>…","depth":0,
- "data":{"markdown":"# Example Domain\n\nThis domain is for use in…"}}
+ "data":{"markdown":"# Example Domain\n\nThis domain is for use in…"},"tier":"local"}
 fetched 1, errors 0, skipped 0          # ← this line is on stderr
 ```
 
@@ -409,7 +440,7 @@ $ pobear crawl https://example.com --depth 2 --print-spec-verbose
   "source": { "crawl": { "seeds": ["https://example.com"], "depth": 2,
     "maxPages": 100, "maxDuration": "", "scope": "same-host", "include": [], "exclude": [],
     "sitemap": true, "robots": "respect" } },
-  "fetch": { "use": "local", "profile": "chrome", "timeout": "30s", "noRedirects": false },
+  "fetch": { "use": "local", "ladder": false, "profile": "chrome", "timeout": "30s", "noRedirects": false },
   "limits": { "concurrency": 8, "rps": 16, "retries": 3, "backoff": "exponential", "pluginConcurrency": 0, "pluginTimeout": "30s" },
   "stages": [],
   "sink": { "use": "stdout" }
@@ -420,8 +451,8 @@ $ pobear crawl https://example.com --depth 2 --print-spec-verbose
 $ pobear crawl https://example.com --depth 1 --extract markdown --out pages.ndjson
 fetched 2, errors 0, skipped 0
 $ cat pages.ndjson
-{"url":"https://example.com/","finalUrl":"https://example.com/","parentUrl":"","status":200,"body":"<!doctype html>…","depth":0,"data":{"markdown":"# Example Domain..."}}
-{"url":"https://example.com/about","finalUrl":"https://example.com/about","parentUrl":"https://example.com/","status":200,"body":"<!doctype html>…","depth":1,"data":{"markdown":"# About..."}}
+{"url":"https://example.com/","finalUrl":"https://example.com/","parentUrl":"","status":200,"body":"<!doctype html>…","depth":0,"data":{"markdown":"# Example Domain..."},"tier":"local"}
+{"url":"https://example.com/about","finalUrl":"https://example.com/about","parentUrl":"https://example.com/","status":200,"body":"<!doctype html>…","depth":1,"data":{"markdown":"# About..."},"tier":"local"}
 ```
 
 `parentUrl` is the page a URL was discovered on — empty for a seed, otherwise the
@@ -532,7 +563,7 @@ $ pobear docs --json
   "output": {
     "stdout": "one NDJSON object per fetched item",
     "stderr": "the `fetched N, errors N, skipped N` summary, and one detail line per failed URL",
-    "itemFields": ["url", "finalUrl", "parentUrl", "status", "body", "depth", "data"]
+    "itemFields": ["url", "finalUrl", "parentUrl", "status", "body", "depth", "data", "tier"]
   },
   "contracts": [{"id": "provider-schema", "summary": "..."}, ...]
 }
@@ -619,17 +650,19 @@ of exact wording or layout.
 ### Scrape — form screen, initial state
 
 The `URL` field is a small text area, not a single line — paste or type one URL
-per line to scrape several pages in one run. `Extract` defaults to `bare` (no
-extraction stage; the scraped page is returned as-is, same as CLI's default
-`--extract ""`).
+per line to scrape several pages in one run. `Local`, `Proxy`, and `Provider` are
+three rows, one per fetch tier, each starting unconfigured (`— not set`); `Extract`
+defaults to `bare` (no extraction stage; the scraped page is returned as-is, same
+as CLI's default `--extract ""`).
 
 ```
 ┌─ Scrape ───────────────────────────────────────────────────────── esc: back to menu ─┐
 │                                                                                      │
 │      URL           (one per line)                                                    │
 │                                                                                      │
-│   › Fetch via     local       (local / proxy / provider)                             │
-│      Profile       chrome      (TLS fingerprint)                                     │
+│   › Local          — not set     (enter to configure)                                │
+│      Proxy          — not set     (enter to configure)                               │
+│      Provider        — not set     (enter to configure)                              │
 │      Extract       bare        (bare / raw / markdown / css fields)                  │
 │      Concurrency   8                                                                 │
 │      Retries       3                                                                 │
@@ -640,85 +673,100 @@ extraction stage; the scraped page is returned as-is, same as CLI's default
   ↑/↓ move   enter edit   esc back
 ```
 
-### Changing "Fetch via" reacts across the form
+### Each tier row opens its own screen
 
-Moving "Fetch via" from `local` to `provider`: `Profile` (a local/proxy-only TLS
-setting) disappears, and `Provider` plus whatever fields **that provider's manifest
-declares** (`PROVIDER_REFERENCE.md` §6) appear in its place. Decodo's `universal`
-template declares `headless`, `proxy_pool`, `geo`, `locale`, and `device_type`, so
-those are what show up below — a provider with a `device` option instead would show
-`Device`, not those. The form isn't hardcoded to any provider's fields; it reads
-them the same way `--opt` validation does.
+Pressing `enter` on `Local`, `Proxy`, or `Provider` pushes a dedicated screen for
+that tier, instead of expanding fields inline the way the old single `Fetch via`
+choice did — each tier's own fields live there and nowhere else: `Profile` for
+`Local`; `Proxy URL` and `Profile` for `Proxy`; `Provider`, `Template`, and that
+provider's declared options for `Provider`. `esc` on a tier screen saves whatever
+was entered and returns to the main form — opening `Local` and immediately
+pressing `esc` is enough to configure it, since it takes no required field of its
+own:
 
 ```
-┌─ Scrape ───────────────────────────────────────────────────────── esc: back to menu ─┐
+┌─ Local ────────────────────────────────────────────────────────────────── esc: back ─┐
 │                                                                                      │
-│      URL           (one per line)                                                    │
-│                                                                                      │
-│      Fetch via     provider    (local / proxy / provider)                            │
-│   › Provider      decodo       (type to search)                                      │
-│      Headless      html        (universal option)                                    │
-│      Proxy pool    premium     (universal option)                                    │
-│      Geo           —           (universal option)                                    │
-│      Locale         —           (universal option)                                   │
-│      Device type    —           (universal option)                                   │
-│      Extract       bare        (bare / raw / markdown / css fields)                  │
-│      Concurrency   8                                                                 │
-│      Retries       3                                                                 │
-│                                                                                      │
-│   [ Save as job.yaml ]   [ Run ]                                                     │
+│   › Profile       chrome      (TLS fingerprint)                                      │
 │                                                                                      │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-(The real Decodo manifest declares four templates, so `Provider` here is
-immediately followed by a `Template` field — see the next section. A provider
-with flat `options:` and no `templates:` would show its option fields directly
-under `Provider`, with no `Template` field at all.)
-
-Both `Provider` and `Template` (below) support typing to jump straight to a match,
-not just cycling one at a time with the arrow keys — useful once either list grows
-past a handful of entries. If `Provider` has no stored credential, pressing `enter`
-on `[ Run ]` shows an error naming the provider and pointing at `Manage providers`
-(or `pobear auth <name>`) instead of starting the run — `Save` never checks, since
-writing a spec to disk doesn't call the provider at all. Changing `Provider` to a
-different one re-reads that provider's manifest and swaps the field list below it
-accordingly, resetting `Template` and its options.
-
-### A provider with more than one template gets a `Template` field too
-
-Any provider that declares two or more templates gets a `Template` field between
-`Provider` and the option fields — regardless of whether one is marked `default` —
-so every template the CLI's `--template` flag can reach is reachable from the wizard
-too, not just the default. It defaults to the manifest's `default: true` template if
-one exists, otherwise the first declared template; the real Decodo manifest declares
-four (`universal`, marked default, plus `google`/`bing`/`amazon`):
+Back on the main form, the row shows a `✓` and a short summary of that tier's own
+configuration once it's been visited — `Local` now reads `✓ chrome`, and stays
+`— not set` for any tier never opened:
 
 ```
-┌─ Scrape ───────────────────────────────────────────────────────── esc: back to menu ─┐
+│   › Local          ✓ chrome        (enter to configure)                              │
+│      Proxy          — not set     (enter to configure)                               │
+│      Provider        — not set     (enter to configure)                              │
+```
+
+### Provider — same fields as before, now on their own screen
+
+Selecting `Provider` and pressing `enter` opens a screen with `Provider` plus
+whatever fields **that provider's manifest declares** (`PROVIDER_REFERENCE.md`
+§6) below it. Decodo's `universal` template declares `headless`, `proxy_pool`,
+`geo`, `locale`, and `device_type`, so those are what show up — a provider with a
+`device` option instead would show `Device`, not those. The form isn't hardcoded
+to any provider's fields; it reads them the same way `--opt` validation does. The
+real Decodo manifest declares four templates, so `Provider` here is immediately
+followed by a `Template` field:
+
+```
+┌─ Provider ─────────────────────────────────────────────────────────────── esc: back ─┐
 │                                                                                      │
-│      URL           (one per line)                                                    │
-│                                                                                      │
-│      Fetch via     provider    (local / proxy / provider)                            │
-│      Provider      decodo      (type to search)                                      │
+│      Provider      decodo       (type to search)                                    │
 │   › Template      universal    (type to search)                                      │
 │      Headless      html        (universal option)                                    │
 │      Proxy pool    premium     (universal option)                                    │
 │      Geo           —           (universal option)                                    │
 │      Locale         —           (universal option)                                   │
 │      Device type    —           (universal option)                                   │
-│      Extract       bare        (bare / raw / markdown / css fields)                  │
-│      Concurrency   8                                                                 │
-│      Retries       3                                                                 │
-│                                                                                      │
-│   [ Save as job.yaml ]   [ Run ]                                                     │
 │                                                                                      │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Changing `Template` re-reads that template's declared options and swaps the field
-list below it, the same way changing `Provider` does. If the manifest has only one
-template, the `Template` field never appears at all — there's nothing to choose.
+Both `Provider` and `Template` support typing to jump straight to a match, not
+just cycling one at a time with the arrow keys — useful once either list grows
+past a handful of entries. If `Provider` has no stored credential, pressing
+`enter` on `[ Run ]` back on the main form shows an error naming the provider and
+pointing at `Manage providers` (or `pobear auth <name>`) instead of starting the
+run — `Save` never checks, since writing a spec to disk doesn't call the provider
+at all. Changing `Provider` to a different one re-reads that provider's manifest
+and swaps the field list below it accordingly, resetting `Template` and its
+options. Back on the main form, `Provider`'s summary combines both: `✓ decodo /
+universal`.
+
+Any provider that declares two or more templates gets this `Template` field —
+regardless of whether one is marked `default` — so every template the CLI's
+`--template` flag can reach is reachable from the wizard too, not just the
+default. It defaults to the manifest's `default: true` template if one exists,
+otherwise the first declared template. Changing `Template` re-reads that
+template's declared options and swaps the field list below it, the same way
+changing `Provider` does. If the manifest has only one template, the `Template`
+field never appears at all — there's nothing to choose.
+
+### Configuring more than one tier turns on escalation automatically
+
+There's no separate `ladder` field to flip. Configuring more than one tier —
+`Local` and `Provider`, say — is itself what turns escalation on: `fetch.use`
+becomes the lowest configured tier, `fetch.ladder` becomes `true`, and a fetch
+that comes back blocked or rate-limited climbs to the next configured tier up
+(`JOB_SPEC_REFERENCE.md` §4). Configuring exactly one tier behaves exactly as
+before — `fetch.use` is that tier, `ladder` stays `false`:
+
+```
+│   › Local          ✓ chrome        (enter to configure)                              │
+│      Proxy          — not set     (enter to configure)                               │
+│      Provider        ✓ decodo / universal     (enter to configure)                   │
+```
+
+This produces `fetch: {use: local, ladder: true, name: decodo, template:
+universal, ...}` — `Local` fetches first, escalating to `Provider` only on a
+block or rate limit. `Save`/`Run` require at least one tier configured; pressing
+`[ Run ]` with all three still `— not set` shows `✗ configure at least one of
+Local/Proxy/Provider` instead of starting.
 
 ### Changing "Extract" reacts the same way
 
@@ -740,8 +788,9 @@ markdown-conversion stage with no further fields:
 ┌─ Crawl ────────────────────────────────────────────────────────── esc: back to menu ─┐
 │                                                                                      │
 │      Starting URL                                                                    │
-│      Fetch via       local       (local / proxy / provider)                          │
-│      Profile         chrome      (TLS fingerprint)                                   │
+│      Local           — not set     (enter to configure)                              │
+│      Proxy           — not set     (enter to configure)                              │
+│      Provider         — not set     (enter to configure)                             │
 │   › Depth           1           (0 = seeds only)                                    │
 │      Max pages       100         (stop after this many pages)                        │
 │      Scope           same-host   (same-host / same-domain / any)                     │
@@ -756,6 +805,20 @@ markdown-conversion stage with no further fields:
 │                                                                                      │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+`Local`/`Proxy`/`Provider` behave exactly as in `Scrape`'s form above — same tier
+screens, same automatic escalation once more than one is configured.
+
+### Results — after `[ Run ]`
+
+Pressing `[ Run ]` replaces the form with a scrollable list, one row per fetched
+URL, status and a short detail preview alongside each. When a run configures more
+than one tier, each row also names which tier actually served that URL — a row
+reading `✓ 200 (proxy) title: ...` means that URL escalated to (or was served
+directly by) `proxy`, not whatever tier the run started at. `enter` on a row opens
+its full detail; `w` writes every result to disk; `esc` returns to the form. If
+any URL came back blocked or rate-limited, a tip line appears above the list
+suggesting a higher tier (Proxy or Provider) to auto-escalate past it next time.
 
 ### Manage providers
 
@@ -787,11 +850,12 @@ be deleted from here — there's no file to remove.
 | URL / Starting URL | `source.urls[]` / `source.crawl.seeds[]` |
 | Depth | `source.crawl.depth` |
 | Scope | `source.crawl.scope` |
-| Fetch via | `fetch.use` |
-| Profile | `fetch.profile` (local/proxy only) |
-| Provider | `fetch.name` |
-| Template (multi-template providers only) | `fetch.template` |
-| provider-declared fields (e.g. Headless / Geo) | `fetch.options.<name>` (provider only, per-manifest, per-template) |
+| Local / Proxy / Provider (tier rows, each opens its own screen) | which tiers get configured determines `fetch.use` (the lowest configured tier) and `fetch.ladder` (`true` once 2+ are configured) |
+| Profile (on the Local/Proxy tier screens) | `fetch.profile` (local/proxy only) |
+| Proxy URL (on the Proxy tier screen) | `fetch.proxy` |
+| Provider (on the Provider tier screen) | `fetch.name` |
+| Template (on the Provider tier screen, multi-template providers only) | `fetch.template` |
+| provider-declared fields (e.g. Headless / Geo, on the Provider tier screen) | `fetch.options.<name>` (provider only, per-manifest, per-template) |
 | Extract (`bare`/`raw`) | no stage added; `bare` also strips the envelope in item detail (CLI equivalent: `--bare`) |
 | Extract (`markdown`/`css fields`) | a stage in the pipeline (`markdown` / `css`) |
 | Max pages (crawl only) | `source.crawl.maxPages` |
