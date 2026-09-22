@@ -81,6 +81,16 @@ func TestBuildProviderWithOptions(t *testing.T) {
 	}
 }
 
+func TestBuildFetchDocIncludesLadderWhenTrue(t *testing.T) {
+	spec, err := jobgen.Build(jobgen.Input{URLs: []string{"https://a.test"}, FetchUse: "local", Ladder: true, Provider: "acme", Template: "t"})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if !spec.Fetch.Ladder {
+		t.Fatal("spec.Fetch.Ladder = false, want true")
+	}
+}
+
 func TestBuildInvalidSpecReturnsError(t *testing.T) {
 	in := jobgen.Input{FetchUse: "local"}
 

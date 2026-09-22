@@ -24,6 +24,7 @@ type Input struct {
 	URLs        []string
 	Crawl       *CrawlInput
 	FetchUse    string
+	Ladder      bool
 	Proxy       string
 	Provider    string
 	Template    string
@@ -95,6 +96,9 @@ func buildSourceDoc(in Input) map[string]any {
 
 func buildFetchDoc(in Input) map[string]any {
 	fetch := map[string]any{"use": in.FetchUse}
+	if in.Ladder {
+		fetch["ladder"] = in.Ladder
+	}
 	if in.Provider != "" {
 		fetch["name"] = in.Provider
 	}
@@ -190,6 +194,7 @@ type minimalCrawlSource struct {
 
 type minimalFetch struct {
 	Use         string            `json:"use"`
+	Ladder      *bool             `json:"ladder,omitempty"`
 	Name        *string           `json:"name,omitempty"`
 	Template    *string           `json:"template,omitempty"`
 	Proxy       *string           `json:"proxy,omitempty"`
@@ -259,6 +264,7 @@ func minimalFetchFrom(r, d jobspec.Fetch) minimalFetch {
 	}
 	return minimalFetch{
 		Use:         r.Use,
+		Ladder:      diffBool(r.Ladder, d.Ladder),
 		Name:        diffString(r.Name, d.Name),
 		Template:    diffString(r.Template, d.Template),
 		Proxy:       diffString(r.Proxy, d.Proxy),

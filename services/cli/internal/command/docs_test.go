@@ -86,7 +86,7 @@ func TestDocsItemFieldsAreTheDocumentedSet(t *testing.T) {
 		t.Fatalf("output is not valid JSON: %v", err)
 	}
 
-	want := []string{"url", "finalUrl", "parentUrl", "status", "body", "depth", "data"}
+	want := []string{"url", "finalUrl", "parentUrl", "status", "body", "depth", "data", "tier"}
 	if !reflect.DeepEqual(payload.Output.Item, want) {
 		t.Errorf("itemFields = %v, want %v", payload.Output.Item, want)
 	}

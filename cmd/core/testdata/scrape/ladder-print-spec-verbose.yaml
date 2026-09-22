@@ -1,0 +1,40 @@
+args: scrape {{base}}/x --proxy http://p.test --provider acme --ladder --print-spec-verbose
+stdout: |
+    {
+      "version": 1,
+      "source": {
+        "urls": [
+          "{{base}}/x"
+        ]
+      },
+      "fetch": {
+        "use": "local",
+        "ladder": true,
+        "name": "acme",
+        "proxy": "http://p.test",
+        "profile": "chrome",
+        "timeout": "30s",
+        "noRedirects": false
+      },
+      "limits": {
+        "concurrency": 8,
+        "rps": 0,
+        "retries": 3,
+        "backoff": "exponential",
+        "pluginConcurrency": 0,
+        "pluginTimeout": "30s"
+      },
+      "stages": [],
+      "sink": {
+        "use": "stdout"
+      }
+    }
+stderr: ""
+exit: 0
+providers:
+    acme.yaml: |
+        name: acme
+        endpoint: https://acme.example.com/scrape
+        auth: {type: bearer, credential: token}
+        request: {body: {url: "{{ .URL }}"}}
+        response: {body: "$.html"}

@@ -9,6 +9,7 @@ stdout: |
       },
       "fetch": {
         "use": "local",
+        "ladder": false,
         "profile": "chrome",
         "timeout": "30s",
         "noRedirects": false

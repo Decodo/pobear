@@ -158,6 +158,7 @@ func printSpecOrRun(ctx context.Context, runner JobRunner, resolvedIn, defaultsI
 
 type verboseFetch struct {
 	Use         string            `json:"use"`
+	Ladder      bool              `json:"ladder"`
 	Name        string            `json:"name,omitempty"`
 	Template    string            `json:"template,omitempty"`
 	Proxy       string            `json:"proxy,omitempty"`
@@ -182,7 +183,7 @@ func printJSON(spec *jobspec.Spec, stdout io.Writer) (int, *cliError) {
 		Version: spec.Version,
 		Source:  spec.Source,
 		Fetch: verboseFetch{
-			Use: spec.Fetch.Use, Name: spec.Fetch.Name, Template: spec.Fetch.Template,
+			Use: spec.Fetch.Use, Ladder: spec.Fetch.Ladder, Name: spec.Fetch.Name, Template: spec.Fetch.Template,
 			Proxy: spec.Fetch.Proxy, Profile: spec.Fetch.Profile, Options: spec.Fetch.Options,
 			Timeout: spec.Fetch.Timeout, NoRedirects: spec.Fetch.NoRedirects, Headers: spec.Fetch.Headers,
 		},
