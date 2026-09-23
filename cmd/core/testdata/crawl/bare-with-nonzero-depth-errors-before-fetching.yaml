@@ -1,0 +1,7 @@
+args: crawl {{base}}/page.html --bare
+stdout: ""
+stderr: |
+    pobear: --bare requires --depth 0 -- crawling deeper can discover more than one page, and --bare only ever prints a single value (use --out <dir> to write one file per page instead)
+exit: 3
+fixtures:
+    page.html: <h1>Hello</h1><p>world</p>

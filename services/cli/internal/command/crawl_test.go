@@ -70,6 +70,27 @@ func TestCrawlBareWithTwoFieldsErrors(t *testing.T) {
 	}
 }
 
+func TestCrawlBareWithNonZeroDepthErrorsBeforeFetching(t *testing.T) {
+	args := cliArgs("crawl https://example.com --bare")
+
+	runner := &fakeRunner{}
+	cmd := &command.Crawl{Runner: runner, Providers: providerator.New(t.TempDir())}
+
+	var stderr bytes.Buffer
+	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &bytes.Buffer{}, &stderr)
+
+	if got != 3 {
+		t.Fatalf("Run() = %d, want 3 (--bare requires --depth 0) -- same usage-error class as the two-fields case, not a runtime failure", got)
+	}
+	want := "pobear: --bare requires --depth 0 -- crawling deeper can discover more than one page, and --bare only ever prints a single value (use --out <dir> to write one file per page instead)\n"
+	if stderr.String() != want {
+		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
+	}
+	if runner.gotData != nil {
+		t.Fatalf("runner was called (gotData = %q), want it never called -- the whole crawl would have run for real before this usage error was ever reported", runner.gotData)
+	}
+}
+
 func TestCrawlUnknownProviderOptionErrors(t *testing.T) {
 	args := cliArgs("crawl https://example.com --provider bogus-provider")
 

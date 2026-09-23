@@ -241,6 +241,31 @@ $ echo $?
 3
 ```
 
+The "exactly one URL" half of the rule is checked just as early, before any
+fetch: a `urls.txt` naming more than one URL is rejected the same way, for
+the same reason (`scrape <url|file>` is the only way to hand `--bare` more
+than one URL — the positional argument takes exactly one URL or one file of
+them):
+
+```
+$ pobear scrape urls.txt --bare
+pobear: --bare requires exactly one URL to be targeted, got 2
+$ echo $?
+3
+```
+
+`crawl` only ever takes one seed argument, but following links can still
+discover more than one page, so `--bare` there requires `--depth 0` (seeds
+only) — anything deeper is rejected before the crawl starts, not after it
+runs:
+
+```
+$ pobear crawl https://example.com --bare
+pobear: --bare requires --depth 0 -- crawling deeper can discover more than one page, and --bare only ever prints a single value (use --out <dir> to write one file per page instead)
+$ echo $?
+3
+```
+
 ### `--out <path>` — directory mode: one file per target, plus an index
 
 `<path>` is treated as a directory if it already exists as one, or if it ends

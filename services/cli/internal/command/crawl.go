@@ -75,6 +75,9 @@ func crawlRun(ctx context.Context, runner JobRunner, providers *providerator.Pro
 	if cerr := validateBare(f.bare, names); cerr != nil {
 		return 0, cerr
 	}
+	if cerr := validateBareCrawlDepth(f.bare, isDirOut(f.out), crawlIn.Depth); cerr != nil {
+		return 0, cerr
+	}
 
 	fetchUse, cerr := resolveFetchUse(f)
 	if cerr != nil {
