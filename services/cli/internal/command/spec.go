@@ -93,6 +93,20 @@ func validateBare(bare bool, names []string) *cliError {
 	return newCLIError(exitcode.UsageError, "--bare requires at most one extracted value, but %d fields are set (%s)", len(names), strings.Join(names, ", "))
 }
 
+func validateBareSingleTarget(bare, dirOut bool, urlCount int) *cliError {
+	if !bare || dirOut || urlCount <= 1 {
+		return nil
+	}
+	return newCLIError(exitcode.UsageError, "--bare requires exactly one URL to be targeted, got %d", urlCount)
+}
+
+func validateBareCrawlDepth(bare, dirOut bool, depth int) *cliError {
+	if !bare || dirOut || depth == 0 {
+		return nil
+	}
+	return newCLIError(exitcode.UsageError, "--bare requires --depth 0 -- crawling deeper can discover more than one page, and --bare only ever prints a single value (use --out <dir> to write one file per page instead)")
+}
+
 func resolveScrapeURLs(arg string) ([]string, *cliError) {
 	if utils.IsAbsoluteHTTPURL(arg) {
 		return []string{arg}, nil

@@ -78,6 +78,9 @@ func scrapeRun(ctx context.Context, runner JobRunner, providers *providerator.Pr
 	if cerr := validateBare(f.bare, names); cerr != nil {
 		return 0, cerr
 	}
+	if cerr := validateBareSingleTarget(f.bare, isDirOut(f.out), len(urls)); cerr != nil {
+		return 0, cerr
+	}
 
 	fetchUse, cerr := resolveFetchUse(f)
 	if cerr != nil {

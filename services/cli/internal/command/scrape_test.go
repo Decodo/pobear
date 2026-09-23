@@ -128,6 +128,30 @@ func TestScrapeBareWithTwoFieldsErrors(t *testing.T) {
 	}
 }
 
+func TestScrapeBareWithMultipleURLsErrorsBeforeFetching(t *testing.T) {
+	urlsFile := filepath.Join(t.TempDir(), "urls.txt")
+	if err := os.WriteFile(urlsFile, []byte("https://a.example\nhttps://b.example\n"), 0o600); err != nil {
+		t.Fatalf("writing urls file: %v", err)
+	}
+	args := cliArgs("scrape " + urlsFile + " --bare")
+
+	runner := &fakeRunner{}
+	cmd := &command.Scrape{Runner: runner, Providers: providerator.New(t.TempDir())}
+
+	var stderr bytes.Buffer
+	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &bytes.Buffer{}, &stderr)
+
+	if got != 3 {
+		t.Fatalf("Run() = %d, want 3 (--bare requires exactly one URL) -- same usage-error class as the two-fields case, not a runtime failure", got)
+	}
+	if want := "pobear: --bare requires exactly one URL to be targeted, got 2\n"; stderr.String() != want {
+		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
+	}
+	if runner.gotData != nil {
+		t.Fatalf("runner was called (gotData = %q), want it never called -- both URLs would have been fetched for real before this usage error was ever reported", runner.gotData)
+	}
+}
+
 func TestScrapeProviderTierOmitsProfile(t *testing.T) {
 	args := cliArgs("scrape https://example.com --provider decodo")
 
