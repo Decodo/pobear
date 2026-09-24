@@ -74,6 +74,28 @@ func buildStages(extract string, css []string) ([]jobspec.Stage, *cliError) {
 	return stages, nil
 }
 
+func buildHeaders(headers []string) (map[string]string, *cliError) {
+	if len(headers) == 0 {
+		return nil, nil
+	}
+	fields := make(map[string]string, len(headers))
+	for _, kv := range headers {
+		name, val, ok := strings.Cut(kv, ":")
+		if !ok {
+			return nil, newCLIError(exitcode.UsageError, "invalid --header %q, want \"name: value\"", kv)
+		}
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return nil, newCLIError(exitcode.UsageError, "invalid --header %q, header name is empty", kv)
+		}
+		if _, dup := fields[name]; dup {
+			return nil, newCLIError(exitcode.UsageError, "--header %q is set more than once", name)
+		}
+		fields[name] = strings.TrimLeft(val, " ")
+	}
+	return fields, nil
+}
+
 func extractedFieldNames(extract string, css []string) []string {
 	var names []string
 	if extract != "" {
