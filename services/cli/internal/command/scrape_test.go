@@ -128,6 +128,35 @@ func TestScrapeBareWithTwoFieldsErrors(t *testing.T) {
 	}
 }
 
+func TestScrapeBearIsAnAliasForBare(t *testing.T) {
+	args := cliArgs("scrape https://example.com --css title=h1 --css link=a@href --bear")
+
+	cmd := &command.Scrape{Runner: &fakeRunner{}, Providers: providerator.New(t.TempDir())}
+
+	var stderr bytes.Buffer
+	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &bytes.Buffer{}, &stderr)
+
+	if got != 3 {
+		t.Fatalf("Run() = %d, want 3 (--bear should behave exactly like --bare)", got)
+	}
+	if want := "pobear: --bare requires at most one extracted value, but 2 fields are set (title, link)\n"; stderr.String() != want {
+		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
+	}
+}
+
+func TestBearFlagIsHiddenFromHelp(t *testing.T) {
+	args := cliArgs("scrape --help")
+
+	cmd := &command.Scrape{Runner: &fakeRunner{}, Providers: providerator.New(t.TempDir())}
+
+	var stdout bytes.Buffer
+	cmd.Run(context.Background(), args, bytes.NewReader(nil), &stdout, &bytes.Buffer{})
+
+	if strings.Contains(stdout.String(), "--bear") {
+		t.Fatalf("--help output = %q, want no mention of the hidden --bear alias", stdout.String())
+	}
+}
+
 func TestScrapeBareWithMultipleURLsErrorsBeforeFetching(t *testing.T) {
 	urlsFile := filepath.Join(t.TempDir(), "urls.txt")
 	if err := os.WriteFile(urlsFile, []byte("https://a.example\nhttps://b.example\n"), 0o600); err != nil {
@@ -184,6 +213,61 @@ response: {body: "$.html"}
 	}
 	if strings.Contains(string(runner.gotData), "profile") {
 		t.Fatalf("runner.gotData = %s, want no profile field for the provider tier", runner.gotData)
+	}
+}
+
+func TestScrapeHeaderFlagSetsFetchHeaders(t *testing.T) {
+	args := []string{"https://example.com", "--header", "X-Custom: 1", "--header", "Authorization: Bearer xyz"}
+
+	runner := &fakeRunner{result: command.RunResult{Succeeded: 1}}
+	cmd := &command.Scrape{Runner: runner, Providers: providerator.New(t.TempDir())}
+
+	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &bytes.Buffer{}, &bytes.Buffer{})
+
+	if got != 0 {
+		t.Fatalf("Run() = %d, want 0", got)
+	}
+	spec, err := jobspec.Parse(runner.gotData, jobspec.ModePlain)
+	if err != nil {
+		t.Fatalf("parsing the executed spec: %v", err)
+	}
+	if spec.Fetch.Headers["X-Custom"] != "1" {
+		t.Fatalf("Fetch.Headers[X-Custom] = %q, want %q", spec.Fetch.Headers["X-Custom"], "1")
+	}
+	if spec.Fetch.Headers["Authorization"] != "Bearer xyz" {
+		t.Fatalf("Fetch.Headers[Authorization] = %q, want %q", spec.Fetch.Headers["Authorization"], "Bearer xyz")
+	}
+}
+
+func TestScrapeInvalidHeaderErrors(t *testing.T) {
+	args := cliArgs("scrape https://example.com --header X-Custom")
+
+	cmd := &command.Scrape{Runner: &fakeRunner{}, Providers: providerator.New(t.TempDir())}
+
+	var stderr bytes.Buffer
+	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &bytes.Buffer{}, &stderr)
+
+	if got != 3 {
+		t.Fatalf("Run() = %d, want 3", got)
+	}
+	if want := "pobear: invalid --header \"X-Custom\", want \"name: value\"\n"; stderr.String() != want {
+		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
+	}
+}
+
+func TestScrapeDuplicateHeaderErrors(t *testing.T) {
+	args := cliArgs("scrape https://example.com --header X-Custom:1 --header X-Custom:2")
+
+	cmd := &command.Scrape{Runner: &fakeRunner{}, Providers: providerator.New(t.TempDir())}
+
+	var stderr bytes.Buffer
+	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &bytes.Buffer{}, &stderr)
+
+	if got != 3 {
+		t.Fatalf("Run() = %d, want 3", got)
+	}
+	if want := "pobear: --header \"X-Custom\" is set more than once\n"; stderr.String() != want {
+		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
 	}
 }
 

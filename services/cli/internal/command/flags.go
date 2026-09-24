@@ -72,6 +72,7 @@ type commonFlags struct {
 	timeout          string
 	extract          string
 	css              []string
+	headers          []string
 	out              string
 	bare             bool
 	ladder           bool
@@ -97,8 +98,11 @@ func registerCommonFlags(cmd *cobra.Command, f *commonFlags, defaultRPS int) {
 	flags.StringVarP(&f.timeout, "timeout", "t", "30s", "per-request timeout")
 	flags.StringVarP(&f.extract, "extract", "e", "", "add an extraction stage: raw or markdown")
 	flags.StringArrayVar(&f.css, "css", nil, "add a css extraction field as name=selector[@attr] (repeatable)")
+	flags.StringArrayVarP(&f.headers, "header", "H", nil, "add a request header as \"name: value\" (repeatable)")
 	flags.StringVarP(&f.out, "out", "o", "", "write NDJSON to this file instead of stdout, or one file per target plus an index.json if this names a directory")
 	flags.BoolVarP(&f.bare, "bare", "b", false, "print just the extracted value, no envelope -- requires at most one field from --extract/--css (falls back to the raw fetched body if neither is set)")
+	flags.BoolVar(&f.bare, "bear", false, "alias for --bare (it wouldn't be pobear without one)")
+	_ = flags.MarkHidden("bear")
 	flags.BoolVar(&f.ladder, "ladder", false, "escalate through configured tiers (local, then proxy, then provider) when blocked or rate-limited")
 	flags.BoolVar(&f.printSpec, "print-spec", false, "print the job spec, don't run it")
 	flags.BoolVar(&f.printSpecVerbose, "print-spec-verbose", false, "like --print-spec, but every field is shown fully resolved")

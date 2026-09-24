@@ -54,6 +54,7 @@ $ pobear scrape urls.txt --print-spec
 | `-t, --timeout <duration>` | `30s` | per-request timeout |
 | `-e, --extract raw\|markdown` | — | add an extraction stage |
 | `--css name=selector[@attr]` | — | repeatable; each field name must be non-empty and set at most once |
+| `-H, --header "name: value"` | — | repeatable; sets `fetch.headers` (`JOB_SPEC_REFERENCE.md` §4) — each name must be non-empty and set at most once |
 | `-o, --out <path>` | stdout | write NDJSON to a file, or one file per target plus an `index.json` if `<path>` is a directory — see below |
 | `-b, --bare` | off | print just the extracted value, no envelope — see below |
 | `--print-spec` | off | print the spec, don't run it — fields still at their default are omitted, see below |
@@ -71,7 +72,12 @@ picking a winner; `--render` is itself sugar for `--opt`, so it doesn't need its
 shortcut; `--print-spec`/`--print-spec-verbose`/`--rps` are debugging/advanced knobs
 left fully explicit on purpose. `--css` keeps its full name too — its value
 (`name=selector[@attr]`) is already the verbose part, so a shorter flag name saves
-little. `crawl`'s own flags follow the same reasoning (below) — notably
+little. `--header` is the one repeatable, verbose-valued flag that does claim a
+letter (`-H`): it's the one place pobear intentionally matches a convention from
+outside its own flag set (curl's `-H`) rather than picking freely, since anyone
+reaching for a header flag already expects that letter.
+
+`crawl`'s own flags follow the same reasoning (below) — notably
 `--ignore-robots` is deliberately never abbreviated, since it disables a
 legal/courtesy default and shouldn't be easy to fat-finger.
 
@@ -149,6 +155,32 @@ fetched 1, errors 0, skipped 0          # ← this line is on stderr
 ```
 $ pobear scrape https://example.com --css 'title=h1' --css 'link=a@href'
 {"url":"https://example.com", …, "data":{"title":["Example Domain"],"link":["https://www.iana.org/domains/example"]}}
+```
+
+### `-H, --header` — extra request headers
+
+Repeatable, `"name: value"` shape (curl's own `-H` convention), each name set at
+most once. This is the CLI surface for `fetch.headers` (`JOB_SPEC_REFERENCE.md`
+§4) — the only way to set it from `scrape`/`crawl` directly, without hand-writing
+a job spec and running it with `pobear run`:
+
+```
+$ pobear scrape https://example.com --header 'X-Custom: 1' --print-spec
+{
+  "version": 1,
+  "source": { "urls": ["https://example.com"] },
+  "fetch": { "use": "local", "headers": { "X-Custom": "1" } }
+}
+```
+
+A repeated header name is rejected rather than silently keeping the last one,
+same as a repeated `--css` field name:
+
+```
+$ pobear scrape https://example.com --header 'X-Custom: 1' --header 'X-Custom: 2'
+pobear: --header "X-Custom" is set more than once
+$ echo $?
+3
 ```
 
 ### `empty` in the summary — extraction came back with nothing

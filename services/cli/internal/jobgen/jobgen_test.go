@@ -81,6 +81,22 @@ func TestBuildProviderWithOptions(t *testing.T) {
 	}
 }
 
+func TestBuildWithHeaders(t *testing.T) {
+	in := jobgen.Input{
+		URLs:     []string{"https://example.com"},
+		FetchUse: "local",
+		Headers:  map[string]string{"X-Custom": "1"},
+	}
+
+	got, err := jobgen.Build(in)
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if got.Fetch.Headers["X-Custom"] != "1" {
+		t.Fatalf("Fetch.Headers[X-Custom] = %v, want 1", got.Fetch.Headers["X-Custom"])
+	}
+}
+
 func TestBuildFetchDocIncludesLadderWhenTrue(t *testing.T) {
 	spec, err := jobgen.Build(jobgen.Input{URLs: []string{"https://a.test"}, FetchUse: "local", Ladder: true, Provider: "acme", Template: "t"})
 	if err != nil {

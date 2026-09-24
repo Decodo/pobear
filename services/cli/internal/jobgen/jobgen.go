@@ -32,6 +32,7 @@ type Input struct {
 	Options     map[string]any
 	Timeout     string
 	NoRedirects bool
+	Headers     map[string]string
 	Stages      []jobspec.Stage
 	Concurrency *int
 	RPS         *int
@@ -119,6 +120,9 @@ func buildFetchDoc(in Input) map[string]any {
 	}
 	if in.NoRedirects {
 		fetch["noRedirects"] = in.NoRedirects
+	}
+	if len(in.Headers) > 0 {
+		fetch["headers"] = in.Headers
 	}
 	return fetch
 }
