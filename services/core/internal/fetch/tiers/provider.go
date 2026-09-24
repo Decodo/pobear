@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/pobear/pobear/pkg/fault"
 	"github.com/pobear/pobear/pkg/jobspec"
@@ -60,9 +61,9 @@ func (p *Provider) Fetch(ctx context.Context, cfg jobspec.Fetch, targetURL strin
 	resp, err := p.Client.Do(req)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return nil, fault.Timeout, err
+			return nil, fault.Timeout, redactSecret(err, secret)
 		}
-		return nil, fault.Network, err
+		return nil, fault.Network, redactSecret(err, secret)
 	}
 	defer resp.Body.Close()
 
@@ -92,6 +93,17 @@ func (p *Provider) Fetch(ctx context.Context, cfg jobspec.Fetch, targetURL strin
 		return result, fault.Provider, fmt.Errorf("tiers: provider response.body %q matched nothing", manifest.Response.Body)
 	}
 	return result, "", nil
+}
+
+func redactSecret(err error, secret string) error {
+	if err == nil || secret == "" {
+		return err
+	}
+	msg := strings.ReplaceAll(err.Error(), secret, "[REDACTED]")
+	if msg == err.Error() {
+		return err
+	}
+	return errors.New(msg)
 }
 
 func (p *Provider) lookupManifest(name string) (*provider.Manifest, error) {

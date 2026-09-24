@@ -114,13 +114,15 @@ func ladderFor(cfg jobspec.Fetch) []string {
 	return ladder
 }
 
+// configured reports whether tier has what it needs to be used as a rung on
+// the ladder. It's only ever called for tiers at or above cfg.Use (see
+// ladderFor), so tier == "local" always takes the tier == cfg.Use branch --
+// local needs no fields of its own to be configured.
 func configured(cfg jobspec.Fetch, tier string) bool {
 	if tier == cfg.Use {
 		return true
 	}
 	switch tier {
-	case "local":
-		return true
 	case "proxy":
 		return cfg.Proxy != ""
 	case "provider":

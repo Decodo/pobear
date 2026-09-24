@@ -134,6 +134,37 @@ func TestProviderFetchMissingCredential(t *testing.T) {
 	}
 }
 
+func TestProviderFetchRedactsQueryAuthSecretFromTransportError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	badEndpoint := srv.URL
+	srv.Close()
+
+	manifest := &provider.Manifest{
+		Name:     "acme",
+		Endpoint: badEndpoint,
+		Auth:     provider.Auth{Type: "query", Name: "api_key", Credential: "token"},
+		Request:  provider.Request{Body: map[string]any{"url": "{{ .URL }}"}},
+		Response: provider.Response{Body: "$.content"},
+	}
+	p := &tiers.Provider{
+		Client:      http.DefaultClient,
+		Manifests:   fakeManifestLookup{byName: map[string]*provider.Manifest{"acme": manifest}},
+		Credentials: fakeCredentialLoader{secret: "super-secret-value", ok: true},
+	}
+	cfg := jobspec.Fetch{Use: "provider", Name: "acme"}
+	_, gotFault, err := p.Fetch(context.Background(), cfg, "https://target.example/page")
+
+	if err == nil {
+		t.Fatal("expected a transport-level error from the closed server, got nil")
+	}
+	if gotFault != fault.Network {
+		t.Errorf("fault = %q, want %q", gotFault, fault.Network)
+	}
+	if strings.Contains(err.Error(), "super-secret-value") {
+		t.Fatalf("error message leaked the query-auth secret: %v", err)
+	}
+}
+
 func TestProviderFetchErrorMapping(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
