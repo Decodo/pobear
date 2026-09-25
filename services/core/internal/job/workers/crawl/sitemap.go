@@ -42,7 +42,7 @@ func (f *HTTPSitemapFetcher) URLs(ctx context.Context, rawURL string) ([]string,
 		return nil, err
 	}
 
-	return f.parse(ctx, body)
+	return f.parse(ctx, body, origin)
 }
 
 func sitemapOrigin(rawURL string) (string, error) {
@@ -69,11 +69,15 @@ func (f *HTTPSitemapFetcher) fetch(ctx context.Context, target string) ([]byte, 
 	return io.ReadAll(resp.Body)
 }
 
-func (f *HTTPSitemapFetcher) parse(ctx context.Context, body []byte) ([]string, error) {
+func (f *HTTPSitemapFetcher) parse(ctx context.Context, body []byte, trustedOrigin string) ([]string, error) {
 	var idx sitemapIndex
 	if err := xml.Unmarshal(body, &idx); err == nil {
 		var all []string
 		for _, s := range idx.Sitemaps {
+			childOrigin, err := sitemapOrigin(s.Loc)
+			if err != nil || childOrigin != trustedOrigin {
+				continue
+			}
 			childBody, ferr := f.fetch(ctx, s.Loc)
 			if ferr != nil {
 				continue

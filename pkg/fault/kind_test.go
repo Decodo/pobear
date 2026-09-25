@@ -1,6 +1,7 @@
 package fault_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/pobear/pobear/pkg/fault"
@@ -44,5 +45,16 @@ func TestKind(t *testing.T) {
 				t.Errorf("IsFetchOutcome(%q) = %v, want %v", c.kind, got, c.wantFetchOutcome)
 			}
 		})
+	}
+}
+
+func TestFormatFailure(t *testing.T) {
+	err := errors.New("connection refused")
+
+	if got, want := fault.FormatFailure("https://a.test", fault.Network, err), "https://a.test [network]: connection refused"; got != want {
+		t.Errorf("FormatFailure with a kind = %q, want %q", got, want)
+	}
+	if got, want := fault.FormatFailure("https://a.test", "", err), "https://a.test: connection refused"; got != want {
+		t.Errorf("FormatFailure with no kind = %q, want %q", got, want)
 	}
 }

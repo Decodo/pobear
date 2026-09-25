@@ -2,9 +2,12 @@ package crawl_test
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/pobear/pobear/internal/testutil"
@@ -98,6 +101,39 @@ func TestHTTPSitemapFetcherFollowsOneLevelOfSitemapIndex(t *testing.T) {
 		if !want[u] {
 			t.Fatalf("got unexpected URL %q, want one of %v", u, want)
 		}
+	}
+}
+
+func TestHTTPSitemapFetcherSkipsCrossOriginChildSitemap(t *testing.T) {
+	var hitOtherOrigin atomic.Bool
+	other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hitOtherOrigin.Store(true)
+		w.Header().Set("Content-Type", "application/xml")
+		_, _ = w.Write([]byte(`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>http://example.invalid/exfil</loc></url>
+</urlset>`))
+	}))
+	defer other.Close()
+
+	dir := t.TempDir()
+	srv := testutil.NewFixtureServer(dir)
+	defer srv.Close()
+	writeFixture(t, dir, "sitemap.xml", `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap><loc>`+other.URL+`/external.xml</loc></sitemap>
+</sitemapindex>`)
+
+	f := crawl.NewHTTPSitemapFetcher(srv.Client())
+	got, err := f.URLs(context.Background(), srv.URL)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if hitOtherOrigin.Load() {
+		t.Fatal("fetched a child sitemap from a different origin than the top-level sitemap.xml -- want it skipped, never requested")
+	}
+	if len(got) != 0 {
+		t.Fatalf("got %v, want no URLs (the only child sitemap was cross-origin and should be skipped)", got)
 	}
 }
 
