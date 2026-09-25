@@ -113,9 +113,8 @@ Things the diagram implies but the reference specs don't pin down yet:
 - Whether `/sdk` ships more than one language at launch, or starts as a single
   reference implementation the manifest format is designed to allow others to copy.
 - `cli/internal/wizard`'s full-screen terminal UI (`CLI_REFERENCE.md`'s
-  wizard section) is unbuilt and its own design session hasn't happened yet.
-  Working assumption for that session: bring in a TUI library (tview or
-  bubbletea) for the same reason `cli/internal/command` itself moved onto
-  `spf13/cobra` for flag parsing/help/usage — a full-screen reactive TUI is
-  exactly the kind of undifferentiated complexity a dedicated library exists
-  to solve, more so than a flag parser.
+  wizard section) is built on `charmbracelet/bubbletea`, for the same reason
+  `cli/internal/command` itself moved onto `spf13/cobra` for flag
+  parsing/help/usage — a full-screen reactive TUI is exactly the kind of
+  undifferentiated complexity a dedicated library exists to solve, more so
+  than a flag parser.
