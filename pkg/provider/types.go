@@ -1,15 +1,16 @@
 package provider
 
 type Manifest struct {
-	Name      string         `yaml:"name"`
-	Endpoint  string         `yaml:"endpoint"`
-	Method    string         `yaml:"method,omitempty"`
-	Auth      Auth           `yaml:"auth"`
-	Options   []Option       `yaml:"options"`
-	Request   Request        `yaml:"request"`
-	Response  Response       `yaml:"response"`
-	Errors    []ErrorMapping `yaml:"errors"`
-	Templates []Template     `yaml:"templates,omitempty"`
+	Name      string            `yaml:"name"`
+	Endpoint  string            `yaml:"endpoint"`
+	Method    string            `yaml:"method,omitempty"`
+	Auth      Auth              `yaml:"auth"`
+	Headers   map[string]string `yaml:"headers,omitempty"`
+	Options   []Option          `yaml:"options"`
+	Request   Request           `yaml:"request"`
+	Response  Response          `yaml:"response"`
+	Errors    []ErrorMapping    `yaml:"errors"`
+	Templates []Template        `yaml:"templates,omitempty"`
 }
 
 type Auth struct {
