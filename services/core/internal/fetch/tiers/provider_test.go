@@ -290,6 +290,34 @@ func TestProviderFetchSendsHeaders(t *testing.T) {
 	}
 }
 
+func TestProviderFetchSendsManifestHeaders(t *testing.T) {
+	var gotIntegration, gotOverride atomic.Value
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotIntegration.Store(r.Header.Get("X-Integration"))
+		gotOverride.Store(r.Header.Get("X-Other"))
+		_, _ = w.Write([]byte(`{"content":"the page"}`))
+	}))
+	defer srv.Close()
+
+	m := testManifest(srv.URL)
+	m.Headers = map[string]string{"X-Integration": "oss-pobear", "X-Other": "manifest"}
+	p := &tiers.Provider{
+		Client:      srv.Client(),
+		Manifests:   fakeManifestLookup{byName: map[string]*provider.Manifest{"acme": m}},
+		Credentials: fakeCredentialLoader{secret: "sekret", ok: true},
+	}
+	cfg := jobspec.Fetch{Use: "provider", Name: "acme", Headers: map[string]string{"X-Other": "job"}}
+	if _, _, err := p.Fetch(context.Background(), cfg, "https://target.example/page"); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got, _ := gotIntegration.Load().(string); got != "oss-pobear" {
+		t.Errorf("X-Integration = %q, want %q", got, "oss-pobear")
+	}
+	if got, _ := gotOverride.Load().(string); got != "job" {
+		t.Errorf("X-Other = %q, want job-level value %q", got, "job")
+	}
+}
+
 func templatedManifest(defaultEndpoint string, templates ...provider.Template) *provider.Manifest {
 	return &provider.Manifest{
 		Name:      "acme",

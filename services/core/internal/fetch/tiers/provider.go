@@ -152,6 +152,7 @@ func buildHTTPRequest(ctx context.Context, manifest *provider.Manifest, endpoint
 	if bodyReader != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	applyHeaders(req, manifest.Headers)
 	applyHeaders(req, cfg.Headers)
 	if err := applyAuth(req, manifest.Auth, secret); err != nil {
 		return nil, fault.Auth, err

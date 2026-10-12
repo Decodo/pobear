@@ -28,6 +28,7 @@ errors: []
 | `endpoint` | yes | §3 |
 | `method` | no (default `POST`) | §4 |
 | `auth` | yes | §5 |
+| `headers` | no | §5a |
 | `options` | no (default `[]`) | §6 |
 | `request` | yes | §7 |
 | `response` | yes (`body` required within it) | §9 |
@@ -105,6 +106,17 @@ ends up in the request URL — visible in proxy logs, server access logs, and br
 history if that URL is ever opened by hand. Prefer `bearer`/`header` when a
 provider supports them; use `query` only when the provider's API leaves no other
 option.
+
+---
+
+## 5a. `headers`
+
+| Rule |
+|---|
+| Optional mapping of header name to a static string value, sent on every request to this provider. Values are not templates. Precedence, lowest to highest: manifest `headers`, then the job's `fetch.headers` (`--header`), then `auth` — so a manifest header can be overridden per job, and neither can replace the credential. |
+
+Decodo's manifest uses it to send `x-integration: oss-pobear`, which attributes
+pobear traffic on the provider's side.
 
 ---
 

@@ -1,0 +1,23 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: bearer, credential: token}
+  headers: {x-integration: oss-pobear}
+  request: {body: {target: "{{ .URL }}"}}
+  response: {body: "$.html"}
+wantErr: false
+wantManifest:
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  method: POST
+  auth:
+    type: bearer
+    credential: token
+  headers:
+    x-integration: oss-pobear
+  options: []
+  request:
+    body: {target: "{{ .URL }}"}
+  response:
+    body: "$.html"
+  errors: []

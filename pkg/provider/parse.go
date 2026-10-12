@@ -22,7 +22,7 @@ func Parse(data []byte) (*Manifest, error) {
 		return nil, &ValidationError{Field: "$document", Message: "manifest document must be a mapping"}
 	}
 
-	if err := utils.CheckUnknownKeys(root, "", "name", "endpoint", "method", "auth", "options", "request", "response", "errors", "templates"); err != nil {
+	if err := utils.CheckUnknownKeys(root, "", "name", "endpoint", "method", "auth", "headers", "options", "request", "response", "errors", "templates"); err != nil {
 		return nil, err
 	}
 
@@ -44,6 +44,11 @@ func Parse(data []byte) (*Manifest, error) {
 	method := utils.GetString(root, "method", "POST")
 
 	auth, err := parseAuth(root)
+	if err != nil {
+		return nil, err
+	}
+
+	headers, err := parseHeaders(root)
 	if err != nil {
 		return nil, err
 	}
@@ -70,6 +75,7 @@ func Parse(data []byte) (*Manifest, error) {
 		Endpoint: endpoint,
 		Method:   method,
 		Auth:     auth,
+		Headers:  headers,
 		Response: response,
 		Errors:   errs,
 	}
@@ -118,4 +124,25 @@ func decodeSingleDocument(data []byte) (any, *ValidationError) {
 	}
 
 	return first, nil
+}
+
+func parseHeaders(root map[string]any) (map[string]string, *ValidationError) {
+	raw, ok := root["headers"]
+	if !ok {
+		return nil, nil
+	}
+	m, ok := raw.(map[string]any)
+	if !ok {
+		return nil, utils.Errorf("headers", "`headers` must be a mapping")
+	}
+	headers := make(map[string]string, len(m))
+	for _, k := range utils.SortedKeys(m) {
+		field := "headers." + k
+		v, ok := m[k].(string)
+		if !ok {
+			return nil, utils.Errorf(field, "`%s` must be a string", field)
+		}
+		headers[k] = v
+	}
+	return headers, nil
 }
