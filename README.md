@@ -134,7 +134,7 @@ pobear scrape https://books.toscrape.com/ \
   --provider decodo --out books.ndjson
 ```
 
-pobear sends requests to `https://data.decodo.com/v1/scrape` with `Authorization: Bearer <API_KEY>`. Enter only the API key at the prompt; pobear adds the `Bearer` prefix.
+Enter your Decodo authentication token at the prompt. pobear saves it and uses the configured provider settings to authenticate subsequent requests.
 
 The Decodo configuration defaults to the `universal` target, rendered HTML (`headless=html`), and the Premium proxy pool (`proxy_pool=premium`). To inspect the available settings:
 
