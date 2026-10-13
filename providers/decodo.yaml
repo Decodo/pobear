@@ -1,7 +1,7 @@
 # EXAMPLE PROVIDER
 name: decodo
-endpoint: https://data.decodo.com/v1/scrape
-auth: { type: bearer, credential: token }
+endpoint: https://scraper-api.decodo.com/v2/scrape
+auth: { type: basic, credential: token }
 headers:
   x-integration: oss-pobear
 templates:
