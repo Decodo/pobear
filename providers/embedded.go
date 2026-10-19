@@ -5,5 +5,7 @@ package providers
 
 import "embed"
 
+//go:generate go run ./internal/decodogen
+
 //go:embed *.yaml
 var FS embed.FS

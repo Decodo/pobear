@@ -21,7 +21,7 @@ response: {body: "$.html"}
 
 func TestLoadMergedIncludesEmbeddedOnlyManifest(t *testing.T) {
 	embedded := fstest.MapFS{
-		"decodo.yaml": {Data: []byte(manifestYAML("decodo", "https://scraper-api.decodo.com/v2/scrape"))},
+		"decodo.yaml": {Data: []byte(manifestYAML("decodo", "https://data.decodo.com/v1/scrape"))},
 	}
 
 	got, err := provider.LoadMerged(embedded, t.TempDir())
@@ -35,7 +35,7 @@ func TestLoadMergedIncludesEmbeddedOnlyManifest(t *testing.T) {
 
 func TestLoadMergedIncludesDiskOnlyManifest(t *testing.T) {
 	embedded := fstest.MapFS{
-		"decodo.yaml": {Data: []byte(manifestYAML("decodo", "https://scraper-api.decodo.com/v2/scrape"))},
+		"decodo.yaml": {Data: []byte(manifestYAML("decodo", "https://data.decodo.com/v1/scrape"))},
 	}
 	dir := t.TempDir()
 	acmeYAML := manifestYAML("acme", "https://acme.example.com/scrape")
@@ -59,7 +59,7 @@ func TestLoadMergedIncludesDiskOnlyManifest(t *testing.T) {
 
 func TestLoadMergedDiskOverridesEmbeddedByName(t *testing.T) {
 	embedded := fstest.MapFS{
-		"decodo.yaml": {Data: []byte(manifestYAML("decodo", "https://scraper-api.decodo.com/v2/scrape"))},
+		"decodo.yaml": {Data: []byte(manifestYAML("decodo", "https://data.decodo.com/v1/scrape"))},
 	}
 	dir := t.TempDir()
 	overrideYAML := manifestYAML("decodo", "https://custom.example.com/scrape")
@@ -81,7 +81,7 @@ func TestLoadMergedDiskOverridesEmbeddedByName(t *testing.T) {
 
 func TestLoadMergedEmptyDiskDirStillReturnsEmbedded(t *testing.T) {
 	embedded := fstest.MapFS{
-		"decodo.yaml": {Data: []byte(manifestYAML("decodo", "https://scraper-api.decodo.com/v2/scrape"))},
+		"decodo.yaml": {Data: []byte(manifestYAML("decodo", "https://data.decodo.com/v1/scrape"))},
 	}
 
 	got, err := provider.LoadMerged(embedded, filepath.Join(t.TempDir(), "does-not-exist"))

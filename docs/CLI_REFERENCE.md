@@ -562,7 +562,7 @@ With no name, lists every installed manifest, one line each:
 
 ```
 $ pobear providers
-decodo       https://scraper-api.decodo.com/v2/scrape templates: universal (default), amazon_product
+decodo       https://data.decodo.com/v1/scrape templates: universal (default), amazon_product
 ```
 
 ```
@@ -575,7 +575,7 @@ its type, constraints, and default:
 
 ```
 $ pobear providers decodo
-decodo — https://scraper-api.decodo.com/v2/scrape
+decodo — https://data.decodo.com/v1/scrape
 
   universal (default)
     render   bool                              default: false
@@ -892,7 +892,7 @@ be deleted from here — there's no file to remove.
 ```
 ┌─ Manage providers ─────────────────────────────────────────────────────────────────┐
 │                                                                                    │
-│  › ✓ decodo    https://scraper-api.decodo.com/v2/scrape                            │
+│  › ✓ decodo    https://data.decodo.com/v1/scrape                                   │
 │    ✗ acme      https://acme.example.com/scrape                                     │
 │                                                                                    │
 └────────────────────────────────────────────────────────────────────────────────────┘

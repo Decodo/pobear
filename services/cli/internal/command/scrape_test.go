@@ -187,7 +187,7 @@ func TestScrapeProviderTierOmitsProfile(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "decodo.yaml"), []byte(`
 name: decodo
-endpoint: https://scraper-api.decodo.com/v2/scrape
+endpoint: https://data.decodo.com/v1/scrape
 auth: {type: bearer, credential: token}
 request: {body: {url: "{{ .URL }}"}}
 response: {body: "$.html"}
@@ -299,7 +299,7 @@ func TestScrapeProviderHelpShowsLiveSchema(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "decodo.yaml"), []byte(`
 name: decodo
-endpoint: https://scraper-api.decodo.com/v2/scrape
+endpoint: https://data.decodo.com/v1/scrape
 auth: {type: bearer, credential: token}
 templates:
   - name: universal

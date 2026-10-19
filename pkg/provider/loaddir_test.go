@@ -45,7 +45,7 @@ func writeManifest(t *testing.T, path string) {
 	t.Helper()
 	content := `
 name: decodo
-endpoint: https://scraper-api.decodo.com/v2/scrape
+endpoint: https://data.decodo.com/v1/scrape
 auth: {type: bearer, credential: token}
 request: {body: {url: "{{ .URL }}"}}
 response: {body: "$.html"}
