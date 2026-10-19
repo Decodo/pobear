@@ -61,7 +61,7 @@ func TestLoadOneManifest(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "decodo.yaml"), `
 name: decodo
-endpoint: https://scraper-api.decodo.com/v2/scrape
+endpoint: https://data.decodo.com/v1/scrape
 auth: {type: bearer, credential: token}
 request: {body: {url: "{{ .URL }}"}}
 response: {body: "$.html"}

@@ -71,7 +71,7 @@ func writeManifest(t *testing.T, name, yaml string) string {
 
 const flatOptionsManifest = `
 name: decodo
-endpoint: https://scraper-api.decodo.com/v2/scrape
+endpoint: https://data.decodo.com/v1/scrape
 auth: {type: bearer, credential: token}
 options:
   - {name: headless, type: enum, values: [html, png], default: html}
@@ -154,7 +154,7 @@ func TestBuildJobSpecProviderTemplateDefaultsToFirstWhenAmbiguous(t *testing.T) 
 
 const templatedManifestWithDefault = `
 name: decodo
-endpoint: https://scraper-api.decodo.com/v2/scrape
+endpoint: https://data.decodo.com/v1/scrape
 auth: {type: bearer, credential: token}
 templates:
   - name: universal

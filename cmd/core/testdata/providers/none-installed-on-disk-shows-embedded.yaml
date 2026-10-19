@@ -1,5 +1,5 @@
 args: providers
 stdout: |
-    decodo       https://scraper-api.decodo.com/v2/scrape templates: universal (default), google, bing, amazon
+    decodo       https://data.decodo.com/v1/scrape templates: universal (default), google, bing, amazon
 stderr: ""
 exit: 0

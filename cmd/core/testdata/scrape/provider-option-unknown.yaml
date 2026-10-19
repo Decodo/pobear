@@ -6,7 +6,7 @@ exit: 3
 providers:
     decodo.yaml: |
         name: decodo
-        endpoint: https://scraper-api.decodo.com/v2/scrape
+        endpoint: https://data.decodo.com/v1/scrape
         auth: {type: bearer, credential: token}
         templates:
           - name: universal
