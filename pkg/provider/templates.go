@@ -3,7 +3,7 @@ package provider
 import (
 	"fmt"
 
-	"github.com/pobear/pobear/pkg/utils"
+	"github.com/Decodo/pobear/pkg/utils"
 )
 
 func parseTemplates(root map[string]any) ([]Template, *ValidationError) {

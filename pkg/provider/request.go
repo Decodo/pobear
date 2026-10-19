@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"text/template"
 
-	"github.com/pobear/pobear/pkg/utils"
+	"github.com/Decodo/pobear/pkg/utils"
 )
 
 func parseRequest(root map[string]any, prefix string, required bool) (Request, *ValidationError) {

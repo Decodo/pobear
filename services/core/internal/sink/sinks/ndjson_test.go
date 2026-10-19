@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pobear/pobear/services/core/internal/sink/sinks"
+	"github.com/Decodo/pobear/services/core/internal/sink/sinks"
 )
 
 func assertNDJSONLineURLs(t *testing.T, content []byte, wantURLs []string) {

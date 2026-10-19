@@ -9,7 +9,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/pobear/pobear/services/core/internal/sink/sinks"
+	"github.com/Decodo/pobear/services/core/internal/sink/sinks"
 )
 
 func TestYAMLBuffersUntilClose(t *testing.T) {

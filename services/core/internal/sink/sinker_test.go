@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/pobear/pobear/services/core/internal/sink"
-	"github.com/pobear/pobear/services/core/internal/sink/sinks"
+	"github.com/Decodo/pobear/services/core/internal/sink"
+	"github.com/Decodo/pobear/services/core/internal/sink/sinks"
 )
 
 type fakeSink struct {

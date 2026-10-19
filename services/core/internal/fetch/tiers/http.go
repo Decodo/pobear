@@ -13,8 +13,8 @@ import (
 
 	"golang.org/x/net/html/charset"
 
-	"github.com/pobear/pobear/pkg/fault"
-	"github.com/pobear/pobear/pkg/jobspec"
+	"github.com/Decodo/pobear/pkg/fault"
+	"github.com/Decodo/pobear/pkg/jobspec"
 )
 
 const bodySnippetLimit = 500

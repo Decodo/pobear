@@ -1,15 +1,19 @@
 package cli
 
 import (
-	"github.com/pobear/pobear/pkg/jobspec"
-	"github.com/pobear/pobear/services/cli/internal/command"
-	"github.com/pobear/pobear/services/cli/internal/providerator"
-	"github.com/pobear/pobear/services/cli/internal/wizard"
-	"github.com/pobear/pobear/services/core"
+	"github.com/Decodo/pobear/pkg/jobspec"
+	"github.com/Decodo/pobear/services/cli/internal/command"
+	"github.com/Decodo/pobear/services/cli/internal/providerator"
+	"github.com/Decodo/pobear/services/cli/internal/wizard"
+	"github.com/Decodo/pobear/services/core"
 )
 
 func DefaultCredentialsPath() (string, error) {
 	return providerator.DefaultCredentialPath()
+}
+
+func DefaultProvidersDir() (string, error) {
+	return providerator.DefaultProvidersDir()
 }
 
 func New(providersDir string, coreService *core.Service, credentialsPath, version string, prompt func(label string) (string, error)) *Service {

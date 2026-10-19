@@ -3,7 +3,7 @@ package provider
 import (
 	"github.com/ohler55/ojg/jp"
 
-	"github.com/pobear/pobear/pkg/utils"
+	"github.com/Decodo/pobear/pkg/utils"
 )
 
 func parseResponse(root map[string]any) (Response, *ValidationError) {

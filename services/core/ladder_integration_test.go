@@ -11,10 +11,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/pobear/pobear/pkg/credentials"
-	"github.com/pobear/pobear/pkg/jobspec"
-	"github.com/pobear/pobear/services/core"
-	"github.com/pobear/pobear/services/core/internal/sink/sinks"
+	"github.com/Decodo/pobear/pkg/credentials"
+	"github.com/Decodo/pobear/pkg/jobspec"
+	"github.com/Decodo/pobear/services/core"
+	"github.com/Decodo/pobear/services/core/internal/sink/sinks"
 )
 
 // This exercises a real fetch.ladder: true spec through the production

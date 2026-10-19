@@ -15,18 +15,18 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/pobear/pobear/internal/testutil"
-	"github.com/pobear/pobear/pkg/jobspec"
-	"github.com/pobear/pobear/services/core"
-	"github.com/pobear/pobear/services/core/internal/fetch"
-	"github.com/pobear/pobear/services/core/internal/fetch/tiers"
-	"github.com/pobear/pobear/services/core/internal/job"
-	"github.com/pobear/pobear/services/core/internal/job/workers"
-	"github.com/pobear/pobear/services/core/internal/job/workers/crawl"
-	"github.com/pobear/pobear/services/core/internal/sink"
-	"github.com/pobear/pobear/services/core/internal/sink/sinks"
-	"github.com/pobear/pobear/services/core/internal/stage"
-	"github.com/pobear/pobear/services/core/internal/stage/extractors"
+	"github.com/Decodo/pobear/internal/testutil"
+	"github.com/Decodo/pobear/pkg/jobspec"
+	"github.com/Decodo/pobear/services/core"
+	"github.com/Decodo/pobear/services/core/internal/fetch"
+	"github.com/Decodo/pobear/services/core/internal/fetch/tiers"
+	"github.com/Decodo/pobear/services/core/internal/job"
+	"github.com/Decodo/pobear/services/core/internal/job/workers"
+	"github.com/Decodo/pobear/services/core/internal/job/workers/crawl"
+	"github.com/Decodo/pobear/services/core/internal/sink"
+	"github.com/Decodo/pobear/services/core/internal/sink/sinks"
+	"github.com/Decodo/pobear/services/core/internal/stage"
+	"github.com/Decodo/pobear/services/core/internal/stage/extractors"
 )
 
 type wantItem struct {

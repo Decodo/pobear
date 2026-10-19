@@ -3,7 +3,7 @@ package command
 import (
 	"testing"
 
-	"github.com/pobear/pobear/pkg/exitcode"
+	"github.com/Decodo/pobear/pkg/exitcode"
 )
 
 func TestResolveFetchUseLadderAlwaysStartsAtLocal(t *testing.T) {

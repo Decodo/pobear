@@ -3,7 +3,7 @@ package jobspec
 import (
 	"github.com/bmatcuk/doublestar/v4"
 
-	"github.com/pobear/pobear/pkg/utils"
+	"github.com/Decodo/pobear/pkg/utils"
 )
 
 func parseSource(root map[string]any) (Source, *ValidationError) {

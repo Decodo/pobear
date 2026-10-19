@@ -6,8 +6,8 @@ import (
 	"io"
 	"sort"
 
-	"github.com/pobear/pobear/pkg/exitcode"
-	"github.com/pobear/pobear/services/cli/internal/command"
+	"github.com/Decodo/pobear/pkg/exitcode"
+	"github.com/Decodo/pobear/services/cli/internal/command"
 )
 
 type Service struct {

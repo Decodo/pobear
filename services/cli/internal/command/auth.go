@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/pobear/pobear/pkg/exitcode"
-	"github.com/pobear/pobear/services/cli/internal/providerator"
+	"github.com/Decodo/pobear/pkg/exitcode"
+	"github.com/Decodo/pobear/services/cli/internal/providerator"
 )
 
 type Auth struct {

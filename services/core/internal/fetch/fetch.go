@@ -6,9 +6,9 @@ import (
 	"slices"
 	"time"
 
-	"github.com/pobear/pobear/pkg/fault"
-	"github.com/pobear/pobear/pkg/jobspec"
-	"github.com/pobear/pobear/services/core/internal/fetch/tiers"
+	"github.com/Decodo/pobear/pkg/fault"
+	"github.com/Decodo/pobear/pkg/jobspec"
+	"github.com/Decodo/pobear/services/core/internal/fetch/tiers"
 )
 
 type Tier interface {

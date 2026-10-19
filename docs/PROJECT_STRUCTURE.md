@@ -7,7 +7,7 @@
 ### Project structure
 ```
 /cmd
-  /core
+  /pobear
     main.go                       // builds the single `pobear` binary: wires cli, rpc and core services together (incl. the hidden `__rpc` subcommand)
 
 /pkg
@@ -25,7 +25,7 @@
 /services
   /core                          // "Core" container in the diagram — the one engine that executes a spec, regardless of which front end produced it
     service.go
-    build.go                     // New(providersDir, credentialsPath, stdout): the one public constructor that wires up this service's whole internal/ dependency graph — public because cmd/core can't import services/core/internal/... directly (Go's internal-import rule); rebuilds the Fetcher/Stager/Sinker/Scrape/Crawl/Executor graph fresh per job, parameterized by that job's own resolved spec
+    build.go                     // New(providersDir, credentialsPath, stdout): the one public constructor that wires up this service's whole internal/ dependency graph — public because cmd/pobear can't import services/core/internal/... directly (Go's internal-import rule); rebuilds the Fetcher/Stager/Sinker/Scrape/Crawl/Executor graph fresh per job, parameterized by that job's own resolved spec
     /internal
       /job
         parser.go                 // job-parser: load-time validation of a spec (§8) before anything runs
@@ -96,7 +96,7 @@
       /streamer
         streamer.go                // streamer: the reverse direction — streams results back over the wire, and carries `plugin`-stage callbacks (only usable in __rpc mode, per JOB_SPEC_REFERENCE §6)
 
-/providers                       // provider manifests (YAML) embedded into the binary via go:embed, also the default $POBEAR_PROVIDERS_DIR when running from a checkout — see PROVIDER_REFERENCE.md §13
+/providers                       // provider manifests (YAML) embedded into the binary via go:embed; extra manifests are loaded from $POBEAR_PROVIDERS_DIR, default ~/.pobear/providers — see PROVIDER_REFERENCE.md §13
   internal/decodogen/              // generates decodo.yaml from Decodo's published target schema (the IR sdk-go is generated from): `go generate ./providers` — see PROVIDER_REFERENCE.md §13
 
 /sdk                              // "SDK bindings" in the diagram — per-language client libraries, calling into services/rpc's communicator
