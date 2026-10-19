@@ -352,8 +352,15 @@ manifest and the field — it never partially loads.
 ## 13. Installing and using one
 
 Decodo ships embedded in the `pobear` binary itself — it's available with no
-setup beyond `pobear auth decodo`. Any other provider is installed by dropping
-its manifest where pobear looks for one:
+setup beyond `pobear auth decodo`. Its manifest is generated, not hand-written:
+`go generate ./providers` fetches the latest Decodo target schema and emits one template per target
+that takes a `url`. Targets keyed on a query, prompt or product ID are omitted,
+since every pobear item is a URL. Parameters that are async-only (`callback_url`),
+change the response shape (`markdown`, `xhr`), or aren't scalars (`cookies`,
+`headers`, …) are not exposed as options. It targets the Web Data API
+(`data.decodo.com`, `bearer` auth with an API key).
+
+Any other provider is installed by dropping its manifest where pobear looks for one:
 
 ```bash
 # 1. Drop the file where pobear looks for manifests
