@@ -10,10 +10,10 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/pobear/pobear/pkg/fault"
-	"github.com/pobear/pobear/pkg/jobresult"
-	"github.com/pobear/pobear/pkg/jobspec"
-	"github.com/pobear/pobear/services/cli/internal/providerator"
+	"github.com/Decodo/pobear/pkg/fault"
+	"github.com/Decodo/pobear/pkg/jobresult"
+	"github.com/Decodo/pobear/pkg/jobspec"
+	"github.com/Decodo/pobear/services/cli/internal/providerator"
 )
 
 const savedJobFilename = "job.yaml"

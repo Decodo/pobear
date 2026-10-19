@@ -1,6 +1,6 @@
 package jobspec
 
-import "github.com/pobear/pobear/pkg/utils"
+import "github.com/Decodo/pobear/pkg/utils"
 
 func parseLimits(root map[string]any) (Limits, *ValidationError) {
 	raw, ok := root["limits"]

@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/pobear/pobear/pkg/exitcode"
+	"github.com/Decodo/pobear/pkg/exitcode"
 )
 
 type cliError struct {

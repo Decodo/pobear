@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/pobear/pobear/pkg/provider"
+	"github.com/Decodo/pobear/pkg/provider"
 )
 
 const testIR = `{

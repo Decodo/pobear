@@ -1,6 +1,6 @@
 package provider
 
-import "github.com/pobear/pobear/pkg/utils"
+import "github.com/Decodo/pobear/pkg/utils"
 
 func parseAuth(root map[string]any) (Auth, *ValidationError) {
 	raw, ok := root["auth"]

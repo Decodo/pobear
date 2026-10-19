@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pobear/pobear/services/cli"
-	"github.com/pobear/pobear/services/cli/internal/command"
+	"github.com/Decodo/pobear/services/cli"
+	"github.com/Decodo/pobear/services/cli/internal/command"
 )
 
 type fakeCommand struct {

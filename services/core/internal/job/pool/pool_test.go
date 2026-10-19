@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pobear/pobear/services/core/internal/job/pool"
+	"github.com/Decodo/pobear/services/core/internal/job/pool"
 )
 
 func TestPoolRunsEverySubmittedUnit(t *testing.T) {

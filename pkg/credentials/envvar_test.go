@@ -3,7 +3,7 @@ package credentials_test
 import (
 	"testing"
 
-	"github.com/pobear/pobear/pkg/credentials"
+	"github.com/Decodo/pobear/pkg/credentials"
 )
 
 func TestEnvVar(t *testing.T) {

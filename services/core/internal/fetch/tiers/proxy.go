@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/pobear/pobear/pkg/fault"
-	"github.com/pobear/pobear/pkg/jobspec"
+	"github.com/Decodo/pobear/pkg/fault"
+	"github.com/Decodo/pobear/pkg/jobspec"
 )
 
 type Proxy struct {

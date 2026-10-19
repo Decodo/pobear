@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/pobear/pobear/services/cli/internal/jobgen"
-	"github.com/pobear/pobear/services/cli/internal/providerator"
+	"github.com/Decodo/pobear/services/cli/internal/jobgen"
+	"github.com/Decodo/pobear/services/cli/internal/providerator"
 )
 
 type Crawl struct {

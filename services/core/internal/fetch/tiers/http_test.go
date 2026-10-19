@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/pobear/pobear/pkg/fault"
+	"github.com/Decodo/pobear/pkg/fault"
 )
 
 func TestClassifyDefaultStatus(t *testing.T) {

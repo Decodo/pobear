@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/pobear/pobear/pkg/provider"
-	"github.com/pobear/pobear/providers"
+	"github.com/Decodo/pobear/pkg/provider"
+	"github.com/Decodo/pobear/providers"
 )
 
 type Providerator struct {

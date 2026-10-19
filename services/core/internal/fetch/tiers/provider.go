@@ -11,9 +11,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/pobear/pobear/pkg/fault"
-	"github.com/pobear/pobear/pkg/jobspec"
-	"github.com/pobear/pobear/pkg/provider"
+	"github.com/Decodo/pobear/pkg/fault"
+	"github.com/Decodo/pobear/pkg/jobspec"
+	"github.com/Decodo/pobear/pkg/provider"
 )
 
 type ManifestLookup interface {

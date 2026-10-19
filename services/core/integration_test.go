@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/pobear/pobear/services/core/internal/integrationtest"
+	"github.com/Decodo/pobear/services/core/internal/integrationtest"
 )
 
 func TestIntegration(t *testing.T) {

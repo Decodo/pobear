@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pobear/pobear/pkg/jobspec"
-	"github.com/pobear/pobear/services/core"
+	"github.com/Decodo/pobear/pkg/jobspec"
+	"github.com/Decodo/pobear/services/core"
 )
 
 // Regression test for a real bug: the CLI/wizard's provider *listing* went

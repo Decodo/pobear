@@ -1,6 +1,6 @@
 package jobspec
 
-import "github.com/pobear/pobear/pkg/utils"
+import "github.com/Decodo/pobear/pkg/utils"
 
 func parseSink(root map[string]any, mode Mode) (Sink, *ValidationError) {
 	raw, ok := root["sink"]

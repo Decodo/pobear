@@ -3,7 +3,7 @@ package provider_test
 import (
 	"testing"
 
-	"github.com/pobear/pobear/pkg/provider"
+	"github.com/Decodo/pobear/pkg/provider"
 )
 
 func TestRenderBodyAndQuery(t *testing.T) {

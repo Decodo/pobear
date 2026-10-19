@@ -1,5 +1,5 @@
 BINARY := pobear
-CMD    := ./cmd/core
+CMD    := ./cmd/pobear
 
 .PHONY: build run test test-install lint-install lint fmt fmt-check tidy vet ci clean
 

@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/pobear/pobear/pkg/utils"
+	"github.com/Decodo/pobear/pkg/utils"
 )
 
 func parseFetch(root map[string]any) (Fetch, *ValidationError) {
