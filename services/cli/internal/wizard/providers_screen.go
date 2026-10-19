@@ -10,9 +10,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/Decodo/pobear/pkg/credentials"
-	"github.com/Decodo/pobear/pkg/provider"
-	"github.com/Decodo/pobear/services/cli/internal/providerator"
+	"github.com/pobear/pobear/pkg/credentials"
+	"github.com/pobear/pobear/pkg/provider"
+	"github.com/pobear/pobear/services/cli/internal/providerator"
 )
 
 const (

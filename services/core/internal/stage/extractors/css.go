@@ -8,7 +8,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/andybalholm/cascadia"
 
-	"github.com/Decodo/pobear/pkg/jobspec"
+	"github.com/pobear/pobear/pkg/jobspec"
 )
 
 type CSS struct{}

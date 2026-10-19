@@ -6,7 +6,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/Decodo/pobear/pkg/jobspec"
+	"github.com/pobear/pobear/pkg/jobspec"
 )
 
 type CrawlInput struct {

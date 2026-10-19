@@ -1,4 +1,4 @@
-// Command pobear builds the pobear binary, wiring the cli, rpc, and core
+// Command core builds the pobear binary, wiring the cli, rpc, and core
 // services together (including the hidden `__rpc` subcommand).
 //
 // See docs/PROJECT_STRUCTURE.md for how this fits together.
@@ -15,8 +15,8 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/Decodo/pobear/services/cli"
-	"github.com/Decodo/pobear/services/core"
+	"github.com/pobear/pobear/services/cli"
+	"github.com/pobear/pobear/services/core"
 )
 
 var version = "dev"
@@ -28,12 +28,7 @@ func main() {
 func run() int {
 	providersDir := os.Getenv("POBEAR_PROVIDERS_DIR")
 	if providersDir == "" {
-		dir, err := cli.DefaultProvidersDir()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "pobear: %v\n", err)
-			return 5
-		}
-		providersDir = dir
+		providersDir = "providers"
 	}
 
 	credentialsPath, err := cli.DefaultCredentialsPath()

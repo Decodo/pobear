@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Decodo/pobear/pkg/credentials"
+	"github.com/pobear/pobear/pkg/credentials"
 )
 
 func TestLoad(t *testing.T) {

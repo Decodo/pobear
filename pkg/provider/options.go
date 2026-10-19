@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"slices"
 
-	"github.com/Decodo/pobear/pkg/utils"
+	"github.com/pobear/pobear/pkg/utils"
 )
 
 func parseOptions(root map[string]any, key, prefix string) ([]Option, *ValidationError) {

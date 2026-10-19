@@ -5,7 +5,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Decodo/pobear/services/cli/internal/command"
+	"github.com/pobear/pobear/services/cli/internal/command"
 )
 
 func TestVersionPrintsAndSucceeds(t *testing.T) {

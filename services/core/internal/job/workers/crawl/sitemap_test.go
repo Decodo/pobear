@@ -10,8 +10,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/Decodo/pobear/internal/testutil"
-	"github.com/Decodo/pobear/services/core/internal/job/workers/crawl"
+	"github.com/pobear/pobear/internal/testutil"
+	"github.com/pobear/pobear/services/core/internal/job/workers/crawl"
 )
 
 func writeFixture(t *testing.T, dir, name, content string) {

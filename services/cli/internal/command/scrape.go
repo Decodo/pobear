@@ -6,12 +6,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Decodo/pobear/pkg/fault"
-	"github.com/Decodo/pobear/pkg/jobresult"
-	"github.com/Decodo/pobear/pkg/jobspec"
-	"github.com/Decodo/pobear/services/cli/internal/jobgen"
-	"github.com/Decodo/pobear/services/cli/internal/providerator"
-	"github.com/Decodo/pobear/services/core"
+	"github.com/pobear/pobear/pkg/fault"
+	"github.com/pobear/pobear/pkg/jobresult"
+	"github.com/pobear/pobear/pkg/jobspec"
+	"github.com/pobear/pobear/services/cli/internal/jobgen"
+	"github.com/pobear/pobear/services/cli/internal/providerator"
+	"github.com/pobear/pobear/services/core"
 )
 
 type RunResult = jobresult.Result

@@ -27,7 +27,7 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/Decodo/pobear
+        - github.com/pobear/pobear
 
 run:
   timeout: 5m

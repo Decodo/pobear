@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/Decodo/pobear/services/core/internal/sink/sinks"
+	"github.com/pobear/pobear/services/core/internal/sink/sinks"
 )
 
 func TestItemJSON(t *testing.T) {

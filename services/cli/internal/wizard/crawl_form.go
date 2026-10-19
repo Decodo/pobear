@@ -7,7 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/Decodo/pobear/pkg/provider"
+	"github.com/pobear/pobear/pkg/provider"
 )
 
 type crawlFormState struct {

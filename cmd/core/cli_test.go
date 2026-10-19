@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Decodo/pobear/internal/testutil/clitest"
+	"github.com/pobear/pobear/internal/testutil/clitest"
 )
 
 func TestCLI(t *testing.T) {

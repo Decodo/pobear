@@ -2,7 +2,7 @@
 // crawl walker, and CLI command layer.
 package jobresult
 
-import "github.com/Decodo/pobear/pkg/fault"
+import "github.com/pobear/pobear/pkg/fault"
 
 type Outcome int
 

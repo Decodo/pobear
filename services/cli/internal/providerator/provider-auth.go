@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Decodo/pobear/pkg/credentials"
-	"github.com/Decodo/pobear/pkg/provider"
+	"github.com/pobear/pobear/pkg/credentials"
+	"github.com/pobear/pobear/pkg/provider"
 )
 
 func DefaultCredentialPath() (string, error) {
@@ -16,14 +16,6 @@ func DefaultCredentialPath() (string, error) {
 		return "", err
 	}
 	return filepath.Join(home, ".pobear", "credentials"), nil
-}
-
-func DefaultProvidersDir() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, ".pobear", "providers"), nil
 }
 
 func Auth(m *provider.Manifest, path string, prompt func(label string) (string, error), stdout io.Writer) error {

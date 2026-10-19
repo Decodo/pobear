@@ -11,10 +11,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"gopkg.in/yaml.v3"
 
-	"github.com/Decodo/pobear/pkg/jobspec"
-	"github.com/Decodo/pobear/services/cli/internal/command"
-	"github.com/Decodo/pobear/services/cli/internal/jobgen"
-	"github.com/Decodo/pobear/services/core"
+	"github.com/pobear/pobear/pkg/jobspec"
+	"github.com/pobear/pobear/services/cli/internal/command"
+	"github.com/pobear/pobear/services/cli/internal/jobgen"
+	"github.com/pobear/pobear/services/core"
 )
 
 func buildCrawlJobSpec(state crawlFormState, providersDir string) (*jobspec.Spec, error) {

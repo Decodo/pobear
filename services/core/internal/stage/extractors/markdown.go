@@ -5,7 +5,7 @@ import (
 
 	md "github.com/JohannesKaufmann/html-to-markdown/v2"
 
-	"github.com/Decodo/pobear/pkg/jobspec"
+	"github.com/pobear/pobear/pkg/jobspec"
 )
 
 type Markdown struct{}

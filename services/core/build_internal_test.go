@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Decodo/pobear/pkg/jobspec"
+	"github.com/pobear/pobear/pkg/jobspec"
 )
 
 func TestBuildFetchClientsFingerprintsProxyEvenWhenUseIsLocal(t *testing.T) {

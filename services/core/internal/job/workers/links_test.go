@@ -4,7 +4,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/Decodo/pobear/services/core/internal/job/workers"
+	"github.com/pobear/pobear/services/core/internal/job/workers"
 )
 
 func TestHTMLLinksResolvesRelativeHrefsAgainstBaseURL(t *testing.T) {

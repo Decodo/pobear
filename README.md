@@ -272,7 +272,3 @@ make ci      # Run Go and installer checks, tests, and build
 </details>
 
 pobear is maintained by [Decodo](https://decodo.com/). To report a problem or suggest a feature, [open an issue](https://github.com/Decodo/pobear/issues).
-
-## License
-
-pobear is licensed under the [MIT License](LICENSE).

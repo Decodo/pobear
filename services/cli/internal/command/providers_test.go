@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Decodo/pobear/services/cli/internal/command"
-	"github.com/Decodo/pobear/services/cli/internal/providerator"
+	"github.com/pobear/pobear/services/cli/internal/command"
+	"github.com/pobear/pobear/services/cli/internal/providerator"
 )
 
 func TestProvidersWithNoDiskManifestsStillListsEmbedded(t *testing.T) {

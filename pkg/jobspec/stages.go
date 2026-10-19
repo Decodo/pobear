@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/Decodo/pobear/pkg/utils"
+	"github.com/pobear/pobear/pkg/utils"
 )
 
 func parseStages(root map[string]any, mode Mode) ([]Stage, *ValidationError) {

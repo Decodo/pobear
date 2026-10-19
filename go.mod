@@ -1,4 +1,4 @@
-module github.com/Decodo/pobear
+module github.com/pobear/pobear
 
 go 1.26.6
 

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/Decodo/pobear/pkg/provider"
+	"github.com/pobear/pobear/pkg/provider"
 )
 
 func manifestYAML(name, endpoint string) string {

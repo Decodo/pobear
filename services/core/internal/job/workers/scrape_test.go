@@ -5,11 +5,11 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Decodo/pobear/pkg/fault"
-	"github.com/Decodo/pobear/pkg/jobspec"
-	"github.com/Decodo/pobear/services/core/internal/fetch/tiers"
-	"github.com/Decodo/pobear/services/core/internal/job/workers"
-	"github.com/Decodo/pobear/services/core/internal/sink/sinks"
+	"github.com/pobear/pobear/pkg/fault"
+	"github.com/pobear/pobear/pkg/jobspec"
+	"github.com/pobear/pobear/services/core/internal/fetch/tiers"
+	"github.com/pobear/pobear/services/core/internal/job/workers"
+	"github.com/pobear/pobear/services/core/internal/sink/sinks"
 )
 
 type fakeFetcher struct {

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Decodo/pobear/pkg/jobspec"
-	"github.com/Decodo/pobear/services/core/internal/stage/extractors"
+	"github.com/pobear/pobear/pkg/jobspec"
+	"github.com/pobear/pobear/services/core/internal/stage/extractors"
 )
 
 type Extractor interface {

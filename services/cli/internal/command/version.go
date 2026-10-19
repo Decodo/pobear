@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/Decodo/pobear/pkg/exitcode"
+	"github.com/pobear/pobear/pkg/exitcode"
 )
 
 type Version struct {

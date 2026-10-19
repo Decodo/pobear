@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Decodo/pobear/services/core/internal/fetch"
+	"github.com/pobear/pobear/services/core/internal/fetch"
 )
 
 func TestThrottleZeroRPSIsUnlimited(t *testing.T) {

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Decodo/pobear/pkg/fault"
-	"github.com/Decodo/pobear/pkg/jobresult"
+	"github.com/pobear/pobear/pkg/fault"
+	"github.com/pobear/pobear/pkg/jobresult"
 )
 
 func TestBuildJobSpecLocal(t *testing.T) {

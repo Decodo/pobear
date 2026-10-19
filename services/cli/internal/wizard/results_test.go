@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/Decodo/pobear/pkg/fault"
+	"github.com/pobear/pobear/pkg/fault"
 )
 
 func TestResultsScreenEscPopsBackToForm(t *testing.T) {

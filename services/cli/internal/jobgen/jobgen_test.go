@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Decodo/pobear/pkg/jobspec"
-	"github.com/Decodo/pobear/services/cli/internal/jobgen"
+	"github.com/pobear/pobear/pkg/jobspec"
+	"github.com/pobear/pobear/services/cli/internal/jobgen"
 )
 
 func TestBuildMinimalScrape(t *testing.T) {

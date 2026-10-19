@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Decodo/pobear/services/core/internal/sink/sinks"
+	"github.com/pobear/pobear/services/core/internal/sink/sinks"
 )
 
 func TestStdoutWriteStreamsOneLinePerItem(t *testing.T) {

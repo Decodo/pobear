@@ -11,7 +11,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/Decodo/pobear/pkg/fault"
+	"github.com/pobear/pobear/pkg/fault"
 )
 
 var updateScreenshots = flag.Bool("update", false, "regenerate testdata screenshots from the current render output")

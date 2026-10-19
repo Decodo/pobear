@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Decodo/pobear/pkg/exitcode"
+	"github.com/pobear/pobear/pkg/exitcode"
 
-	"github.com/Decodo/pobear/services/cli/internal/command"
+	"github.com/pobear/pobear/services/cli/internal/command"
 )
 
 func runDocs(t *testing.T, args ...string) (string, string, int) {

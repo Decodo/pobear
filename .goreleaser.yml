@@ -4,7 +4,7 @@ project_name: pobear
 
 builds:
   - id: pobear
-    main: ./cmd/pobear
+    main: ./cmd/core
     binary: pobear
     env:
       - CGO_ENABLED=0
@@ -28,7 +28,6 @@ archives:
       {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
     files:
       - README.md
-      - LICENSE
 
 checksum:
   name_template: checksums.txt

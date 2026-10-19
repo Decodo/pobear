@@ -1,6 +1,6 @@
 package exitcode
 
-import "github.com/Decodo/pobear/pkg/fault"
+import "github.com/pobear/pobear/pkg/fault"
 
 const (
 	Success        = 0

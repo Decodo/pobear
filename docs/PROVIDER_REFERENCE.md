@@ -360,16 +360,11 @@ change the response shape (`markdown`, `xhr`), or aren't scalars (`cookies`,
 `headers`, …) are not exposed as options. It targets the Web Data API
 (`data.decodo.com`, `bearer` auth with an API key).
 
-Any other provider is installed by dropping its manifest into pobear's
-providers directory: `$POBEAR_PROVIDERS_DIR` if set, otherwise
-`~/.pobear/providers/` (next to the credentials store). The current working
-directory is never searched, so an unrelated `providers/` folder in whatever
-project pobear runs from can't break or shadow anything.
+Any other provider is installed by dropping its manifest where pobear looks for one:
 
 ```bash
 # 1. Drop the file where pobear looks for manifests
-mkdir -p ~/.pobear/providers
-cp acme.yaml ~/.pobear/providers/          # or $POBEAR_PROVIDERS_DIR
+cp acme.yaml providers/                    # or $POBEAR_PROVIDERS_DIR
 
 # 2. Confirm it loaded and see what it declares
 pobear providers
@@ -382,7 +377,7 @@ pobear scrape https://example.com --provider acme --opt device=mobile
 ```
 
 `pobear providers` always lists the embedded manifests too, merged with
-whatever's in the providers directory — a manifest on disk with the same
+whatever's in `$POBEAR_PROVIDERS_DIR` — a manifest on disk with the same
 `name` overrides the embedded one, so a customized `decodo.yaml` can still
 replace the bundled definition if needed. The wizard's `Manage providers`
 menu item covers the same ground interactively — browse what's loaded, view

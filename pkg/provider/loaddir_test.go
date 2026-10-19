@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Decodo/pobear/pkg/provider"
+	"github.com/pobear/pobear/pkg/provider"
 )
 
 func TestLoadDirEmptyDirIsNotAnError(t *testing.T) {

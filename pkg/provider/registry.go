@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Decodo/pobear/pkg/utils"
+	"github.com/pobear/pobear/pkg/utils"
 )
 
 func ValidateUnique(manifests []*Manifest) error {

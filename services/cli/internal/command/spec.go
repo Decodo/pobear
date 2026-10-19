@@ -11,10 +11,10 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/Decodo/pobear/pkg/exitcode"
-	"github.com/Decodo/pobear/pkg/jobspec"
-	"github.com/Decodo/pobear/pkg/utils"
-	"github.com/Decodo/pobear/services/cli/internal/jobgen"
+	"github.com/pobear/pobear/pkg/exitcode"
+	"github.com/pobear/pobear/pkg/jobspec"
+	"github.com/pobear/pobear/pkg/utils"
+	"github.com/pobear/pobear/services/cli/internal/jobgen"
 )
 
 func mergeOptions(render bool, geo string, opts []string) map[string]string {

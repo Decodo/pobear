@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Decodo/pobear/pkg/provider"
-	"github.com/Decodo/pobear/services/cli/internal/providerator"
+	"github.com/pobear/pobear/pkg/provider"
+	"github.com/pobear/pobear/services/cli/internal/providerator"
 )
 
 func TestDefaultCredentialPathEndsInPobearCredentials(t *testing.T) {

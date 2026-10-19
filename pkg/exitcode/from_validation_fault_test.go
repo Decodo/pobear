@@ -3,8 +3,8 @@ package exitcode_test
 import (
 	"testing"
 
-	"github.com/Decodo/pobear/pkg/exitcode"
-	"github.com/Decodo/pobear/pkg/fault"
+	"github.com/pobear/pobear/pkg/exitcode"
+	"github.com/pobear/pobear/pkg/fault"
 )
 
 func TestFromValidationFault(t *testing.T) {

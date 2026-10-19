@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Decodo/pobear/pkg/jobspec"
-	"github.com/Decodo/pobear/services/cli/internal/command"
+	"github.com/pobear/pobear/pkg/jobspec"
+	"github.com/pobear/pobear/services/cli/internal/command"
 )
 
 type fakeSpecParser struct {

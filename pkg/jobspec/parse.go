@@ -6,7 +6,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/Decodo/pobear/pkg/utils"
+	"github.com/pobear/pobear/pkg/utils"
 )
 
 type Mode int

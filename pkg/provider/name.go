@@ -1,6 +1,6 @@
 package provider
 
-import "github.com/Decodo/pobear/pkg/utils"
+import "github.com/pobear/pobear/pkg/utils"
 
 func requireUniqueName(m map[string]any, field, prefix, key string, seen map[string]int) (string, *ValidationError) {
 	nameRaw, hasName := m["name"]

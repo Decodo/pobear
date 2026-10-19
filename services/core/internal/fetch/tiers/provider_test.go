@@ -10,10 +10,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/Decodo/pobear/pkg/fault"
-	"github.com/Decodo/pobear/pkg/jobspec"
-	"github.com/Decodo/pobear/pkg/provider"
-	"github.com/Decodo/pobear/services/core/internal/fetch/tiers"
+	"github.com/pobear/pobear/pkg/fault"
+	"github.com/pobear/pobear/pkg/jobspec"
+	"github.com/pobear/pobear/pkg/provider"
+	"github.com/pobear/pobear/services/core/internal/fetch/tiers"
 )
 
 type fakeManifestLookup struct {
