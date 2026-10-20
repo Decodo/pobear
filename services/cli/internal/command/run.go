@@ -8,9 +8,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/pobear/pobear/pkg/exitcode"
-	"github.com/pobear/pobear/pkg/jobspec"
-	"github.com/pobear/pobear/services/cli/internal/jobgen"
+	"github.com/Decodo/pobear/pkg/exitcode"
+	"github.com/Decodo/pobear/pkg/jobspec"
+	"github.com/Decodo/pobear/services/cli/internal/jobgen"
 )
 
 type JobSpecParser interface {

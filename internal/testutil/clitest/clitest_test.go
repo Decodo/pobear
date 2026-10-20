@@ -7,7 +7,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/pobear/pobear/internal/testutil/clitest"
+	"github.com/Decodo/pobear/internal/testutil/clitest"
 )
 
 type testCase struct {

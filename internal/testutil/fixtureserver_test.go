@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/pobear/pobear/internal/testutil"
+	"github.com/Decodo/pobear/internal/testutil"
 )
 
 func TestNewFixtureServerServesAFileAtItsPath(t *testing.T) {

@@ -11,8 +11,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/pobear/pobear/pkg/exitcode"
-	"github.com/pobear/pobear/pkg/jobspec"
+	"github.com/Decodo/pobear/pkg/exitcode"
+	"github.com/Decodo/pobear/pkg/jobspec"
 )
 
 func isDirOut(outPath string) bool {

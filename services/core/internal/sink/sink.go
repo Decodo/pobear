@@ -5,7 +5,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/pobear/pobear/services/core/internal/sink/sinks"
+	"github.com/Decodo/pobear/services/core/internal/sink/sinks"
 )
 
 type Sink interface {

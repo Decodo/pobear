@@ -11,7 +11,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/pobear/pobear/internal/testutil"
+	"github.com/Decodo/pobear/internal/testutil"
 )
 
 type caseFile struct {
@@ -21,15 +21,16 @@ type caseFile struct {
 	Stderr    string            `yaml:"stderr"`
 	Exit      int               `yaml:"exit"`
 	Providers map[string]string `yaml:"providers,omitempty"`
+	Files     map[string]string `yaml:"files,omitempty"`
 	Fixtures  map[string]string `yaml:"fixtures,omitempty"`
 }
 
 func Build(t testing.TB) string {
 	t.Helper()
 	binPath := filepath.Join(t.TempDir(), "pobear")
-	cmd := exec.Command("go", "build", "-o", binPath, "github.com/pobear/pobear/cmd/core") //nolint:gosec // binPath is this test run's own t.TempDir() path, the build target is a fixed literal
+	cmd := exec.Command("go", "build", "-o", binPath, "github.com/Decodo/pobear/cmd/pobear") //nolint:gosec // binPath is this test run's own t.TempDir() path, the build target is a fixed literal
 	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("go build cmd/core: %v\n%s", err, out)
+		t.Fatalf("go build cmd/pobear: %v\n%s", err, out)
 	}
 	return binPath
 }
@@ -59,8 +60,11 @@ func Run(t *testing.T, binPath, path string) {
 	homeDir := t.TempDir()
 
 	runDir := t.TempDir()
+	for name, content := range c.Files {
+		writeNamed(t, runDir, name, content)
+	}
 	if len(c.Providers) > 0 {
-		providersDir := filepath.Join(runDir, "providers")
+		providersDir := filepath.Join(homeDir, ".pobear", "providers")
 		if err := os.MkdirAll(providersDir, 0o750); err != nil {
 			t.Fatalf("creating providers dir: %v", err)
 		}

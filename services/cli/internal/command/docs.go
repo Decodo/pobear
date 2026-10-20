@@ -7,7 +7,7 @@ import (
 	"io"
 	"sort"
 
-	"github.com/pobear/pobear/pkg/exitcode"
+	"github.com/Decodo/pobear/pkg/exitcode"
 )
 
 type Docs struct {

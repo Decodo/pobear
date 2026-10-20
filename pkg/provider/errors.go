@@ -3,8 +3,8 @@ package provider
 import (
 	"fmt"
 
-	"github.com/pobear/pobear/pkg/fault"
-	"github.com/pobear/pobear/pkg/utils"
+	"github.com/Decodo/pobear/pkg/fault"
+	"github.com/Decodo/pobear/pkg/utils"
 )
 
 func parseErrors(root map[string]any) ([]ErrorMapping, *ValidationError) {

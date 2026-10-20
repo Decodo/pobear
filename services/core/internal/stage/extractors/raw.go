@@ -3,7 +3,7 @@ package extractors
 import (
 	"context"
 
-	"github.com/pobear/pobear/pkg/jobspec"
+	"github.com/Decodo/pobear/pkg/jobspec"
 )
 
 type Raw struct{}
