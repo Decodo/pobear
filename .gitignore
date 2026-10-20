@@ -10,7 +10,6 @@
 *.test
 *.out
 /vendor/
-
 # local credentials / config a dev might create while testing
 /.pobear/
 *.env
