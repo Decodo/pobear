@@ -16,3 +16,11 @@ Rules:
 - If a genuine spec ambiguity blocks the work and there's no clear answer in `/docs`, ask rather than guess.
 - When a real design decision gets made in conversation (a new field, a renamed component, a changed rule), update the corresponding doc in `/docs` in the same change — don't let the decision live only in code comments or chat history. If it doesn't fit an existing doc, add a new one under `/docs` and note it here.
 - These docs are specs, not a changelog — keep them as the current authoritative shape of the thing, not a history of how it got there.
+
+## Releases
+
+Releases are automated. Merging to `main` publishes a new version based on the
+PR title, which must follow [Conventional Commits](https://www.conventionalcommits.org):
+`fix:` → patch, `feat:` → minor, `feat!:` or a `BREAKING CHANGE:` footer → major.
+`chore:`, `docs:`, `ci:`, `refactor:`, `test:` don't release. Don't push version
+tags by hand. Details in `docs/RELEASING.md`.

@@ -1,68 +1,74 @@
 # Releasing (spec)
 
-Releases are cut from git tags and published as GitHub Releases by
-[goreleaser](https://goreleaser.com), driven by `.goreleaser.yml` and
-`.github/workflows/release.yml`. `release.yml` runs the same job
-(`goreleaser release --clean`) two ways: triggered by a `v*` tag push (what
-happens when a human pushes a tag by hand), or invoked directly as a
-reusable workflow (`on: workflow_call`) by `canary.yml`/`promote-stable.yml`
-after they push their tag. It has to be invoked directly rather than relying
-on the tag push to trigger it, because those two workflows push using the
-default `GITHUB_TOKEN` — and GitHub never lets a push made with that token
-trigger other workflow runs, to prevent recursive triggering. Either way,
-nothing else about the release build differs between a canary and a stable
-release.
+Releases are fully automated. Merging a PR to `main` decides the next version
+from its title, tags the merge commit, and publishes a GitHub Release with
+binaries and release notes. Nobody picks a version number.
 
-## Canary releases (automatic)
+Two pieces split the work:
 
-Every push to `main` (i.e. every merged MR) runs `.github/workflows/canary.yml`,
-which:
+- [semantic-release](https://semantic-release.gitbook.io), configured by
+  `.releaserc.json` and run by `.github/workflows/semantic-release.yml`, decides
+  the version, writes the release notes and pushes the `vX.Y.Z` tag.
+- [goreleaser](https://goreleaser.com), configured by `.goreleaser.yml` and run
+  by `.github/workflows/release.yml`, builds the binaries and creates the GitHub
+  Release with them attached.
 
-1. Finds the latest *stable* tag (bare `vX.Y.Z`, no suffix — falls back to
-   `v0.0.0` if none exist yet).
-2. Bumps its patch version by one and appends `-canary.<run number>`, e.g.
-   `v0.1.1-canary.7`.
-3. Tags the merge commit, pushes that tag, then calls the `release`
-   workflow directly (see above for why a plain push isn't enough here).
+## How a release happens
 
-A canary gets the same binaries/checksums/changelog as any other release —
-it's just marked as a GitHub *pre-release* (see below), and its version
-number never collides with an eventual stable release of the same patch,
-since a prerelease tag always sorts below its bare-version counterpart in
-semver. `install.sh` fetches `/releases/latest`, which GitHub defines to
-skip prereleases and drafts, so a canary is never what a plain install
-picks up.
+Every push to `main` runs `semantic-release.yml`:
 
-## Stable releases (manual)
+1. `go build`, `go vet`, `golangci-lint` and `go test` — the same checks PR CI
+   (`ci.yml`) runs. A failure here stops the release before anything is tagged.
+2. semantic-release reads the commits since the last `vX.Y.Z` tag and picks the
+   bump (below). If nothing releasable landed, it stops: no tag, no release.
+3. Otherwise it pushes the new tag and hands the tag and its release notes to
+   `release.yml`, called directly as a reusable workflow (`on: workflow_call`).
+   It has to be called directly rather than triggered by the tag push, because
+   the push is made with the default `GITHUB_TOKEN`, and GitHub never lets a
+   push made with that token trigger other workflow runs.
+4. `release.yml` runs `goreleaser release --clean --release-notes=<notes>`,
+   which creates the GitHub Release with the binaries, checksums and
+   semantic-release's notes. semantic-release itself never creates the GitHub
+   Release, so a Release never exists without its binaries.
 
-A human decides when to promote a stable release, by running
-`.github/workflows/promote-stable.yml` from the Actions tab
-(`workflow_dispatch`) against the desired ref, with a `version` input —
-bare semver, no `v` prefix or suffix (e.g. `0.1.1`). It validates that
-shape, tags that ref as `v0.1.1`, pushes it, and — the same as canary —
-calls the `release` workflow directly rather than relying on the push.
+`install.sh` fetches `/releases/latest`, so a plain install picks up the new
+version as soon as goreleaser finishes.
 
-Cutting a release by hand still works via a plain tag push (no direct
-`release.yml` call needed, since a push made by an actual person, not
-`GITHUB_TOKEN`, does trigger it normally), if you'd rather not go through
-the Actions UI:
+## Version bumps
 
-```
-$ git tag v0.1.0
-$ git push origin v0.1.0
-```
+Only the commit that lands on `main` counts. PRs are squash-merged, so that is
+the PR title, which the `PR title` check (`.github/workflows/pr-title.yml`)
+requires to follow [Conventional Commits](https://www.conventionalcommits.org):
 
-Tags are plain [semver](https://semver.org) with a `v` prefix (`v0.1.0`,
-`v1.2.3`, or a canary's `v0.1.1-canary.7`) — no other tag shape is
-recognized by the release workflow.
+| PR title | Release |
+|---|---|
+| `fix: …` | patch (`0.2.1` → `0.2.2`) |
+| `feat: …` | minor (`0.2.1` → `0.3.0`) |
+| `feat!: …`, `fix!: …`, or a `BREAKING CHANGE:` footer | major (`0.2.1` → `1.0.0`) |
+| `chore:`, `docs:`, `ci:`, `refactor:`, `test:`, `build:`, `perf:`, `style:` | none |
 
-## Canary vs. stable
+A breaking change releases a new major even while the version is `0.x`.
+Going past `v1` also needs the `/vN` suffix on the module path in `go.mod`,
+which is not automated.
 
-`.goreleaser.yml`'s `release.prerelease: auto` is what tells them apart —
-goreleaser marks a GitHub Release as a pre-release whenever the tag has a
-semver prerelease component (anything after a `-`), and as the normal
-"Latest" release otherwise. Nothing else about the two workflows is
-goreleaser-visible; the distinction is entirely in the tag's shape.
+Nothing is committed back to `main`: no version file, no `CHANGELOG.md`.
+Release notes live on the GitHub Releases page.
+
+## Tags
+
+Tags are plain [semver](https://semver.org) with a `v` prefix (`v0.2.1`,
+`v1.2.3`). semantic-release computes the next version from the latest such tag
+reachable from `main`, and ignores tags with a prerelease suffix (the old
+`vX.Y.Z-canary.N` tags).
+
+A human pushing a tag by hand still triggers `release.yml` (a push made by a
+person, not `GITHUB_TOKEN`, triggers workflows normally), and goreleaser then
+writes its own changelog from `.goreleaser.yml`. semantic-release picks that
+tag up as the last release next time. Use this only to recover from a failed
+run, not as the normal path.
+
+`.goreleaser.yml`'s `release.prerelease: auto` marks any tag with a prerelease
+suffix as a GitHub pre-release; automated releases never have one.
 
 ## Version string
 
