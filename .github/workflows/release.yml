@@ -10,6 +10,10 @@ on:
         description: 'Tag to release (e.g. "v0.1.2"). Set by callers, since a commit can carry more than one tag.'
         required: false
         type: string
+      notes:
+        description: "Release notes (markdown). When empty, goreleaser generates its own changelog."
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -26,11 +30,17 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Write release notes
+        if: inputs.notes != ''
+        env:
+          NOTES: ${{ inputs.notes }}
+        run: printf '%s\n' "$NOTES" > "$RUNNER_TEMP/release-notes.md"
+
       - uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: latest
-          args: release --clean
+          args: release --clean ${{ inputs.notes != '' && format('--release-notes={0}/release-notes.md', runner.temp) || '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ inputs.tag || github.ref_name }}
