@@ -197,10 +197,11 @@ A css field that matched nothing writes an empty list, and `raw`/`markdown` writ
 an empty string; either counts as empty. An item is only empty when **every**
 field came back empty — one field matching is enough to count it as extracted.
 
-This is the closest pobear gets to reporting a soft block. A site that serves an
-interstitial challenge page answers with a normal `200` and real HTML, so the
-fetch cannot be classified as `[blocked]` the way a `403` can. What pobear can
-say is that the selectors you asked for found nothing, which is the same signal a
+This is the closest pobear gets to reporting a soft block it doesn't recognize. A
+`200` challenge page from a known anti-bot vendor (Amazon's CAPTCHA, Cloudflare,
+DataDome, PerimeterX) is classified as `[blocked]` like a `403`, so `--ladder`
+climbs past it; any other interstitial answers with a normal `200` and real HTML.
+What pobear can say is that the selectors you asked for found nothing, which is the same signal a
 challenge page, a layout change, or a wrong selector all produce. `empty 200` out
 of 200 is unmistakable; a handful is worth a look.
 
@@ -1018,10 +1019,9 @@ full below: `0` success, `1` auth, `3` usage or invalid spec, `4` partial, `5`
 fatal. `4` is the one worth handling deliberately — some items succeeded and
 their data is on stdout, so a run that exits `4` is still worth consuming.
 
-**Check `empty` before trusting a successful run.** A site that serves an
-interstitial challenge page answers with a normal `200` and real HTML, so the
-fetch cannot be classified as `[blocked]` the way a `403` can. What pobear can
-report is that the stages you asked for extracted nothing:
+**Check `empty` before trusting a successful run.** A challenge page pobear
+doesn't recognize answers with a normal `200` and real HTML, so the fetch cannot
+be classified as `[blocked]` the way a `403` can. What pobear can report is that the stages you asked for extracted nothing:
 
 ```
 $ pobear scrape https://example.com --css 'price=.price'

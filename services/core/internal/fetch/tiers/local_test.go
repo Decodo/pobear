@@ -60,6 +60,32 @@ func TestLocalFetch(t *testing.T) {
 			wantErr:    true,
 		},
 		{
+			name: "503-is-blocked",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(503)
+			},
+			wantStatus: 503,
+			wantFault:  fault.Blocked,
+			wantErr:    true,
+		},
+		{
+			name: "200-captcha-page-is-blocked",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				_, _ = w.Write([]byte(`<form action="/errors_page/validateCaptcha">`))
+			},
+			wantStatus: 200,
+			wantFault:  fault.Blocked,
+			wantErr:    true,
+		},
+		{
+			name: "200-mentioning-captcha-is-ok",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				_, _ = w.Write([]byte("how to solve a captcha"))
+			},
+			wantStatus: 200,
+			wantBody:   "how to solve a captcha",
+		},
+		{
 			name: "redirect-followed-by-default",
 			path: "/start",
 			handler: func(w http.ResponseWriter, r *http.Request) {

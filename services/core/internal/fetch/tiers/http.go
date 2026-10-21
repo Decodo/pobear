@@ -90,12 +90,33 @@ func applyHeaders(req *http.Request, headers map[string]string) {
 	}
 }
 
+var blockPageMarkers = [][]byte{
+	[]byte("validateCaptcha"),      // Amazon
+	[]byte("_cf_chl_opt"),          // Cloudflare challenge
+	[]byte("captcha-delivery.com"), // DataDome
+	[]byte("px-captcha"),           // PerimeterX
+}
+
+func isBlockPage(body []byte) bool {
+	for _, m := range blockPageMarkers {
+		if bytes.Contains(body, m) {
+			return true
+		}
+	}
+	return false
+}
+
 func classifyStatus(status int, noRedirects bool, body []byte) (fault.Kind, error) {
 	if noRedirects && status >= 300 && status < 400 {
 		return "", nil
 	}
 	kind := classifyDefaultStatus(status)
-	if kind == "" {
+	switch {
+	case status == http.StatusServiceUnavailable:
+		kind = fault.Blocked
+	case kind == "" && isBlockPage(body):
+		return fault.Blocked, fmt.Errorf("tiers: http status %d: block page detected", status)
+	case kind == "":
 		return "", nil
 	}
 	if snippet := bodySnippet(body); snippet != "" {

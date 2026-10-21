@@ -168,6 +168,11 @@ succeeds or fails for a reason escalation doesn't cover; every other fault kind
 is returned as-is, from whichever tier hit it. The envelope's `tier` field (§7)
 reports which tier actually served each URL, whether or not `ladder` ever climbed.
 
+On `local` and `proxy`, `blocked` covers `403`, `503`, and a `2xx` whose body is a
+recognized anti-bot page (Amazon's CAPTCHA, a Cloudflare challenge, DataDome,
+PerimeterX). Markers are vendor-specific, so an unrecognized challenge page still
+comes back as a successful fetch.
+
 **`profile` only spoofs the TLS ClientHello, nothing else:** it doesn't touch
 `User-Agent` or any other header — a browser-shaped TLS fingerprint paired
 with no `User-Agent` (or a mismatched one) is itself a detectable,
