@@ -160,7 +160,9 @@ options:
 them exactly like `device` above. `--render`/`--geo` on the CLI are sugar for the
 generic `--opt render=true --opt geo=us`; a manifest that omits an option simply
 doesn't support it, and asking for it anyway is rejected the same way an
-out-of-range value is (§12).
+out-of-range value is (§12). A provider whose API names the param differently can
+still support the sugar by declaring the option and mapping it onto its own param
+in a request template (§8).
 
 **Known gap:** constraints are per-field only. A manifest cannot express "`geo` is
 required when `render` is true," or any rule spanning more than one field — that

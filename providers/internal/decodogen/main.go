@@ -36,11 +36,12 @@ var skipParams = map[string]bool{
 }
 
 var optionDefaults = map[string]string{
-	"headless":   "html",
 	"proxy_pool": "premium",
 }
 
-var optionOrder = []string{"headless", "proxy_pool", "geo", "locale", "device_type", "page_count", "page_from", "parse"}
+const renderHeadless = `{{ if .Options.headless }}{{ .Options.headless }}{{ else if .Options.render }}html{{ end }}`
+
+var optionOrder = []string{"render", "headless", "proxy_pool", "geo", "locale", "device_type", "page_count", "page_from", "parse"}
 
 type ir struct {
 	Version string `json:"version"`
@@ -220,6 +221,9 @@ func options(props map[string]property) []option {
 			continue
 		}
 		opts = append(opts, o)
+		if name == "headless" {
+			opts = append(opts, option{name: "render", typ: "bool"})
+		}
 	}
 	rank := func(name string) int {
 		if i := slices.Index(optionOrder, name); i >= 0 {
@@ -265,6 +269,12 @@ func writeTemplate(sb *strings.Builder, t template) {
 	fmt.Fprintf(sb, "        target: %s\n", t.name)
 	sb.WriteString("        url: \"{{ .URL }}\"\n")
 	for _, o := range t.options {
-		fmt.Fprintf(sb, "        %s: \"{{ .Options.%s }}\"\n", o.name, o.name)
+		switch o.name {
+		case "render":
+		case "headless":
+			fmt.Fprintf(sb, "        headless: \"%s\"\n", renderHeadless)
+		default:
+			fmt.Fprintf(sb, "        %s: \"{{ .Options.%s }}\"\n", o.name, o.name)
+		}
 	}
 }
