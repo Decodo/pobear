@@ -151,38 +151,6 @@ templates:
         headless: "{{ if .Options.headless }}{{ .Options.headless }}{{ else if .Options.render }}html{{ end }}"
         geo: "{{ .Options.geo }}"
         device_type: "{{ .Options.device_type }}"
-  - name: reddit_post
-    options:
-      - { name: geo, type: string }
-      - { name: locale, type: string }
-    request:
-      body:
-        target: reddit_post
-        url: "{{ .URL }}"
-        geo: "{{ .Options.geo }}"
-        locale: "{{ .Options.locale }}"
-  - name: reddit_subreddit
-    options:
-      - { name: geo, type: string }
-      - { name: locale, type: string }
-    request:
-      body:
-        target: reddit_subreddit
-        url: "{{ .URL }}"
-        geo: "{{ .Options.geo }}"
-        locale: "{{ .Options.locale }}"
-  - name: reddit_user
-    options:
-      - { name: geo, type: string }
-      - { name: locale, type: string }
-      - { name: sort, type: string }
-    request:
-      body:
-        target: reddit_user
-        url: "{{ .URL }}"
-        geo: "{{ .Options.geo }}"
-        locale: "{{ .Options.locale }}"
-        sort: "{{ .Options.sort }}"
   - name: target
     options:
       - { name: render, type: bool }

@@ -357,7 +357,8 @@ Decodo ships embedded in the `pobear` binary itself — it's available with no
 setup beyond `pobear auth decodo`. Its manifest is generated, not hand-written:
 `go generate ./providers` fetches the latest Decodo target schema and emits one template per target
 that takes a `url`. Targets keyed on a query, prompt or product ID are omitted,
-since every pobear item is a URL. Parameters that are async-only (`callback_url`),
+since every pobear item is a URL, as are targets pobear deliberately doesn't offer
+(currently Reddit's). Parameters that are async-only (`callback_url`),
 change the response shape (`markdown`, `xhr`), or aren't scalars (`cookies`,
 `headers`, …) are not exposed as options. It targets the Web Data API
 (`data.decodo.com`, `bearer` auth with an API key).
