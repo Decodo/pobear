@@ -8,7 +8,8 @@ templates:
   - name: universal
     default: true
     options:
-      - { name: headless, type: enum, values: [html, png], default: html }
+      - { name: render, type: bool }
+      - { name: headless, type: enum, values: [html, png] }
       - { name: proxy_pool, type: enum, values: [standard, premium], default: premium }
       - { name: geo, type: string }
       - { name: locale, type: string }
@@ -20,7 +21,7 @@ templates:
       body:
         target: universal
         url: "{{ .URL }}"
-        headless: "{{ .Options.headless }}"
+        headless: "{{ if .Options.headless }}{{ .Options.headless }}{{ else if .Options.render }}html{{ end }}"
         proxy_pool: "{{ .Options.proxy_pool }}"
         geo: "{{ .Options.geo }}"
         locale: "{{ .Options.locale }}"
@@ -30,19 +31,21 @@ templates:
         session_id: "{{ .Options.session_id }}"
   - name: airbnb
     options:
-      - { name: headless, type: enum, values: [html, png], default: html }
+      - { name: render, type: bool }
+      - { name: headless, type: enum, values: [html, png] }
       - { name: geo, type: string }
       - { name: device_type, type: string }
     request:
       body:
         target: airbnb
         url: "{{ .URL }}"
-        headless: "{{ .Options.headless }}"
+        headless: "{{ if .Options.headless }}{{ .Options.headless }}{{ else if .Options.render }}html{{ end }}"
         geo: "{{ .Options.geo }}"
         device_type: "{{ .Options.device_type }}"
   - name: amazon
     options:
-      - { name: headless, type: enum, values: [html, png], default: html }
+      - { name: render, type: bool }
+      - { name: headless, type: enum, values: [html, png] }
       - { name: geo, type: string }
       - { name: device_type, type: string }
       - { name: parse, type: bool }
@@ -51,50 +54,54 @@ templates:
       body:
         target: amazon
         url: "{{ .URL }}"
-        headless: "{{ .Options.headless }}"
+        headless: "{{ if .Options.headless }}{{ .Options.headless }}{{ else if .Options.render }}html{{ end }}"
         geo: "{{ .Options.geo }}"
         device_type: "{{ .Options.device_type }}"
         parse: "{{ .Options.parse }}"
         session_id: "{{ .Options.session_id }}"
   - name: apple_app_store
     options:
-      - { name: headless, type: enum, values: [html, png], default: html }
+      - { name: render, type: bool }
+      - { name: headless, type: enum, values: [html, png] }
       - { name: geo, type: string }
       - { name: device_type, type: string }
     request:
       body:
         target: apple_app_store
         url: "{{ .URL }}"
-        headless: "{{ .Options.headless }}"
+        headless: "{{ if .Options.headless }}{{ .Options.headless }}{{ else if .Options.render }}html{{ end }}"
         geo: "{{ .Options.geo }}"
         device_type: "{{ .Options.device_type }}"
   - name: autotrader
     options:
-      - { name: headless, type: enum, values: [html, png], default: html }
+      - { name: render, type: bool }
+      - { name: headless, type: enum, values: [html, png] }
       - { name: geo, type: string }
       - { name: device_type, type: string }
     request:
       body:
         target: autotrader
         url: "{{ .URL }}"
-        headless: "{{ .Options.headless }}"
+        headless: "{{ if .Options.headless }}{{ .Options.headless }}{{ else if .Options.render }}html{{ end }}"
         geo: "{{ .Options.geo }}"
         device_type: "{{ .Options.device_type }}"
   - name: bbb
     options:
-      - { name: headless, type: enum, values: [html, png], default: html }
+      - { name: render, type: bool }
+      - { name: headless, type: enum, values: [html, png] }
       - { name: geo, type: string }
       - { name: device_type, type: string }
     request:
       body:
         target: bbb
         url: "{{ .URL }}"
-        headless: "{{ .Options.headless }}"
+        headless: "{{ if .Options.headless }}{{ .Options.headless }}{{ else if .Options.render }}html{{ end }}"
         geo: "{{ .Options.geo }}"
         device_type: "{{ .Options.device_type }}"
   - name: bing
     options:
-      - { name: headless, type: enum, values: [html, png], default: html }
+      - { name: render, type: bool }
+      - { name: headless, type: enum, values: [html, png] }
       - { name: geo, type: string }
       - { name: locale, type: string }
       - { name: device_type, type: string }
@@ -105,7 +112,7 @@ templates:
       body:
         target: bing
         url: "{{ .URL }}"
-        headless: "{{ .Options.headless }}"
+        headless: "{{ if .Options.headless }}{{ .Options.headless }}{{ else if .Options.render }}html{{ end }}"
         geo: "{{ .Options.geo }}"
         locale: "{{ .Options.locale }}"
         device_type: "{{ .Options.device_type }}"
@@ -114,7 +121,8 @@ templates:
         session_id: "{{ .Options.session_id }}"
   - name: google
     options:
-      - { name: headless, type: enum, values: [html, png], default: html }
+      - { name: render, type: bool }
+      - { name: headless, type: enum, values: [html, png] }
       - { name: locale, type: string }
       - { name: device_type, type: string }
       - { name: page_count, type: int, min: 1, max: 10 }
@@ -124,7 +132,7 @@ templates:
       body:
         target: google
         url: "{{ .URL }}"
-        headless: "{{ .Options.headless }}"
+        headless: "{{ if .Options.headless }}{{ .Options.headless }}{{ else if .Options.render }}html{{ end }}"
         locale: "{{ .Options.locale }}"
         device_type: "{{ .Options.device_type }}"
         page_count: "{{ .Options.page_count }}"
@@ -132,14 +140,15 @@ templates:
         session_id: "{{ .Options.session_id }}"
   - name: mobile
     options:
-      - { name: headless, type: enum, values: [html, png], default: html }
+      - { name: render, type: bool }
+      - { name: headless, type: enum, values: [html, png] }
       - { name: geo, type: string }
       - { name: device_type, type: string }
     request:
       body:
         target: mobile
         url: "{{ .URL }}"
-        headless: "{{ .Options.headless }}"
+        headless: "{{ if .Options.headless }}{{ .Options.headless }}{{ else if .Options.render }}html{{ end }}"
         geo: "{{ .Options.geo }}"
         device_type: "{{ .Options.device_type }}"
   - name: reddit_post
@@ -176,7 +185,8 @@ templates:
         sort: "{{ .Options.sort }}"
   - name: target
     options:
-      - { name: headless, type: enum, values: [html, png], default: html }
+      - { name: render, type: bool }
+      - { name: headless, type: enum, values: [html, png] }
       - { name: device_type, type: string }
       - { name: delivery_zip, type: string }
       - { name: target_store_id, type: string }
@@ -184,19 +194,20 @@ templates:
       body:
         target: target
         url: "{{ .URL }}"
-        headless: "{{ .Options.headless }}"
+        headless: "{{ if .Options.headless }}{{ .Options.headless }}{{ else if .Options.render }}html{{ end }}"
         device_type: "{{ .Options.device_type }}"
         delivery_zip: "{{ .Options.delivery_zip }}"
         target_store_id: "{{ .Options.target_store_id }}"
   - name: tiktok
     options:
-      - { name: headless, type: enum, values: [html, png], default: html }
+      - { name: render, type: bool }
+      - { name: headless, type: enum, values: [html, png] }
       - { name: user_agent_type, type: string }
     request:
       body:
         target: tiktok
         url: "{{ .URL }}"
-        headless: "{{ .Options.headless }}"
+        headless: "{{ if .Options.headless }}{{ .Options.headless }}{{ else if .Options.render }}html{{ end }}"
         user_agent_type: "{{ .Options.user_agent_type }}"
   - name: tiktok_post
     request:
@@ -205,7 +216,8 @@ templates:
         url: "{{ .URL }}"
   - name: walmart
     options:
-      - { name: headless, type: enum, values: [html, png], default: html }
+      - { name: render, type: bool }
+      - { name: headless, type: enum, values: [html, png] }
       - { name: geo, type: string }
       - { name: locale, type: string }
       - { name: device_type, type: string }
@@ -214,7 +226,7 @@ templates:
       body:
         target: walmart
         url: "{{ .URL }}"
-        headless: "{{ .Options.headless }}"
+        headless: "{{ if .Options.headless }}{{ .Options.headless }}{{ else if .Options.render }}html{{ end }}"
         geo: "{{ .Options.geo }}"
         locale: "{{ .Options.locale }}"
         device_type: "{{ .Options.device_type }}"

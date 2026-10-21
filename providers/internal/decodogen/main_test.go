@@ -58,16 +58,56 @@ func TestGenerateProducesValidManifest(t *testing.T) {
 	}
 
 	universal := optionNames(m.Templates[0].Options)
-	if want := []string{"headless", "proxy_pool"}; !slices.Equal(universal, want) {
+	if want := []string{"render", "headless", "proxy_pool"}; !slices.Equal(universal, want) {
 		t.Errorf("universal options = %v, want %v", universal, want)
 	}
-	if d := m.Templates[0].Options[1].Default; d != "premium" {
+	if d := m.Templates[0].Options[1].Default; d != nil {
+		t.Errorf("headless default = %v, want none", d)
+	}
+	if d := m.Templates[0].Options[2].Default; d != "premium" {
 		t.Errorf("proxy_pool default = %v, want premium", d)
 	}
 
 	pageCount := m.Templates[1].Options[0]
 	if pageCount.Name != "page_count" || pageCount.Type != "int" || *pageCount.Min != 1 || *pageCount.Max != 10 {
 		t.Errorf("page_count option = %+v", pageCount)
+	}
+}
+
+func TestGenerateMapsRenderToHeadless(t *testing.T) {
+	out, err := generate([]byte(testIR))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := provider.Parse(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := m.Templates[0].Request
+
+	cases := []struct {
+		name    string
+		options map[string]any
+		want    any
+	}{
+		{"neither set", map[string]any{}, nil},
+		{"render", map[string]any{"render": true}, "html"},
+		{"render false", map[string]any{"render": false}, nil},
+		{"explicit headless wins", map[string]any{"render": true, "headless": "png"}, "png"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			body, _, err := provider.Render(req, "https://a.test", c.options)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := body["headless"]; got != c.want {
+				t.Errorf("headless = %v, want %v", got, c.want)
+			}
+			if _, ok := body["render"]; ok {
+				t.Error("render must not be sent to the API")
+			}
+		})
 	}
 }
 

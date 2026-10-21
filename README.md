@@ -136,7 +136,7 @@ pobear scrape https://books.toscrape.com/ \
 
 Enter your Decodo authentication token at the prompt. pobear saves it and uses the configured provider settings to authenticate subsequent requests.
 
-The Decodo configuration defaults to the `universal` target, rendered HTML (`headless=html`), and the Premium proxy pool (`proxy_pool=premium`). To inspect the available settings:
+The Decodo configuration defaults to the `universal` target, no JavaScript rendering, and the Premium proxy pool (`proxy_pool=premium`). `--render` turns rendering on (`headless=html`). To inspect the available settings:
 
 ```sh
 pobear scrape --provider decodo --help
