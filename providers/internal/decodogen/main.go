@@ -22,6 +22,12 @@ const (
 	defaultTemplate = "universal"
 )
 
+var skipTargets = map[string]bool{
+	"reddit_post":      true,
+	"reddit_subreddit": true,
+	"reddit_user":      true,
+}
+
 var skipParams = map[string]bool{
 	"target":                  true,
 	"url":                     true,
@@ -164,6 +170,9 @@ func generate(data []byte) ([]byte, error) {
 
 	var templates []template
 	for name, t := range targets {
+		if skipTargets[name] {
+			continue
+		}
 		props := t.ParameterSchema.Properties
 		if _, ok := props["url"]; !ok {
 			continue

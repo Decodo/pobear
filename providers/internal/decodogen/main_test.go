@@ -25,6 +25,10 @@ const testIR = `{
       "page_count": {"type": "number", "minimum": 1, "maximum": 10},
       "parse": {"type": "boolean"}
     }}},
+    "reddit_post": {"parameter_schema": {"properties": {
+      "target": {"const": "reddit_post"},
+      "url": {"type": "string"}
+    }}},
     "google_search": {"parameter_schema": {"properties": {
       "target": {"const": "google_search"},
       "query": {"type": "string"}
@@ -51,7 +55,7 @@ func TestGenerateProducesValidManifest(t *testing.T) {
 		names = append(names, tmpl.Name)
 	}
 	if want := []string{"universal", "google"}; !slices.Equal(names, want) {
-		t.Fatalf("templates = %v, want %v (query-only targets dropped, default first)", names, want)
+		t.Fatalf("templates = %v, want %v (skipped and query-only targets dropped, default first)", names, want)
 	}
 	if !m.Templates[0].Default {
 		t.Error("universal is not the default template")

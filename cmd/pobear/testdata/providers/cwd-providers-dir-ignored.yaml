@@ -3,6 +3,6 @@ files:
   providers/aws.yaml: |
     foo: bar
 stdout: |
-    decodo       https://data.decodo.com/v1/scrape templates: universal (default), airbnb, amazon, apple_app_store, autotrader, bbb, bing, google, mobile, reddit_post, reddit_subreddit, reddit_user, target, tiktok, tiktok_post, walmart
+    decodo       https://data.decodo.com/v1/scrape templates: universal (default), airbnb, amazon, apple_app_store, autotrader, bbb, bing, google, mobile, target, tiktok, tiktok_post, walmart
 stderr: ""
 exit: 0
