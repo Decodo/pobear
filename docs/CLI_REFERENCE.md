@@ -200,7 +200,7 @@ field came back empty — one field matching is enough to count it as extracted.
 
 This is the closest pobear gets to reporting a soft block it doesn't recognize. A
 `200` challenge page from a known anti-bot vendor (Amazon's CAPTCHA, Cloudflare,
-DataDome, PerimeterX) is classified as `[blocked]` like a `403`, so `--ladder`
+DataDome, PerimeterX, Google Search) is classified as `[blocked]` like a `403`, so `--ladder`
 climbs past it; any other interstitial answers with a normal `200` and real HTML.
 What pobear can say is that the selectors you asked for found nothing, which is the same signal a
 challenge page, a layout change, or a wrong selector all produce. `empty 200` out

@@ -78,6 +78,15 @@ func TestLocalFetch(t *testing.T) {
 			wantErr:    true,
 		},
 		{
+			name: "200-google-search-block-is-blocked",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				_, _ = w.Write([]byte(`<a href="/search?q=x&amp;emsg=SG_REL&amp;sei=y">click here</a>`))
+			},
+			wantStatus: 200,
+			wantFault:  fault.Blocked,
+			wantErr:    true,
+		},
+		{
 			name: "200-mentioning-captcha-is-ok",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				_, _ = w.Write([]byte("how to solve a captcha"))
