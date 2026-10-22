@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -67,21 +68,26 @@ func doHTTPFetch(ctx context.Context, client *http.Client, cfg jobspec.Fetch, ur
 
 	resp, err := client.Do(req)
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return nil, fault.Timeout, err
-		}
-		return nil, fault.Network, err
+		return nil, transportFault(err), err
 	}
 	defer resp.Body.Close()
 
 	body, err := readBodyAsUTF8(resp)
 	if err != nil {
-		return nil, fault.Network, err
+		return nil, transportFault(err), err
 	}
 
 	result := &Result{Status: resp.StatusCode, Body: body, FinalURL: resp.Request.URL.String()}
 	kind, classifyErr := classifyStatus(resp.StatusCode, cfg.NoRedirects, body)
 	return result, kind, classifyErr
+}
+
+func transportFault(err error) fault.Kind {
+	var netErr net.Error
+	if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &netErr) && netErr.Timeout()) {
+		return fault.Timeout
+	}
+	return fault.Network
 }
 
 func applyHeaders(req *http.Request, headers map[string]string) {

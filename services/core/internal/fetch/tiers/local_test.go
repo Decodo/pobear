@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/Decodo/pobear/pkg/fault"
 	"github.com/Decodo/pobear/pkg/jobspec"
@@ -227,5 +228,24 @@ func TestLocalFetchSendsHeaders(t *testing.T) {
 	}
 	if got, _ := gotHeader.Load().(string); got != "custom-value" {
 		t.Errorf("X-Test-Header = %q, want %q", got, "custom-value")
+	}
+}
+
+func TestLocalFetchTransportTimeoutIsTimeout(t *testing.T) {
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-release
+	}))
+	defer srv.Close()
+	defer close(release)
+
+	client := srv.Client()
+	client.Transport.(*http.Transport).ResponseHeaderTimeout = 50 * time.Millisecond
+
+	l := &tiers.Local{Client: client}
+	_, kind, err := l.Fetch(context.Background(), jobspec.Fetch{}, srv.URL)
+
+	if err == nil || kind != fault.Timeout {
+		t.Fatalf("Fetch() kind = %q, err = %v, want fault.Timeout -- a transport-level timeout must not be reported as network", kind, err)
 	}
 }

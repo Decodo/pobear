@@ -133,7 +133,7 @@ func configured(cfg jobspec.Fetch, tier string) bool {
 }
 
 func escalates(k fault.Kind) bool {
-	return k == fault.Blocked || k == fault.RateLimit
+	return k == fault.Blocked || k == fault.RateLimit || k == fault.Timeout
 }
 
 func (f *Fetcher) acquire(ctx context.Context) (release func(), err error) {
