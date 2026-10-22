@@ -245,7 +245,7 @@ func TestProviderFetchUsesLogicalStatusFromResponse(t *testing.T) {
 	defer srv.Close()
 
 	manifest := testManifest(srv.URL)
-	manifest.Response.Status = "$.logicalStatus"
+	manifest.Response.Status = []string{"$.logicalStatus"}
 	manifest.Errors = []provider.ErrorMapping{
 		{Status: 429, Kind: "rateLimit"},
 	}

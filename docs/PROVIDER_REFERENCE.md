@@ -209,11 +209,24 @@ device: "{{ .Options.device }}"
 
 | Field | Type | Required | Rule |
 |---|---|---|---|
-| `status` | JSONPath | no | maps to the response's logical status; falls back to the actual HTTP status of the response if unset |
+| `status` | JSONPath, or a list of them | no | maps to the response's logical status; a list is tried in order and the first path that matches wins; falls back to the actual HTTP status of the response if unset or nothing matches |
 | `body` | JSONPath | **yes** | the extracted page content |
 | `finalUrl` | JSONPath | no | falls back to the request URL if unset |
 
 JSONPath syntax is validated at load time, before any request is ever sent.
+
+Each path takes its first match, so prefer exact paths over recursive descent
+(`$..x`): a response that nests the same key at several depths matches the wrong
+one. A list covers providers whose success and error responses put the status in
+different places:
+
+```yaml
+response:
+  status:
+    - "$.results[0].status_code"   # success
+    - "$.status_code"              # error, no results array
+  body: "$.results[0].content"
+```
 
 Because `body` is required, a response whose declared `body` path matches
 **nothing** is a broken provider contract, not an empty page: the fetch fails
