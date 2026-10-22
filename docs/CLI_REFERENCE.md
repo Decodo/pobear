@@ -8,7 +8,8 @@ pobear - short for polar bear. Reasoning, polar bears have one of the best sense
 
 No flags. Prints whatever version string was injected at build time (see
 `docs/RELEASING.md`) — `dev` for a plain `go build`/`go run`, the release
-tag (e.g. `v0.1.0`) for a binary built by the release pipeline.
+tag (e.g. `v0.1.0`) for a binary built by the release pipeline. `pobear --version`
+and `pobear -v` are aliases.
 
 ```
 $ pobear version

@@ -28,6 +28,9 @@ func (s *Service) Run(ctx context.Context, argv []string, stdin io.Reader, stdou
 		printHelp(stdout, s.commands)
 		return exitcode.Success
 	}
+	if name == "--version" || name == "-v" {
+		name = "version"
+	}
 
 	cmd, ok := s.commands[name]
 	if !ok {

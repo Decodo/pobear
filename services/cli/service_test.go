@@ -127,6 +127,25 @@ func TestServiceHelpFlagListsRegisteredCommands(t *testing.T) {
 	}
 }
 
+func TestServiceVersionFlagRunsVersionCommand(t *testing.T) {
+	for _, flag := range []string{"--version", "-v"} {
+		t.Run(flag, func(t *testing.T) {
+			version := &fakeCommand{}
+			svc := cli.NewService(map[string]command.Command{"version": version})
+
+			var stdout, stderr bytes.Buffer
+			got := svc.Run(context.Background(), []string{flag}, bytes.NewReader(nil), &stdout, &stderr)
+
+			if got != 0 {
+				t.Fatalf("Run() = %d, want 0", got)
+			}
+			if stdout.String() != "ran\n" {
+				t.Fatalf("stdout = %q, want the version command to have run", stdout.String())
+			}
+		})
+	}
+}
+
 func equalStrings(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
