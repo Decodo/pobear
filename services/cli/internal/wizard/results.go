@@ -122,7 +122,7 @@ func (s *resultsScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func hasEscalatableFailure(rows []resultRow) bool {
 	for _, row := range rows {
-		if row.kind == fault.Blocked || row.kind == fault.RateLimit {
+		if row.kind == fault.Blocked || row.kind == fault.RateLimit || row.kind == fault.Timeout {
 			return true
 		}
 	}

@@ -46,7 +46,7 @@ $ pobear scrape urls.txt --print-spec
 |---|---|---|
 | `--proxy <url>` | — | tier 1 |
 | `--provider <name>` | — | tier 2 |
-| `--ladder` | off | escalate from local through whichever of proxy/provider are configured, if blocked/rate-limited — a no-op with neither set |
+| `--ladder` | off | escalate from local through whichever of proxy/provider are configured, if blocked, rate-limited or timed out — a no-op with neither set |
 | `--template <name>` | the provider's `default` template, if any | selects one of the provider's declared templates — see below |
 | `--profile chrome\|firefox\|safari` | `chrome` | local/proxy TLS fingerprint; rejected with `--provider` |
 | `--render` | off | sugar for `--opt render=true` |
@@ -85,7 +85,7 @@ legal/courtesy default and shouldn't be easy to fat-finger.
 ### `--ladder` — escalating to a higher tier when blocked
 
 `--proxy`/`--provider` pick which additional tiers are configured; `--ladder` decides
-whether a `[blocked]` or rate-limited fetch climbs from `local` through whichever of
+whether a `[blocked]`, rate-limited or timed-out fetch climbs from `local` through whichever of
 them are set instead of failing outright (see `JOB_SPEC_REFERENCE.md` §4 for the full
 escalation rule). It always starts at `local` regardless of which of `--proxy`/
 `--provider` are set, so it's also what lets `--proxy` and `--provider` be set
@@ -811,7 +811,7 @@ field never appears at all — there's nothing to choose.
 There's no separate `ladder` field to flip. Configuring more than one tier —
 `Local` and `Provider`, say — is itself what turns escalation on: `fetch.use`
 becomes the lowest configured tier, `fetch.ladder` becomes `true`, and a fetch
-that comes back blocked or rate-limited climbs to the next configured tier up
+that comes back blocked, rate-limited or timed out climbs to the next configured tier up
 (`JOB_SPEC_REFERENCE.md` §4). Configuring exactly one tier behaves exactly as
 before — `fetch.use` is that tier, `ladder` stays `false`:
 
@@ -823,7 +823,7 @@ before — `fetch.use` is that tier, `ladder` stays `false`:
 
 This produces `fetch: {use: local, ladder: true, name: decodo, template:
 universal, ...}` — `Local` fetches first, escalating to `Provider` only on a
-block or rate limit. `Save`/`Run` require at least one tier configured; pressing
+block, rate limit or timeout. `Save`/`Run` require at least one tier configured; pressing
 `[ Run ]` with all three still `— not set` shows `✗ configure at least one of
 Local/Proxy/Provider` instead of starting.
 
@@ -876,7 +876,7 @@ than one tier, each row also names which tier actually served that URL — a row
 reading `✓ 200 (proxy) title: ...` means that URL escalated to (or was served
 directly by) `proxy`, not whatever tier the run started at. `enter` on a row opens
 its full detail; `w` writes every result to disk; `esc` returns to the form. If
-any URL came back blocked or rate-limited, a tip line appears above the list
+any URL came back blocked, rate-limited or timed out, a tip line appears above the list
 suggesting a higher tier (Proxy or Provider) to auto-escalate past it next time.
 
 ### Manage providers

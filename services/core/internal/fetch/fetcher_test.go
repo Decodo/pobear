@@ -334,6 +334,22 @@ func TestFetchClimbsTheLadderOnBlocked(t *testing.T) {
 	}
 }
 
+func TestFetchClimbsTheLadderOnTimeout(t *testing.T) {
+	local := &fakeTier{results: []fakeTierResult{{fault: fault.Timeout, err: errors.New("timed out")}}}
+	proxy := &fakeTier{results: []fakeTierResult{{result: &tiers.Result{Status: 200}}}}
+	f := fetch.NewFetcher(map[string]fetch.Tier{"local": local, "proxy": proxy}, 0, 1, noBackoff, nil)
+
+	cfg := jobspec.Fetch{Use: "local", Ladder: true, Proxy: "http://p.test"}
+	result, kind, err := f.Fetch(context.Background(), cfg, "https://a.test")
+
+	if err != nil || kind != "" {
+		t.Fatalf("Fetch() = %v, %q, %v, want success after climbing to proxy", result, kind, err)
+	}
+	if result.Tier != "proxy" {
+		t.Fatalf("result.Tier = %q, want %q", result.Tier, "proxy")
+	}
+}
+
 func TestFetchStopsOnNonEscalatingFaultKind(t *testing.T) {
 	local := &fakeTier{results: []fakeTierResult{{fault: fault.Auth, err: errors.New("bad credential")}}}
 	proxy := &fakeTier{results: []fakeTierResult{{result: &tiers.Result{Status: 200}}}}

@@ -143,7 +143,7 @@ supported.
 | `timeout` | duration string | all | `30s` | per-request timeout |
 | `noRedirects` | `bool` | all | `false` | `true` = a `3xx` is the final result; its `Location` is never followed, and in crawl mode never added to the frontier |
 | `headers` | `map[string]string` | all | `{}` | extra request headers, sent as-is |
-| `ladder` | `bool` | all | `false` | escalate to a higher configured tier (proxy, then provider) when a fetch is `blocked` or `rateLimit`; a no-op if no tier above `use` is configured |
+| `ladder` | `bool` | all | `false` | escalate to a higher configured tier (proxy, then provider) when a fetch is `blocked`, `rateLimit` or `timeout`; a no-op if no tier above `use` is configured |
 
 **Rule:** setting a field on a tier that doesn't support it is a validation error
 naming the field and the tier — never a silent no-op. This includes `options`: it
@@ -161,8 +161,8 @@ direction only: each of those fields may belong to any tier at or above `use`,
 never below. `ladder: true` with nothing above `use` configured to climb to is a
 valid no-op — behaviorally identical to `ladder: false` — except at `use:
 provider`, where it's rejected instead: there's no tier above provider, ever, so
-the field can only be a mistake. When a fetch comes back `blocked` or
-`rateLimit`, it's retried — with its own full `limits.retries`
+the field can only be a mistake. When a fetch comes back `blocked`,
+`rateLimit` or `timeout`, it's retried — with its own full `limits.retries`
 budget — on the next configured tier up, stopping at the first tier that either
 succeeds or fails for a reason escalation doesn't cover; every other fault kind
 is returned as-is, from whichever tier hit it. The envelope's `tier` field (§7)
@@ -172,6 +172,9 @@ On `local` and `proxy`, `blocked` covers `403`, `503`, and a `2xx` whose body is
 recognized anti-bot page (Amazon's CAPTCHA, a Cloudflare challenge, DataDome,
 PerimeterX, Google Search's block page). Markers are vendor-specific, so an unrecognized challenge page still
 comes back as a successful fetch.
+
+`timeout` covers both the `fetch.timeout` deadline and a connection that times
+out at the socket level.
 
 **`profile` only spoofs the TLS ClientHello, nothing else:** it doesn't touch
 `User-Agent` or any other header — a browser-shaped TLS fingerprint paired
