@@ -124,6 +124,30 @@ func TestExtractSuccessfulMatches(t *testing.T) {
 	}
 }
 
+func TestExtractStructuredBodyIsJSON(t *testing.T) {
+	resp := provider.Response{Body: "$.content"}
+	cases := []struct {
+		name     string
+		httpBody string
+		want     string
+	}{
+		{"object", `{"content":{"price":9.96,"tags":["a"]}}`, `{"price":9.96,"tags":["a"]}`},
+		{"array", `{"content":[1,"x"]}`, `[1,"x"]`},
+		{"string stays raw", `{"content":"<html>"}`, `<html>`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, body, _, _, err := provider.Extract(resp, 200, []byte(c.httpBody), "https://a.test")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(body) != c.want {
+				t.Errorf("body = %s, want %s", body, c.want)
+			}
+		})
+	}
+}
+
 func TestExtractBodyMissProducesEmptyNotNilString(t *testing.T) {
 	resp := provider.Response{Body: "$.content"}
 
