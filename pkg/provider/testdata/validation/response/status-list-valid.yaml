@@ -1,0 +1,21 @@
+input: |
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  auth: {type: bearer, credential: token}
+  request: {body: {target: "{{ .URL }}"}}
+  response: {status: ["$.results[0].status_code", "$.status_code"], body: "$.html"}
+wantErr: false
+wantManifest:
+  name: minimal
+  endpoint: https://api.minimal.test/scrape
+  method: POST
+  auth:
+    type: bearer
+    credential: token
+  request:
+    body: {target: "{{ .URL }}"}
+  response:
+    status: ["$.results[0].status_code", "$.status_code"]
+    body: "$.html"
+  options: []
+  errors: []

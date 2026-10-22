@@ -203,5 +203,7 @@ errors:
   - { status: 401, kind: auth }
   - { status: 429, kind: rateLimit }
 response:
-  status: "$..status_code"
-  body: "$..content"
+  status:
+    - "$.results[0].status_code"
+    - "$.status_code"
+  body: "$.results[0].content"

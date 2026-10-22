@@ -105,7 +105,7 @@ func TestRenderInvalidTemplateSyntaxErrors(t *testing.T) {
 }
 
 func TestExtractSuccessfulMatches(t *testing.T) {
-	resp := provider.Response{Status: "$.logicalStatus", Body: "$.content", FinalURL: "$.resolvedUrl"}
+	resp := provider.Response{Status: []string{"$.logicalStatus"}, Body: "$.content", FinalURL: "$.resolvedUrl"}
 	httpBody := []byte(`{"logicalStatus":429,"content":"the page","resolvedUrl":"https://a.test/final"}`)
 
 	status, body, finalURL, _, err := provider.Extract(resp, 200, httpBody, "https://a.test")
@@ -151,7 +151,7 @@ func TestExtractBodyMissOnEmptyHTTPBodyProducesEmptyBody(t *testing.T) {
 }
 
 func TestExtractStatusMissFallsBackToHTTPStatus(t *testing.T) {
-	resp := provider.Response{Status: "$.logicalStatus", Body: "$.content"}
+	resp := provider.Response{Status: []string{"$.logicalStatus"}, Body: "$.content"}
 
 	status, _, _, _, err := provider.Extract(resp, 500, []byte(`{"content":"x"}`), "https://a.test")
 
@@ -160,6 +160,30 @@ func TestExtractStatusMissFallsBackToHTTPStatus(t *testing.T) {
 	}
 	if status != 500 {
 		t.Fatalf("status = %d, want 500 (falls back to httpStatus when the JSONPath doesn't match)", status)
+	}
+}
+
+func TestExtractStatusTriesPathsInOrder(t *testing.T) {
+	resp := provider.Response{Status: []string{"$.results[0].status_code", "$.status_code"}, Body: "$.results[0].content"}
+	cases := []struct {
+		name     string
+		httpBody string
+		want     int
+	}{
+		{"first path wins", `{"results":[{"status_code":200,"content":{"status_code":12000}}]}`, 200},
+		{"falls back to second", `{"status_code":613}`, 613},
+		{"falls back to http status", `{}`, 502},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			status, _, _, _, err := provider.Extract(resp, 502, []byte(c.httpBody), "https://a.test")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if status != c.want {
+				t.Errorf("status = %d, want %d", status, c.want)
+			}
+		})
 	}
 }
 
