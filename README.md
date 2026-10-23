@@ -119,7 +119,7 @@ Decodo is included in the binary. To add another scraping API, create a YAML con
 
 ### Extend your workflow with Decodo
 
-Use Decodo's [Web Data API](https://decodo.com/scraping/web?utm_source=github&utm_medium=social&utm_campaign=pobear) to retrieve pages, then apply the same pobear extraction and output options.
+Use Decodo's [Web Data API](https://decodo.com/web-data-api?utm_source=github&utm_medium=social&utm_campaign=pobear) to retrieve pages, then apply the same pobear extraction and output options.
 
 1. Copy your Web Data API key from the [Decodo dashboard](https://dashboard.decodo.com/).
 2. Run `pobear auth decodo`. At the `decodo token:` prompt, paste your API key and press Enter. pobear saves it for later runs.
@@ -156,7 +156,7 @@ pobear crawl https://books.toscrape.com/ --depth 1 --max-pages 10 \
 
 Add `--proxy '<proxy-url>'` as well to try your proxy between direct fetching and Decodo. Each result's `tier` field identifies the method that retrieved the page.
 
-Fallback responds to blocked and rate-limited fetches. It does not trigger on empty extraction or a challenge page that returns HTTP `200`; see [troubleshooting](#troubleshooting).
+Fallback responds to blocked, rate-limited fetches and known anti-bot vendors. For other anti-bot vendors, see [troubleshooting](#troubleshooting).
 
 ## Automate web scraping with AI agents
 
