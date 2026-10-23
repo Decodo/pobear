@@ -95,6 +95,7 @@ var blockPageMarkers = [][]byte{
 	[]byte("_cf_chl_opt"),          // Cloudflare challenge
 	[]byte("captcha-delivery.com"), // DataDome
 	[]byte("px-captcha"),           // PerimeterX
+	[]byte("emsg=SG_REL"),          // Google Search
 }
 
 func isBlockPage(body []byte) bool {

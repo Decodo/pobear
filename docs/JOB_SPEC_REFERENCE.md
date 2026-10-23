@@ -170,7 +170,7 @@ reports which tier actually served each URL, whether or not `ladder` ever climbe
 
 On `local` and `proxy`, `blocked` covers `403`, `503`, and a `2xx` whose body is a
 recognized anti-bot page (Amazon's CAPTCHA, a Cloudflare challenge, DataDome,
-PerimeterX). Markers are vendor-specific, so an unrecognized challenge page still
+PerimeterX, Google Search's block page). Markers are vendor-specific, so an unrecognized challenge page still
 comes back as a successful fetch.
 
 **`profile` only spoofs the TLS ClientHello, nothing else:** it doesn't touch
