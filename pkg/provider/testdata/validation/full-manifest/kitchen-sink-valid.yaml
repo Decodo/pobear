@@ -57,7 +57,7 @@ wantManifest:
     body: {url: "{{ .URL }}", render: "{{ .Options.render }}", geo: "{{ .Options.geo }}", enabled: true, retries: 3, meta: {source: pobear}}
     query: {device: "{{ .Options.device }}"}
   response:
-    status: "$.status"
+    status: ["$.status"]
     body: "$.html"
     finalUrl: "$.resolvedUrl"
   errors:

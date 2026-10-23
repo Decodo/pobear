@@ -204,13 +204,14 @@ func Extract(resp Response, httpStatus int, httpBody []byte, requestURL string) 
 	}
 
 	status = httpStatus
-	if resp.Status != "" {
-		v, matched, err := extractJSONPath(resp.Status, parsed)
+	for _, path := range resp.Status {
+		v, matched, err := extractJSONPath(path, parsed)
 		if err != nil {
 			return 0, nil, "", false, err
 		}
 		if matched {
 			status = toInt(v)
+			break
 		}
 	}
 

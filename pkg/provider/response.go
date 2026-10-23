@@ -16,13 +16,13 @@ func parseResponse(root map[string]any) (Response, *ValidationError) {
 		return Response{}, err
 	}
 
-	var status string
+	var status []string
 	if v, ok := m["status"]; ok {
-		s, _ := v.(string)
-		if err := validateJSONPath(s, "response.status"); err != nil {
+		paths, err := parseStatusPaths(v)
+		if err != nil {
 			return Response{}, err
 		}
-		status = s
+		status = paths
 	}
 
 	bodyRaw, hasBody := m["body"]
@@ -44,6 +44,30 @@ func parseResponse(root map[string]any) (Response, *ValidationError) {
 	}
 
 	return Response{Status: status, Body: body, FinalURL: finalURL}, nil
+}
+
+func parseStatusPaths(v any) ([]string, *ValidationError) {
+	var raw []any
+	switch t := v.(type) {
+	case string:
+		raw = []any{t}
+	case []any:
+		raw = t
+	default:
+		return nil, utils.Errorf("response.status", "`response.status` must be a JSONPath or a list of them")
+	}
+	if len(raw) == 0 {
+		return nil, utils.Errorf("response.status", "`response.status` must not be an empty list")
+	}
+	paths := make([]string, len(raw))
+	for i, p := range raw {
+		s, _ := p.(string)
+		if err := validateJSONPath(s, "response.status"); err != nil {
+			return nil, err
+		}
+		paths[i] = s
+	}
+	return paths, nil
 }
 
 func validateJSONPath(s, field string) *ValidationError {
