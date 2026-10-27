@@ -243,6 +243,9 @@ It exists for providers that don't use HTTP status codes to report outcome at al
 a provider that does use real HTTP status codes, leaving `status` unset makes the
 two the same thing.
 
+A `body` that matches a string is used as-is; one that matches an object or array
+(e.g. a provider's parsed result) is written as JSON.
+
 ---
 
 ## 10. `errors`

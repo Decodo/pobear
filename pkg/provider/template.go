@@ -219,7 +219,10 @@ func Extract(resp Response, httpStatus int, httpBody []byte, requestURL string) 
 	if bodyVal, matched, err := extractJSONPath(resp.Body, parsed); err != nil {
 		return 0, nil, "", false, err
 	} else if matched {
-		body = fmt.Appendf(nil, "%v", bodyVal)
+		body, err = encodeBody(bodyVal)
+		if err != nil {
+			return 0, nil, "", false, err
+		}
 		bodyMatched = true
 	}
 
@@ -235,6 +238,15 @@ func Extract(resp Response, httpStatus int, httpBody []byte, requestURL string) 
 	}
 
 	return status, body, finalURL, bodyMatched, nil
+}
+
+func encodeBody(v any) ([]byte, error) {
+	switch v.(type) {
+	case map[string]any, []any:
+		return json.Marshal(v)
+	default:
+		return fmt.Appendf(nil, "%v", v), nil
+	}
 }
 
 func extractJSONPath(pathStr string, data any) (value any, matched bool, err error) {
