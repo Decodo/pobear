@@ -2,9 +2,15 @@ package tiers
 
 import (
 	"bytes"
+	"context"
+	"errors"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"os"
 	"strconv"
+	"syscall"
 	"testing"
 
 	"github.com/Decodo/pobear/pkg/fault"
@@ -88,5 +94,26 @@ func TestClassifyDefaultStatusMapsAuthStatuses(t *testing.T) {
 		if got := classifyDefaultStatus(status); got != fault.Auth {
 			t.Errorf("classifyDefaultStatus(%d) = %q, want %q", status, got, fault.Auth)
 		}
+	}
+}
+
+func TestTransportFault(t *testing.T) {
+	socketTimeout := &net.OpError{Op: "read", Net: "tcp", Err: os.NewSyscallError("read", syscall.ETIMEDOUT)}
+	cases := []struct {
+		name string
+		err  error
+		want fault.Kind
+	}{
+		{"context deadline", fmt.Errorf("get: %w", context.DeadlineExceeded), fault.Timeout},
+		{"socket timeout", socketTimeout, fault.Timeout},
+		{"connection refused", &net.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connect", syscall.ECONNREFUSED)}, fault.Network},
+		{"other", errors.New("boom"), fault.Network},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := transportFault(c.err); got != c.want {
+				t.Errorf("transportFault(%v) = %q, want %q", c.err, got, c.want)
+			}
+		})
 	}
 }

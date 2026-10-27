@@ -154,7 +154,7 @@ func TestResultsScreenNeverExceedsRequestedSizeWithTip(t *testing.T) {
 	})
 }
 
-func TestHasEscalatableFailureDetectsBlockedAndRateLimit(t *testing.T) {
+func TestHasEscalatableFailureDetectsBlockedRateLimitAndTimeout(t *testing.T) {
 	tests := []struct {
 		name string
 		rows []resultRow
@@ -165,6 +165,7 @@ func TestHasEscalatableFailureDetectsBlockedAndRateLimit(t *testing.T) {
 		{"failed but not escalatable", []resultRow{{status: "✗", kind: fault.Network}}, false},
 		{"blocked", []resultRow{{status: "✗", kind: fault.Blocked}}, true},
 		{"rate limited", []resultRow{{status: "✗", kind: fault.RateLimit}}, true},
+		{"timed out", []resultRow{{status: "✗", kind: fault.Timeout}}, true},
 		{"mixed, one blocked", []resultRow{{status: "✓ 200"}, {status: "✗", kind: fault.Blocked}}, true},
 	}
 	for _, tt := range tests {
