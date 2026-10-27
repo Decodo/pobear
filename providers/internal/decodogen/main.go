@@ -201,8 +201,10 @@ func generate(data []byte) ([]byte, error) {
 	sb.WriteString("  - { status: 401, kind: auth }\n")
 	sb.WriteString("  - { status: 429, kind: rateLimit }\n")
 	sb.WriteString("response:\n")
-	sb.WriteString("  status: \"$..status_code\"\n")
-	sb.WriteString("  body: \"$..content\"\n")
+	sb.WriteString("  status:\n")
+	sb.WriteString("    - \"$.results[0].status_code\"\n")
+	sb.WriteString("    - \"$.status_code\"\n")
+	sb.WriteString("  body: \"$.results[0].content\"\n")
 	return []byte(sb.String()), nil
 }
 

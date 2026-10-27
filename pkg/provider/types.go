@@ -35,9 +35,9 @@ type Request struct {
 }
 
 type Response struct {
-	Status   string `yaml:"status,omitempty"`
-	Body     string `yaml:"body"`
-	FinalURL string `yaml:"finalUrl,omitempty"`
+	Status   []string `yaml:"status,omitempty"`
+	Body     string   `yaml:"body"`
+	FinalURL string   `yaml:"finalUrl,omitempty"`
 }
 
 type ErrorMapping struct {
