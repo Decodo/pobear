@@ -229,7 +229,7 @@ Use the Decodo CLI when you want the full API surface and its ready-made targets
 
 ### Can pobear scrape JavaScript-rendered websites?
 
-Direct fetching retrieves HTML without executing JavaScript. Use `--provider decodo` for rendered content; the included Decodo configuration requests rendered HTML by default.
+Direct fetching retrieves HTML without executing JavaScript. Use `--provider decodo --render` for rendered content. Rendering is off by default.
 
 ### What output formats does pobear support?
 
