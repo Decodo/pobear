@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Decodo/pobear/actions/workflows/ci.yml/badge.svg)](https://github.com/Decodo/pobear/actions/workflows/ci.yml)
 
-pobear is an open-source web scraping CLI for extracting structured data and crawling websites from the command line. Enable `--ladder` to automatically fall back from direct requests to your configured proxy or scraping API when requests are blocked or rate-limited.
+[pobear](https://help.decodo.com/docs/pobear) is an open-source web scraping CLI for extracting structured data and crawling websites from the command line. Enable `--ladder` to automatically fall back from direct requests to your configured proxy or scraping API when requests are blocked or rate-limited.
 
 It runs in your terminal as a single Go binary, with built-in extraction and reusable scraping jobs. Start without installing a language runtime such as Python or Node.js, and without creating an account, then keep the same extraction rules as you change fetching methods.
 
