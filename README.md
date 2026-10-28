@@ -1,5 +1,7 @@
 # pobear · Open-source web scraping CLI with automatic fallback
 
+*Sniff out your data with any tool you want.*
+
 [![CI](https://github.com/Decodo/pobear/actions/workflows/ci.yml/badge.svg)](https://github.com/Decodo/pobear/actions/workflows/ci.yml)
 
 [pobear](https://help.decodo.com/docs/pobear) is an open-source web scraping CLI for extracting structured data and crawling websites from the command line. Enable `--ladder` to automatically fall back from direct requests to your configured proxy or scraping API when requests are blocked or rate-limited.
