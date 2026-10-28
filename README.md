@@ -2,14 +2,16 @@
 
 [![CI](https://github.com/Decodo/pobear/actions/workflows/ci.yml/badge.svg)](https://github.com/Decodo/pobear/actions/workflows/ci.yml)
 
-pobear is an open-source web scraping CLI for extracting structured data and crawling websites. Enable `--ladder` to automatically fall back from direct requests to your configured proxy or scraping API when requests are blocked or rate-limited.
+pobear is an open-source web scraping CLI for extracting structured data and crawling websites from the command line. Enable `--ladder` to automatically fall back from direct requests to your configured proxy or scraping API when requests are blocked or rate-limited.
 
-It runs as a single binary, with built-in extraction and reusable scraping jobs. Start without installing a language runtime or creating an account, and keep the same extraction rules as you change fetching methods.
+It runs in your terminal as a single Go binary, with built-in extraction and reusable scraping jobs. Start without installing a language runtime such as Python or Node.js, and without creating an account, then keep the same extraction rules as you change fetching methods.
 
 - **Collect the fields you need**. Extract text and attributes with CSS selectors, or convert HTML to Markdown.
 - **Build repeatable workflows**. Save commands as JSON job specs, edit them, and run them from scripts or an AI agent.
 - **Control your crawl**. Set depth, page limits, scope, and request rates, with sitemap discovery and `robots.txt` support.
 - **Use additional fetching services when needed**. Keep direct requests for accessible pages and add a proxy or Decodo for more demanding targets.
+
+Documentation: [CLI reference](docs/CLI_REFERENCE.md) · [Job spec reference](docs/JOB_SPEC_REFERENCE.md) · [Provider reference](docs/PROVIDER_REFERENCE.md)
 
 ## Quick start
 
@@ -207,9 +209,23 @@ pobear scrape https://books.toscrape.com/ --css 'price=.price_color' \
 
 ## FAQ
 
+### How do I scrape a website from the terminal?
+
+Install the binary, then run `pobear scrape <url>` with the fields you want. For example, `pobear scrape https://books.toscrape.com/ --css 'price=.price_color'` prints one NDJSON record containing the extracted prices. See [Quick start](#quick-start) for a crawl example, or run `pobear` with no arguments to open the interactive terminal wizard.
+
 ### Do I need a Decodo account or proxy to use pobear?
 
 No. Direct fetching works without an external account. You need proxy access or provider credentials only when you configure those fetching methods.
+
+### Do I need Go installed to run pobear?
+
+No. pobear ships as a precompiled Go binary for Linux, macOS, and Windows, so there is no Python, Node.js, or browser runtime to install. Go is required only to build from source, as described under [Development](#development).
+
+### How is pobear different from the Decodo CLI?
+
+Both scrape from the command line, but they start from opposite defaults. [Decodo CLI](https://github.com/Decodo/cli) is a Node.js client for Decodo's scraping API: every request goes through Decodo, and the API's targets for search engines, eCommerce platforms, and social media are exposed as subcommands. pobear is a standalone Go binary that fetches directly by default and treats a proxy or Decodo as optional tiers you add with `--proxy`, `--provider`, or `--ladder`.
+
+Use the Decodo CLI when you want the full API surface and its ready-made targets. Use pobear when you want one binary that runs without an account and escalates only when a page blocks you.
 
 ### Can pobear scrape JavaScript-rendered websites?
 
