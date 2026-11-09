@@ -291,6 +291,12 @@ make ci      # Run Go and installer checks, tests, and build
 
 pobear is maintained by [Decodo](https://decodo.com/). To report a problem or suggest a feature, [open an issue](https://github.com/Decodo/pobear/issues).
 
+## Related repositories
+
+- [`Decodo/cli`](https://github.com/Decodo/cli) — the `decodo` CLI for the Decodo Web Data API, with search engine, eCommerce, and social media targets as subcommands.
+- [`Decodo/mcp-server`](https://github.com/Decodo/mcp-server) — hosted and self-hosted MCP server that gives IDE-based agents access to Decodo scraping.
+- [`Decodo/agent-skills`](https://github.com/Decodo/agent-skills) — agent skills that teach AI coding agents when to reach for Decodo.
+
 ## License
 
 pobear is licensed under the [MIT License](LICENSE).
