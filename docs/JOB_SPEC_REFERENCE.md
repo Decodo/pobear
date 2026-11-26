@@ -138,11 +138,11 @@ supported.
 | `name` | string | `provider` only | — | must name an installed, loaded provider manifest |
 | `template` | string | `provider` only | the manifest's `default: true` template, if any | selects one of `name`'s declared templates; required if the manifest declares 2+ templates with none marked `default` |
 | `proxy` | string (URL) | `proxy` only | — | any `http`/`https`/`socks5`/`socks5h` proxy URL |
-| `profile` | enum: `chrome` \| `firefox` \| `safari` | `local`, `proxy` | `chrome` | TLS fingerprint preset |
+| `profile` | enum: `chrome` \| `firefox` \| `safari` | `local`, `proxy` | `chrome` | browser preset: TLS fingerprint plus that browser's default request headers (below) |
 | `options` | `map[string]any` | `provider` only | `{}` | validated against the selected template's declared options (or the manifest's top-level ones, if it has no templates) |
 | `timeout` | duration string | all | `30s` | per-request timeout |
 | `noRedirects` | `bool` | all | `false` | `true` = a `3xx` is the final result; its `Location` is never followed, and in crawl mode never added to the frontier |
-| `headers` | `map[string]string` | all | `{}` | extra request headers, sent as-is |
+| `headers` | `map[string]string` | all | `{}` | extra request headers; each replaces the `profile` default of the same name (below). Values must be strings, and names must be unique ignoring case |
 | `ladder` | `bool` | all | `false` | escalate to a higher configured tier (proxy, then provider) when a fetch is `blocked`, `rateLimit` or `timeout`; a no-op if no tier above `use` is configured |
 
 **Rule:** setting a field on a tier that doesn't support it is a validation error
@@ -176,17 +176,43 @@ comes back as a successful fetch.
 `timeout` covers both the `fetch.timeout` deadline and a connection that times
 out at the socket level.
 
-**`profile` only spoofs the TLS ClientHello, nothing else:** it doesn't touch
-`User-Agent` or any other header — a browser-shaped TLS fingerprint paired
-with no `User-Agent` (or a mismatched one) is itself a detectable,
-inconsistent signal, so set `headers.User-Agent` yourself (§ `headers` above)
-if you want one to match. Each profile currently pins one specific browser
-version at the TLS layer — Chrome 133, Firefox 120, Safari 16.0 — matching
-whatever version `github.com/refraction-networking/utls`'s
-`HelloChrome_Auto`/`HelloFirefox_Auto`/`HelloSafari_Auto` presets build a
-ClientHello for at the time this was implemented
-(`services/core/internal/fetch/tiers/fingerprint.go`); a future `utls` upgrade
-moving `_Auto` to a newer version isn't automatically reflected anywhere else.
+**`profile` — TLS fingerprint and default headers for one browser version:**
+each profile pins one browser version and uses it for both the TLS ClientHello
+(`github.com/refraction-networking/utls` presets `HelloChrome_133`,
+`HelloFirefox_120`, `HelloSafari_16_0`, in
+`services/core/internal/fetch/tiers/fingerprint.go`) and the request headers
+sent with it (`tiers/headers.go`), so the two always describe the same
+browser; a test fails if their versions drift apart. Moving to a newer
+browser means changing both together. All three profiles claim macOS.
+
+| | `chrome` | `firefox` | `safari` |
+|---|---|---|---|
+| Browser version | 133 | 120 | 16.0 |
+| Default headers | `User-Agent`, `Accept`, `Accept-Language`, `sec-ch-ua`, `sec-ch-ua-mobile`, `sec-ch-ua-platform`, `Sec-Fetch-Site`/`-Mode`/`-User`/`-Dest`, `Upgrade-Insecure-Requests` | `User-Agent`, `Accept`, `Accept-Language`, `Sec-Fetch-Site`/`-Mode`/`-User`/`-Dest`, `Upgrade-Insecure-Requests` | `User-Agent`, `Accept`, `Accept-Language` |
+
+The values are what that browser sends for a top-level navigation the user
+typed in (`Sec-Fetch-Site: none`); `tiers/headers.go` has them verbatim. Safari
+16.0 sends no `Sec-Fetch-*` (added in 16.4) and no `sec-ch-ua*` headers.
+
+How they combine with `headers`: the profile's defaults are applied first, then
+`headers`, and a `headers` entry replaces the default with the same name in
+any letter case. A default can be replaced but not removed: an empty value is
+sent as an empty header, except `User-Agent: ""`, which sends no `User-Agent`
+at all.
+
+Deliberately not set: `Accept-Encoding`, because Go's HTTP client sends
+`Accept-Encoding: gzip` itself and decompresses the response only when the
+request doesn't set one. Setting it in `headers` turns that off, and the body
+comes back compressed. Also not set: `Priority` and `TE`, which browsers send
+over HTTP/2; pobear speaks HTTP/1.1.
+
+Where a profile still differs from the real browser: header names go out in
+Go's canonical case (`Sec-Ch-Ua`) and sorted order; `Accept-Encoding` is just
+`gzip`; pages reached by a crawl still send `Sec-Fetch-Site: none` and no
+`Referer`.
+
+The `provider` tier takes no `profile` and sends no default headers; its
+`headers` go to the provider's API request (`PROVIDER_REFERENCE.md` §5a).
 
 ---
 
@@ -309,6 +335,8 @@ a crawl:
   `scope`/`robots` outside their enums; malformed `include`/`exclude` globs.
 - `fetch`: a field set for a tier that doesn't support it (§4); `profile`/`use`
   outside their enums; `timeout` not a valid duration.
+- `fetch.headers`: not a mapping; a value that isn't a string (an unquoted
+  number or boolean, or null); two names that differ only in letter case.
 - `fetch.template`: set without `use: provider`; names a template `name`'s
   manifest doesn't declare; omitted when the manifest has 2+ templates and none
   is marked `default`.

@@ -43,6 +43,7 @@ func doHTTPFetch(ctx context.Context, client *http.Client, cfg jobspec.Fetch, ur
 	if err != nil {
 		return nil, fault.Network, err
 	}
+	applyHeaders(req, profileHeaders[cfg.Profile])
 	applyHeaders(req, cfg.Headers)
 
 	switch allow := redirectPolicyFrom(ctx); {

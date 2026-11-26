@@ -48,14 +48,14 @@ $ pobear scrape urls.txt --print-spec
 | `--provider <name>` | — | tier 2 |
 | `--ladder` | off | escalate from local through whichever of proxy/provider are configured, if blocked, rate-limited or timed out — a no-op with neither set |
 | `--template <name>` | the provider's `default` template, if any | selects one of the provider's declared templates — see below |
-| `--profile chrome\|firefox\|safari` | `chrome` | local/proxy TLS fingerprint; rejected with `--provider` |
+| `--profile chrome\|firefox\|safari` | `chrome` | local/proxy browser profile: TLS fingerprint plus default headers (`JOB_SPEC_REFERENCE.md` §4); rejected with `--provider` |
 | `--render` | off | sugar for `--opt render=true` |
 | `--geo <code>` | — | sugar for `--opt geo=<code>` |
 | `--opt name=value` | — | repeatable; set any option the chosen provider declares — see below |
 | `-t, --timeout <duration>` | `30s` | per-request timeout |
 | `-e, --extract raw\|markdown` | — | add an extraction stage |
 | `--css name=selector[@attr]` | — | repeatable; each field name must be non-empty and set at most once |
-| `-H, --header "name: value"` | — | repeatable; sets `fetch.headers` (`JOB_SPEC_REFERENCE.md` §4) — each name must be non-empty and set at most once |
+| `-H, --header "name: value"` | — | repeatable; sets `fetch.headers` (`JOB_SPEC_REFERENCE.md` §4) — each name must be non-empty and set at most once, ignoring case; replaces the `--profile` default of the same name |
 | `-o, --out <path>` | stdout | write NDJSON to a file, or one file per target plus an `index.json` if `<path>` is a directory — see below |
 | `-b, --bare` | off | print just the extracted value, no envelope — see below |
 | `--print-spec` | off | print the spec, don't run it — fields still at their default are omitted, see below |
@@ -161,9 +161,13 @@ $ pobear scrape https://example.com --css 'title=h1' --css 'link=a@href'
 ### `-H, --header` — extra request headers
 
 Repeatable, `"name: value"` shape (curl's own `-H` convention), each name set at
-most once. This is the CLI surface for `fetch.headers` (`JOB_SPEC_REFERENCE.md`
-§4) — the only way to set it from `scrape`/`crawl` directly, without hand-writing
-a job spec and running it with `pobear run`:
+most once; names are case-insensitive, as in HTTP. This is the CLI surface for
+`fetch.headers` (`JOB_SPEC_REFERENCE.md` §4) — the only way to set it from
+`scrape`/`crawl` directly, without hand-writing a job spec and running it with
+`pobear run`. A `--header` replaces the `--profile` default with the same name,
+in any letter case (`-H 'user-agent: x'` replaces the profile's `User-Agent`);
+the defaults themselves never appear in `--print-spec` output, since they come
+from `profile`:
 
 ```
 $ pobear scrape https://example.com --header 'X-Custom: 1' --print-spec
@@ -180,6 +184,10 @@ same as a repeated `--css` field name:
 ```
 $ pobear scrape https://example.com --header 'X-Custom: 1' --header 'X-Custom: 2'
 pobear: --header "X-Custom" is set more than once
+$ echo $?
+3
+$ pobear scrape https://example.com --header 'User-Agent: a' --header 'user-agent: b'
+pobear: --header "user-agent" duplicates "User-Agent"; header names are case-insensitive
 $ echo $?
 3
 ```
@@ -746,7 +754,7 @@ own:
 ```
 ┌─ Local ────────────────────────────────────────────────────────────────── esc: back ─┐
 │                                                                                      │
-│   › Profile       chrome      (TLS fingerprint)                                      │
+│   › Profile       chrome      (TLS fingerprint + headers)                            │
 │                                                                                      │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```

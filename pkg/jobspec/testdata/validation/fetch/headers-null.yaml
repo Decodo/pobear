@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local, headers: {X-Empty: null}}
+wantErr: true
+wantField: fetch.headers.X-Empty
+wantMessage: "`fetch.headers.X-Empty` must be a string; quote the value"

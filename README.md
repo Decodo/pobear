@@ -117,7 +117,7 @@ pobear scrape https://go.dev/doc/ --extract markdown \
   --proxy '<proxy-url>' --out page.ndjson
 ```
 
-Replace `<proxy-url>` with your proxy's connection URL. Direct and proxy requests support Chrome, Firefox, and Safari TLS fingerprint profiles through `--profile`; the default is Chrome. These profiles do not execute JavaScript.
+Replace `<proxy-url>` with your proxy's connection URL. Direct and proxy requests support Chrome, Firefox, and Safari browser profiles through `--profile`, which set a matching TLS fingerprint and default request headers; the default is Chrome. These profiles do not execute JavaScript.
 
 Decodo is included in the binary. To add another scraping API, create a YAML configuration file using the [provider reference](docs/PROVIDER_REFERENCE.md).
 
