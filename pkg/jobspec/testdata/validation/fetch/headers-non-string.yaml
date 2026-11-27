@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local, headers: {X-Num: 1}}
+wantErr: true
+wantField: fetch.headers.X-Num
+wantMessage: "`fetch.headers.X-Num` must be a string; quote the value"

@@ -17,9 +17,9 @@ func TestHelloIDForProfile(t *testing.T) {
 		profile string
 		want    utls.ClientHelloID
 	}{
-		{"chrome", utls.HelloChrome_Auto},
-		{"firefox", utls.HelloFirefox_Auto},
-		{"safari", utls.HelloSafari_Auto},
+		{"chrome", utls.HelloChrome_133},
+		{"firefox", utls.HelloFirefox_120},
+		{"safari", utls.HelloSafari_16_0},
 	}
 	for _, c := range cases {
 		got, err := helloIDForProfile(c.profile)

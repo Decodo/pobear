@@ -1,0 +1,7 @@
+input: |
+  version: 1
+  source: {urls: [https://a.test]}
+  fetch: {use: local, headers: {User-Agent: a, user-agent: b}}
+wantErr: true
+wantField: fetch.headers.user-agent
+wantMessage: "`fetch.headers.user-agent` duplicates `fetch.headers.User-Agent`; header names are case-insensitive"

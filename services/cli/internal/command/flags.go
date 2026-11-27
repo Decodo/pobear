@@ -91,7 +91,7 @@ func registerCommonFlags(cmd *cobra.Command, f *commonFlags, defaultRPS int) {
 	flags.StringVar(&f.proxy, "proxy", "", "fetch through this proxy URL (tier 2)")
 	flags.StringVar(&f.provider, "provider", "", "fetch through this provider's manifest (tier 3)")
 	flags.StringVar(&f.template, "template", "", "the provider template to use (default: the provider's own default template, if any)")
-	flags.StringVar(&f.profile, "profile", "chrome", "local/proxy TLS fingerprint: chrome, firefox, or safari")
+	flags.StringVar(&f.profile, "profile", "chrome", "local/proxy browser profile (TLS fingerprint + default headers): chrome, firefox, or safari")
 	flags.BoolVar(&f.render, "render", false, "sugar for --opt render=true")
 	flags.StringVar(&f.geo, "geo", "", "sugar for --opt geo=<code>")
 	flags.StringArrayVar(&f.opts, "opt", nil, "set a provider option as name=value (repeatable)")

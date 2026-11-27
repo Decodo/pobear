@@ -2,18 +2,22 @@ package tiers
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
+	"slices"
 	"strconv"
 	"syscall"
 	"testing"
 
 	"github.com/Decodo/pobear/pkg/fault"
+	"github.com/Decodo/pobear/pkg/jobspec"
 )
 
 func TestClassifyDefaultStatus(t *testing.T) {
@@ -115,5 +119,135 @@ func TestTransportFault(t *testing.T) {
 				t.Errorf("transportFault(%v) = %q, want %q", c.err, got, c.want)
 			}
 		})
+	}
+}
+
+func TestDoHTTPFetchProfileHeaders(t *testing.T) {
+	cases := []struct {
+		name  string
+		cfg   jobspec.Fetch
+		check func(t *testing.T, h http.Header)
+	}{
+		{"chrome sends its defaults", jobspec.Fetch{Profile: "chrome"}, wantProfileDefaults("chrome")},
+		{"firefox sends its defaults", jobspec.Fetch{Profile: "firefox"}, wantProfileDefaults("firefox")},
+		{"safari sends its defaults and no fetch metadata", jobspec.Fetch{Profile: "safari"}, func(t *testing.T, h http.Header) {
+			wantProfileDefaults("safari")(t, h)
+			if v := h.Values("Sec-Fetch-Site"); len(v) > 0 {
+				t.Errorf("Sec-Fetch-Site = %q, want it absent", v)
+			}
+		}},
+		{"user header overrides a default in any case", jobspec.Fetch{Profile: "chrome", Headers: map[string]string{"user-agent": "x"}}, func(t *testing.T, h http.Header) {
+			if v := h.Values("User-Agent"); len(v) != 1 || v[0] != "x" {
+				t.Errorf("User-Agent = %q, want exactly [\"x\"]", v)
+			}
+			if got, want := h.Get("Sec-Ch-Ua"), profileHeaders["chrome"]["Sec-Ch-Ua"]; got != want {
+				t.Errorf("Sec-Ch-Ua = %q, want the chrome default %q", got, want)
+			}
+		}},
+		{"no profile sends no defaults", jobspec.Fetch{}, func(t *testing.T, h http.Header) {
+			if got := h.Get("User-Agent"); got != "Go-http-client/1.1" {
+				t.Errorf("User-Agent = %q, want Go's default", got)
+			}
+			if v := h.Values("Sec-Ch-Ua"); len(v) > 0 {
+				t.Errorf("Sec-Ch-Ua = %q, want it absent", v)
+			}
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			c.check(t, fetchCapturingHeaders(t, c.cfg))
+		})
+	}
+}
+
+func wantProfileDefaults(profile string) func(t *testing.T, h http.Header) {
+	return func(t *testing.T, h http.Header) {
+		t.Helper()
+		defaults := profileHeaders[profile]
+		if len(defaults) == 0 {
+			t.Fatalf("no default headers for profile %q", profile)
+		}
+		for name, want := range defaults {
+			if got := h.Get(name); got != want {
+				t.Errorf("%s = %q, want %q", name, got, want)
+			}
+		}
+	}
+}
+
+func fetchCapturingHeaders(t *testing.T, cfg jobspec.Fetch) http.Header {
+	t.Helper()
+	got := make(chan http.Header, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got <- r.Header.Clone()
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+
+	l := &Local{Client: srv.Client()}
+	if _, _, err := l.Fetch(t.Context(), cfg, srv.URL); err != nil {
+		t.Fatalf("Fetch: %v", err)
+	}
+	return <-got
+}
+
+func TestDoHTTPFetchRedirectReferer(t *testing.T) {
+	cases := []struct {
+		name    string
+		headers map[string]string
+		want    []string
+	}{
+		{"the referer Go adds is dropped", nil, nil},
+		{"a user-set referer is kept", map[string]string{"Referer": "https://example.com/"}, []string{"https://example.com/"}},
+		{"a user-set empty referer is kept empty", map[string]string{"Referer": ""}, []string{""}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := make(chan http.Header, 1)
+			mux := http.NewServeMux()
+			mux.Handle("/a", http.RedirectHandler("/b", http.StatusMovedPermanently))
+			mux.HandleFunc("/b", func(w http.ResponseWriter, r *http.Request) {
+				got <- r.Header.Clone()
+				_, _ = w.Write([]byte("ok"))
+			})
+			srv := httptest.NewServer(mux)
+			defer srv.Close()
+
+			l := &Local{Client: srv.Client()}
+			cfg := jobspec.Fetch{Profile: "chrome", Headers: c.headers}
+			if _, _, err := l.Fetch(t.Context(), cfg, srv.URL+"/a"); err != nil {
+				t.Fatalf("Fetch: %v", err)
+			}
+			h := <-got
+			if v := h.Values("Referer"); !slices.Equal(v, c.want) {
+				t.Errorf("Referer on the redirected request = %q, want %q", v, c.want)
+			}
+			wantProfileDefaults("chrome")(t, h)
+		})
+	}
+}
+
+func TestDoHTTPFetchStillDecodesGzip(t *testing.T) {
+	gotAcceptEncoding := make(chan string, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAcceptEncoding <- r.Header.Get("Accept-Encoding")
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Content-Encoding", "gzip")
+		gz := gzip.NewWriter(w)
+		_, _ = gz.Write([]byte("hello, decoded"))
+		_ = gz.Close()
+	}))
+	defer srv.Close()
+
+	l := &Local{Client: srv.Client()}
+	res, _, err := l.Fetch(t.Context(), jobspec.Fetch{Profile: "chrome"}, srv.URL)
+	if err != nil {
+		t.Fatalf("Fetch: %v", err)
+	}
+	if got := <-gotAcceptEncoding; got != "gzip" {
+		t.Errorf("Accept-Encoding = %q, want Go's transport-added \"gzip\"", got)
+	}
+	if got := string(res.Body); got != "hello, decoded" {
+		t.Errorf("Body = %q, want the decoded text", got)
 	}
 }

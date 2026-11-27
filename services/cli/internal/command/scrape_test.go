@@ -271,6 +271,22 @@ func TestScrapeDuplicateHeaderErrors(t *testing.T) {
 	}
 }
 
+func TestScrapeCaseInsensitiveDuplicateHeaderErrors(t *testing.T) {
+	args := cliArgs("scrape https://example.com --header User-Agent:a --header user-agent:b")
+
+	cmd := &command.Scrape{Runner: &fakeRunner{}, Providers: providerator.New(t.TempDir())}
+
+	var stderr bytes.Buffer
+	got := cmd.Run(context.Background(), args, bytes.NewReader(nil), &bytes.Buffer{}, &stderr)
+
+	if got != 3 {
+		t.Fatalf("Run() = %d, want 3", got)
+	}
+	if want := "pobear: --header \"user-agent\" duplicates \"User-Agent\"; header names are case-insensitive\n"; stderr.String() != want {
+		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
+	}
+}
+
 func TestScrapeMissingTargetPrintsHelp(t *testing.T) {
 	args := cliArgs("scrape")
 

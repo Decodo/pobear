@@ -43,28 +43,29 @@ func doHTTPFetch(ctx context.Context, client *http.Client, cfg jobspec.Fetch, ur
 	if err != nil {
 		return nil, fault.Network, err
 	}
+	applyHeaders(req, profileHeaders[cfg.Profile])
 	applyHeaders(req, cfg.Headers)
 
-	switch allow := redirectPolicyFrom(ctx); {
-	case cfg.NoRedirects:
-		c := *client
-		c.CheckRedirect = func(*http.Request, []*http.Request) error {
+	allow := redirectPolicyFrom(ctx)
+	c := *client
+	c.CheckRedirect = func(next *http.Request, via []*http.Request) error {
+		if cfg.NoRedirects {
 			return http.ErrUseLastResponse
 		}
-		client = &c
-	case allow != nil:
-		c := *client
-		c.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-			if !allow(req.URL.String()) {
-				return ErrRedirectBlocked
-			}
-			if len(via) >= maxRedirects {
-				return fmt.Errorf("stopped after %d redirects", maxRedirects)
-			}
-			return nil
+		if allow != nil && !allow(next.URL.String()) {
+			return ErrRedirectBlocked
 		}
-		client = &c
+		if len(via) >= maxRedirects {
+			return fmt.Errorf("stopped after %d redirects", maxRedirects)
+		}
+		if ref, set := via[0].Header["Referer"]; set {
+			next.Header["Referer"] = ref
+		} else {
+			next.Header.Del("Referer")
+		}
+		return nil
 	}
+	client = &c
 
 	resp, err := client.Do(req)
 	if err != nil {

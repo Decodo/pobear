@@ -2,6 +2,7 @@ package jobspec
 
 import (
 	"fmt"
+	"net/http"
 	"slices"
 	"strings"
 
@@ -120,8 +121,18 @@ func parseFetchHeaders(m map[string]any, fetch *Fetch) *ValidationError {
 		return utils.Errorf("fetch.headers", "`fetch.headers` must be a mapping")
 	}
 	headers := make(map[string]string, len(hdrMap))
-	for k, val := range hdrMap {
-		s, _ := val.(string)
+	seen := make(map[string]string, len(hdrMap))
+	for _, k := range utils.SortedKeys(hdrMap) {
+		field := "fetch.headers." + k
+		s, ok := hdrMap[k].(string)
+		if !ok {
+			return utils.Errorf(field, "`%s` must be a string; quote the value", field)
+		}
+		canonical := http.CanonicalHeaderKey(k)
+		if first, dup := seen[canonical]; dup {
+			return utils.Errorf(field, "`%s` duplicates `fetch.headers.%s`; header names are case-insensitive", field, first)
+		}
+		seen[canonical] = k
 		headers[k] = s
 	}
 	fetch.Headers = headers

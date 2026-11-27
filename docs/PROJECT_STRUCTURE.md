@@ -45,7 +45,8 @@
         throttle.go                 // enforces limits.rps; one Throttle instance is shared by the whole job's Fetcher, so a crawl's frontier workers and a plain URL list's pool both pace through the same rate limit
         backoff.go                  // backoff timing only: the exponential delay before retry attempt N. Cross-tier escalation (local -> proxy -> provider) is NOT a Core/job-spec feature in v1 — it's a CLI-level interactive flow (a job fails, the CLI suggests a different tier, and on confirmation generates + reruns a new job spec with a different fetch.use). A job-spec field to auto-escalate through the ladder without a CLI prompt is a possible later feature, deferred like __rpc/plugin; if it lands, it gets its own file then rather than pre-claiming this one's name.
         /tiers                      // the different tiers fetcher can dispatch to
-          local.go                   // fetch tier: direct HTTP fetch with a TLS fingerprint profile (chrome/firefox/safari)
+          local.go                   // fetch tier: direct HTTP fetch with a browser profile (chrome/firefox/safari): TLS fingerprint plus default headers
+          headers.go                 // each profile's default request headers, applied before fetch.headers; their browser versions must match fingerprint.go's pinned utls presets (enforced by a test)
           proxy.go                   // proxy tier: fetch routed through a user-supplied proxy URL
           provider.go                // provider tier: fetch via a named manifest — auth (via pkg/credentials), request templating (via pkg/provider), response JSONPath extraction, error-kind mapping (via pkg/fault)
       /stage

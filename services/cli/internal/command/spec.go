@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 
@@ -79,6 +80,7 @@ func buildHeaders(headers []string) (map[string]string, *cliError) {
 		return nil, nil
 	}
 	fields := make(map[string]string, len(headers))
+	seen := make(map[string]string, len(headers))
 	for _, kv := range headers {
 		name, val, ok := strings.Cut(kv, ":")
 		if !ok {
@@ -88,9 +90,14 @@ func buildHeaders(headers []string) (map[string]string, *cliError) {
 		if name == "" {
 			return nil, newCLIError(exitcode.UsageError, "invalid --header %q, header name is empty", kv)
 		}
-		if _, dup := fields[name]; dup {
-			return nil, newCLIError(exitcode.UsageError, "--header %q is set more than once", name)
+		canonical := http.CanonicalHeaderKey(name)
+		if first, dup := seen[canonical]; dup {
+			if first == name {
+				return nil, newCLIError(exitcode.UsageError, "--header %q is set more than once", name)
+			}
+			return nil, newCLIError(exitcode.UsageError, "--header %q duplicates %q; header names are case-insensitive", name, first)
 		}
+		seen[canonical] = name
 		fields[name] = strings.TrimLeft(val, " ")
 	}
 	return fields, nil

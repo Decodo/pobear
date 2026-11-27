@@ -18,11 +18,11 @@ var testHookInsecureSkipVerify = false
 func helloIDForProfile(profile string) (utls.ClientHelloID, error) {
 	switch profile {
 	case "chrome":
-		return utls.HelloChrome_Auto, nil
+		return utls.HelloChrome_133, nil
 	case "firefox":
-		return utls.HelloFirefox_Auto, nil
+		return utls.HelloFirefox_120, nil
 	case "safari":
-		return utls.HelloSafari_Auto, nil
+		return utls.HelloSafari_16_0, nil
 	default:
 		return utls.ClientHelloID{}, fmt.Errorf("tiers: no TLS fingerprint for profile %q", profile)
 	}

@@ -47,13 +47,13 @@ func cssFieldName(i int, part string) string {
 }
 
 func localTierFields(c fetchConfig) []field {
-	return []field{choiceField("profile", "Profile", "(TLS fingerprint)", []string{"chrome", "firefox", "safari"}, c.profile)}
+	return []field{choiceField("profile", "Profile", "(TLS fingerprint + headers)", []string{"chrome", "firefox", "safari"}, c.profile)}
 }
 
 func proxyTierFields(c fetchConfig) []field {
 	return []field{
 		textField("proxyURL", "Proxy URL", "", c.proxyURL),
-		choiceField("profile", "Profile", "(TLS fingerprint)", []string{"chrome", "firefox", "safari"}, c.profile),
+		choiceField("profile", "Profile", "(TLS fingerprint + headers)", []string{"chrome", "firefox", "safari"}, c.profile),
 	}
 }
 
