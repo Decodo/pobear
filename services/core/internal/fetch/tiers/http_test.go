@@ -199,6 +199,7 @@ func TestDoHTTPFetchRedirectReferer(t *testing.T) {
 	}{
 		{"the referer Go adds is dropped", nil, nil},
 		{"a user-set referer is kept", map[string]string{"Referer": "https://example.com/"}, []string{"https://example.com/"}},
+		{"a user-set empty referer is kept empty", map[string]string{"Referer": ""}, []string{""}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

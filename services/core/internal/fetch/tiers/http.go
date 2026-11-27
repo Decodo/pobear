@@ -58,7 +58,9 @@ func doHTTPFetch(ctx context.Context, client *http.Client, cfg jobspec.Fetch, ur
 		if len(via) >= maxRedirects {
 			return fmt.Errorf("stopped after %d redirects", maxRedirects)
 		}
-		if via[0].Header.Get("Referer") == "" {
+		if ref, set := via[0].Header["Referer"]; set {
+			next.Header["Referer"] = ref
+		} else {
 			next.Header.Del("Referer")
 		}
 		return nil
