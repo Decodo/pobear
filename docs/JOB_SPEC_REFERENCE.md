@@ -200,6 +200,11 @@ any letter case. A default can be replaced but not removed: an empty value is
 sent as an empty header, except `User-Agent: ""`, which sends no `User-Agent`
 at all.
 
+On a redirect, the same headers go out again on the next request. Go's HTTP
+client would also add a `Referer` naming the previous URL; pobear removes it,
+since a browser following a redirect from a typed address sends none. A
+`Referer` set in `headers` is kept on every hop.
+
 Deliberately not set: `Accept-Encoding`, because Go's HTTP client sends
 `Accept-Encoding: gzip` itself and decompresses the response only when the
 request doesn't set one. Setting it in `headers` turns that off, and the body

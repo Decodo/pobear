@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strconv"
 	"syscall"
 	"testing"
@@ -188,6 +189,41 @@ func fetchCapturingHeaders(t *testing.T, cfg jobspec.Fetch) http.Header {
 		t.Fatalf("Fetch: %v", err)
 	}
 	return <-got
+}
+
+func TestDoHTTPFetchRedirectReferer(t *testing.T) {
+	cases := []struct {
+		name    string
+		headers map[string]string
+		want    []string
+	}{
+		{"the referer Go adds is dropped", nil, nil},
+		{"a user-set referer is kept", map[string]string{"Referer": "https://example.com/"}, []string{"https://example.com/"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := make(chan http.Header, 1)
+			mux := http.NewServeMux()
+			mux.Handle("/a", http.RedirectHandler("/b", http.StatusMovedPermanently))
+			mux.HandleFunc("/b", func(w http.ResponseWriter, r *http.Request) {
+				got <- r.Header.Clone()
+				_, _ = w.Write([]byte("ok"))
+			})
+			srv := httptest.NewServer(mux)
+			defer srv.Close()
+
+			l := &Local{Client: srv.Client()}
+			cfg := jobspec.Fetch{Profile: "chrome", Headers: c.headers}
+			if _, _, err := l.Fetch(t.Context(), cfg, srv.URL+"/a"); err != nil {
+				t.Fatalf("Fetch: %v", err)
+			}
+			h := <-got
+			if v := h.Values("Referer"); !slices.Equal(v, c.want) {
+				t.Errorf("Referer on the redirected request = %q, want %q", v, c.want)
+			}
+			wantProfileDefaults("chrome")(t, h)
+		})
+	}
 }
 
 func TestDoHTTPFetchStillDecodesGzip(t *testing.T) {
